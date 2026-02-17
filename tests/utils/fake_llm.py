@@ -1,57 +1,153 @@
-from typing import Any, Dict, Iterator, Optional
+from __future__ import annotations
+
+from collections.abc import Iterator
+from dataclasses import dataclass
+
+from rag_control.adapters.llm import LLM
+from rag_control.models.llm import (
+    LLMMetadata,
+    LLMResponse,
+    LLMStreamChunk,
+    LLMStreamResponse,
+    LLMUsage,
+)
 
 
-class LLMUsage:
+@dataclass(slots=True)
+class _PlannedOutput:
+    content: str
+    model: str
+    provider: str
+    latency_ms: float
+    request_id: str | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    stream_chunks: tuple[str, ...] | None = None
+
+
+class FakeLLM(LLM):
+    """Deterministic, in-memory LLM adapter for tests."""
+
     def __init__(
         self,
-        prompt_tokens: int,
-        completion_tokens: int,
-        total_tokens: int
-    ):
-        self.prompt_tokens = prompt_tokens
-        self.completion_tokens = completion_tokens
-        self.total_tokens = total_tokens
+        *,
+        default_content: str = "ok",
+        model: str = "fake-model",
+        provider: str = "fake-provider",
+        latency_ms: float = 0.0,
+    ) -> None:
+        self.default_content = default_content
+        self.default_model = model
+        self.default_provider = provider
+        self.default_latency_ms = latency_ms
 
+        self.prompts: list[str] = []
+        self.generate_calls = 0
+        self.stream_calls = 0
 
-class LLMMetadata:
-    def __init__(
+        self._planned_outputs: list[_PlannedOutput] = []
+        self._next_error: Exception | None = None
+
+    def enqueue_response(
         self,
-        model: str,
-        provider: str,
-        latency_ms: float,
-        request_id: Optional[str] = None,
-        raw: Optional[Dict[str, Any]] = None,
-    ):
-        self.model = model
-        self.provider = provider
-        self.latency_ms = latency_ms
-        self.request_id = request_id
-        self.raw = raw or {}
-
-
-class LLMResponse:
-    def __init__(
-        self,
+        *,
         content: str,
-        usage: LLMUsage,
-        metadata: LLMMetadata,
-    ):
-        self.content = content
-        self.usage = usage
-        self.metadata = metadata
+        model: str | None = None,
+        provider: str | None = None,
+        latency_ms: float | None = None,
+        request_id: str | None = None,
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
+        stream_chunks: tuple[str, ...] | None = None,
+    ) -> None:
+        self._planned_outputs.append(
+            _PlannedOutput(
+                content=content,
+                model=model or self.default_model,
+                provider=provider or self.default_provider,
+                latency_ms=self.default_latency_ms if latency_ms is None else latency_ms,
+                request_id=request_id,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                stream_chunks=stream_chunks,
+            )
+        )
 
-class LLMStreamChunk:
-    def __init__(self, delta: str):
-        self.delta = delta
+    def fail_next(self, error: Exception) -> None:
+        self._next_error = error
 
+    def generate(self, prompt: str) -> LLMResponse:
+        if self._next_error is not None:
+            error = self._next_error
+            self._next_error = None
+            raise error
 
-class LLMStreamResponse:
-    def __init__(
-        self,
-        stream: Iterator[LLMStreamChunk],
-        usage: Optional[LLMUsage] = None,
-        metadata: Optional[LLMMetadata] = None,
-    ):
-        self.stream = stream
-        self.usage = usage
-        self.metadata = metadata
+        self._validate_prompt(prompt)
+        self.prompts.append(prompt)
+        self.generate_calls += 1
+
+        planned = self._next_planned_output()
+        usage = self._usage_for(prompt=prompt, content=planned.content, planned=planned)
+        metadata = self._metadata_for(planned)
+        return LLMResponse(content=planned.content, usage=usage, metadata=metadata)
+
+    def stream(self, prompt: str) -> LLMStreamResponse:
+        if self._next_error is not None:
+            error = self._next_error
+            self._next_error = None
+            raise error
+
+        self._validate_prompt(prompt)
+        self.prompts.append(prompt)
+        self.stream_calls += 1
+
+        planned = self._next_planned_output()
+        usage = self._usage_for(prompt=prompt, content=planned.content, planned=planned)
+        metadata = self._metadata_for(planned)
+        chunks = planned.stream_chunks or (planned.content,)
+
+        def _iter() -> Iterator[LLMStreamChunk]:
+            for delta in chunks:
+                yield LLMStreamChunk(delta=delta)
+
+        return LLMStreamResponse(stream=_iter(), usage=usage, metadata=metadata)
+
+    def _next_planned_output(self) -> _PlannedOutput:
+        if self._planned_outputs:
+            return self._planned_outputs.pop(0)
+        return _PlannedOutput(
+            content=self.default_content,
+            model=self.default_model,
+            provider=self.default_provider,
+            latency_ms=self.default_latency_ms,
+        )
+
+    @staticmethod
+    def _validate_prompt(prompt: str) -> None:
+        if not isinstance(prompt, str):
+            raise TypeError("prompt must be a str")
+
+    @staticmethod
+    def _usage_for(prompt: str, content: str, planned: _PlannedOutput) -> LLMUsage:
+        prompt_tokens = planned.prompt_tokens if planned.prompt_tokens is not None else len(prompt.split())
+        completion_tokens = (
+            planned.completion_tokens
+            if planned.completion_tokens is not None
+            else len(content.split())
+        )
+        total_tokens = prompt_tokens + completion_tokens
+        return LLMUsage(
+            prompt_tokens=max(0, prompt_tokens),
+            completion_tokens=max(0, completion_tokens),
+            total_tokens=max(0, total_tokens),
+        )
+
+    @staticmethod
+    def _metadata_for(planned: _PlannedOutput) -> LLMMetadata:
+        return LLMMetadata(
+            model=planned.model,
+            provider=planned.provider,
+            latency_ms=max(0.0, float(planned.latency_ms)),
+            request_id=planned.request_id,
+            raw={},
+        )
