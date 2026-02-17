@@ -1,8 +1,24 @@
-from ..models.llm_response import LLMResponse
+from abc import ABC, abstractmethod
+from rag_control.models.llm import (
+    LLMResponse,
+    LLMStreamResponse
+)
 
-class LLM:
-    """
-    Base class for LLM implementations. All LLMs should inherit from this class and implement the generate method.
-    """
+
+class LLM(ABC):
+
+    @abstractmethod
     def generate(self, prompt: str) -> LLMResponse:
-        raise NotImplementedError
+        """
+        Synchronous generation.
+        Must return structured metadata.
+        """
+        pass
+
+    @abstractmethod
+    def stream(self, prompt: str) -> LLMStreamResponse:
+        """
+        Streaming generation.
+        Must yield chunks safely.
+        """
+        pass
