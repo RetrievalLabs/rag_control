@@ -19,3 +19,5 @@ htmlcov/
 .vscode/
 
 rag_control.egg-info/
+
+uv.lock

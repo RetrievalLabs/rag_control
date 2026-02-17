@@ -1,7 +1,7 @@
 VENV_DIR := .venv
 PYTHON := python3
 
-.PHONY: venv activate install install-dev sync sync-dev test clean
+.PHONY: venv activate install install-dev sync sync-dev test tests clean
 
 venv:
 	uv venv $(VENV_DIR) --python $(PYTHON)
@@ -21,7 +21,9 @@ sync: install
 sync-dev: install-dev
 
 test: install-dev
-	uv run --python $(VENV_DIR)/bin/python pytest -q
+	uv run --python $(VENV_DIR)/bin/python pytest -v
+
+tests: test
 
 clean:
 	rm -rf $(VENV_DIR)
