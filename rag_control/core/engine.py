@@ -1,5 +1,5 @@
 
-class RagControl:
+class RAGControl:
     """
     Mandatory execution spine for governed RAG.
 
