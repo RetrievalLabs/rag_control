@@ -10,8 +10,9 @@ class RAGControl:
     - Auditable lifecycle
     """
 
-    def __init__(self, llm):
+    def __init__(self, llm, query_embedding):
         self.llm = llm
+        self.query_embedding = query_embedding
 
     def run(self, query: str):
         """
@@ -20,5 +21,6 @@ class RAGControl:
         :param query: User query to process through the RAG
         :type query: str
         """
+        query_embedding_response = self.query_embedding.embed(query)
         response = self.llm.generate(query)
-        return response
+        return query_embedding_response, response
