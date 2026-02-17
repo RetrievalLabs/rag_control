@@ -35,6 +35,9 @@ Generate Contract
     - `provider` (non-empty `str`)
     - `latency_ms` (`float` or numeric >= 0)
   - `metadata.request_id` MAY be `None` when not exposed by provider.
+  - `metadata.timestamp` MAY be `None` when request time is unavailable.
+  - `metadata.temperature` MAY be `None` when unset or unavailable from provider.
+  - `metadata.top_p` MAY be `None` when unset or unavailable from provider.
   - `metadata.raw` MUST be a dict and MUST NOT be shared across responses.
 
 Stream Contract
@@ -62,6 +65,7 @@ Determinism and Safety
 - Adapter MUST NOT mutate returned objects after completion, except:
   - Streaming usage/metadata MAY transition from `None` to populated state during lifecycle if implementation documents this behavior.
 - `metadata.raw` SHOULD contain provider-native fields useful for observability.
+- If present, `metadata.timestamp` SHOULD be UTC and consistently typed across adapter outputs.
 - Adapter MUST avoid leaking secrets in `metadata.raw`.
 
 Test Contract (Minimum)
@@ -75,6 +79,7 @@ Test Contract (Minimum)
   - Propagates provider exceptions.
 - Metadata:
   - `model`, `provider`, `latency_ms` are set.
+  - `timestamp`, `temperature`, `top_p` are correctly populated or `None`.
   - `raw` is a per-instance dict.
 
 Reference Interfaces

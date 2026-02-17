@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Dict, Iterator, Optional
 
 
@@ -15,6 +16,9 @@ class LLMMetadata:
     provider: str
     latency_ms: float
     request_id: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
     raw: Dict[str, Any] = field(default_factory=dict)
 
 

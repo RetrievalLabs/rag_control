@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
+from datetime import datetime
 
 from rag_control.adapters.llm import LLM
 from rag_control.models.llm import (
@@ -20,6 +21,9 @@ class _PlannedOutput:
     provider: str
     latency_ms: float
     request_id: str | None = None
+    timestamp: datetime | None = None
+    temperature: float | None = None
+    top_p: float | None = None
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     stream_chunks: tuple[str, ...] | None = None
@@ -56,6 +60,9 @@ class FakeLLM(LLM):
         provider: str | None = None,
         latency_ms: float | None = None,
         request_id: str | None = None,
+        timestamp: datetime | None = None,
+        temperature: float | None = None,
+        top_p: float | None = None,
         prompt_tokens: int | None = None,
         completion_tokens: int | None = None,
         stream_chunks: tuple[str, ...] | None = None,
@@ -67,6 +74,9 @@ class FakeLLM(LLM):
                 provider=provider or self.default_provider,
                 latency_ms=self.default_latency_ms if latency_ms is None else latency_ms,
                 request_id=request_id,
+                timestamp=timestamp,
+                temperature=temperature,
+                top_p=top_p,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 stream_chunks=stream_chunks,
@@ -149,5 +159,8 @@ class FakeLLM(LLM):
             provider=planned.provider,
             latency_ms=max(0.0, float(planned.latency_ms)),
             request_id=planned.request_id,
+            timestamp=planned.timestamp,
+            temperature=planned.temperature,
+            top_p=planned.top_p,
             raw={},
         )
