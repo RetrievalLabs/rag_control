@@ -6,14 +6,14 @@ PYTHON := python3
 venv:
 	uv venv $(VENV_DIR) --python $(PYTHON)
 
-activate: venv
+activate: 
 	@echo "Run this in your shell:"
 	@echo "source $(VENV_DIR)/bin/activate"
 
-install: venv
+install: 
 	uv pip install --python $(VENV_DIR)/bin/python -e .
 
-install-dev: venv
+install-dev: 
 	uv pip install --python $(VENV_DIR)/bin/python -e ".[dev]"
 
 sync: install
