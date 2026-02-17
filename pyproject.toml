@@ -19,3 +19,10 @@ keywords = [
   "hallucination",
   "enterprise-ai"
 ]
+
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
