@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-control"
+version = "0.1.0"
+description = "A runtime governance and execution control layer for Retrieval-Augmented Generation (RAG) systems."
+readme = "README.md"
+requires-python = ">=3.9"
+
+keywords = [
+  "rag",
+  "llm",
+  "governance",
+  "ai-security",
+  "retrieval",
+  "rbac",
+  "hallucination",
+  "enterprise-ai"
+]
