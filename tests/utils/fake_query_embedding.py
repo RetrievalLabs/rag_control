@@ -42,6 +42,10 @@ class FakeQueryEmbedding(QueryEmbedding):
         self._planned_outputs: list[_PlannedEmbedding] = []
         self._next_error: Exception | None = None
 
+    @property
+    def embedding_model(self) -> str:
+        return self.default_model
+
     def enqueue_response(
         self,
         *,
