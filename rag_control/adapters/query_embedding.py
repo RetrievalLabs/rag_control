@@ -4,6 +4,14 @@ from rag_control.models.query_embedding import QueryEmbeddingResponse
 
 
 class QueryEmbedding(ABC):
+    @property
+    @abstractmethod
+    def embedding_model(self) -> str:
+        """
+        Canonical embedding model identifier used by this adapter.
+        """
+        pass
+
     @abstractmethod
     def embed(self, query: str) -> QueryEmbeddingResponse:
         """

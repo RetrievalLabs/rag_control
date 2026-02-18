@@ -29,6 +29,7 @@ class FakeVectorStore(VectorStore):
         self,
         *,
         default_records: list[VectorStoreRecord] | None = None,
+        embedding_model: str = "fake-embedding-model",
         provider: str = "fake-vector-store",
         index: str = "fake-index",
         latency_ms: float = 0.0,
@@ -36,6 +37,7 @@ class FakeVectorStore(VectorStore):
         self.default_records = default_records or [
             VectorStoreRecord(id="doc-1", content="default", score=1.0, metadata={})
         ]
+        self.default_embedding_model = embedding_model
         self.default_provider = provider
         self.default_index = index
         self.default_latency_ms = latency_ms
@@ -46,6 +48,10 @@ class FakeVectorStore(VectorStore):
 
         self._planned_outputs: list[_PlannedSearch] = []
         self._next_error: Exception | None = None
+
+    @property
+    def embedding_model(self) -> str:
+        return self.default_embedding_model
 
     def enqueue_response(
         self,

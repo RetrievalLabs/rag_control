@@ -10,6 +10,7 @@ Purpose
 
 Scope
 - Applies to:
+  - `QueryEmbedding.embedding_model -> str`
   - `QueryEmbedding.embed(query: str) -> QueryEmbeddingResponse`
 - Output models are defined in `rag_control/models/query_embedding.py`.
 
@@ -17,6 +18,12 @@ Normative Terms
 - MUST: required.
 - SHOULD: recommended unless provider constraints prevent it.
 - MAY: optional.
+
+Embedding Model Contract
+- `embedding_model` MUST be implemented as a property returning a non-empty `str`.
+- Returned value MUST be stable for a given adapter instance.
+- Returned value MUST identify the canonical embedding model used to produce query vectors.
+- Returned value MUST match the vector store adapter's `embedding_model` for the same engine instance.
 
 Embed Contract
 - Input:

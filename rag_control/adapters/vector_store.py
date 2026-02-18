@@ -4,6 +4,14 @@ from rag_control.models.vector_store import VectorStoreSearchResponse
 
 
 class VectorStore(ABC):
+    @property
+    @abstractmethod
+    def embedding_model(self) -> str:
+        """
+        Canonical embedding model identifier expected by this index.
+        """
+        pass
+
     @abstractmethod
     def search(
         self,

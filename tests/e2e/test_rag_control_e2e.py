@@ -7,8 +7,8 @@ from tests.utils.fake_vector_store import FakeVectorStore
 
 def test_rag_control_run_returns_llm_response_with_retrieval_context() -> None:
     llm = FakeLLM()
-    query_embedding = FakeQueryEmbedding()
-    vector_store = FakeVectorStore()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
 
     query_embedding.enqueue_response(
         embedding=[0.11, 0.22, 0.33],
