@@ -5,7 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rag_control"
 version = "0.1.0"
-description = "A runtime governance and execution control layer for Retrieval-Augmented Generation (RAG) systems."
+authors = [{ name = "RetrievalLabs" }]
+description = "A runtime governance, security and execution control layer for Retrieval-Augmented Generation (RAG) systems."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
