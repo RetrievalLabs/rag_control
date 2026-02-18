@@ -12,7 +12,7 @@ def test_rag_control_fails_when_embedding_models_do_not_match() -> None:
     query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
     vector_store = FakeVectorStore(embedding_model="fake-embedding-v2")
 
-    with pytest.raises(EmbeddingModelMismatchError, match="must match vector store embedding model"):
+    with pytest.raises(
+        EmbeddingModelMismatchError, match="must match vector store embedding model"
+    ):
         RAGControl(llm=llm, query_embedding=query_embedding, vector_store=vector_store)
-
-

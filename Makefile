@@ -1,7 +1,7 @@
 VENV_DIR := .venv
 PYTHON := python3
 
-.PHONY: venv activate install install-dev sync sync-dev test tests unit-test clean
+.PHONY: venv activate install install-dev sync sync-dev test tests unit-test lint format typecheck clean
 
 venv:
 	uv venv $(VENV_DIR) --python $(PYTHON)
@@ -10,11 +10,12 @@ activate:
 	@echo "Run this in your shell:"
 	@echo "source $(VENV_DIR)/bin/activate"
 
-install: 
-	uv pip install --python $(VENV_DIR)/bin/python -e .
+install:
+	uv sync --python $(VENV_DIR)/bin/python
 
-install-dev: 
-	uv pip install --python $(VENV_DIR)/bin/python -e ".[dev]"
+
+install-dev:
+	uv sync --python $(VENV_DIR)/bin/python --group dev
 
 sync: install
 
@@ -27,6 +28,16 @@ tests: test
 
 unit-test: install-dev
 	uv run --python $(VENV_DIR)/bin/python pytest -v tests/unit
+
+lint: install-dev
+	uv run --python $(VENV_DIR)/bin/python ruff check .
+
+format: install-dev
+	uv run --python $(VENV_DIR)/bin/python ruff format .
+	uv run --python $(VENV_DIR)/bin/python black .
+
+typecheck: install-dev
+	uv run --python $(VENV_DIR)/bin/python mypy .
 
 clean:
 	rm -rf $(VENV_DIR)
