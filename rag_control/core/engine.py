@@ -1,3 +1,8 @@
+"""
+Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
+Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
+"""
+
 from rag_control.adapters.llm import LLM
 from rag_control.adapters.query_embedding import QueryEmbedding
 from rag_control.adapters.vector_store import VectorStore

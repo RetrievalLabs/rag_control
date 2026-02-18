@@ -1,3 +1,8 @@
+"""
+Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
+Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
+"""
+
 CONTRACTS = {
     "execution": "rag_control/spec/execution_contract.md",
     "llm_adapter": "rag_control/spec/llm_adapter_contract.md",
