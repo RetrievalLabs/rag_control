@@ -58,20 +58,17 @@ class RAGControl:
         )
 
         if query_model != vector_model:
-            raise EmbeddingModelMismatchError(
-                "query embedding model must match vector store embedding model: "
-                f"{query_model!r} != {vector_model!r}"
-            )
+            raise EmbeddingModelMismatchError(query_model, vector_model)
 
         return query_model
 
     @staticmethod
     def _normalize_embedding_model(model: str, source: str) -> str:
         if not isinstance(model, str):
-            raise EmbeddingModelTypeError(f"{source} must be a str")
+            raise EmbeddingModelTypeError(source)
 
         normalized_model = model.strip()
         if not normalized_model:
-            raise EmbeddingModelValidationError(f"{source} must be non-empty")
+            raise EmbeddingModelValidationError(source)
 
         return normalized_model
