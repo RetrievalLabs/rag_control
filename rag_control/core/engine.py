@@ -1,6 +1,11 @@
 from rag_control.adapters.llm import LLM
 from rag_control.adapters.query_embedding import QueryEmbedding
 from rag_control.adapters.vector_store import VectorStore
+from rag_control.exceptions import (
+    EmbeddingModelMismatchError,
+    EmbeddingModelTypeError,
+    EmbeddingModelValidationError,
+)
 
 from .prompt import RAGPromptBuilder
 
@@ -53,7 +58,7 @@ class RAGControl:
         )
 
         if query_model != vector_model:
-            raise ValueError(
+            raise EmbeddingModelMismatchError(
                 "query embedding model must match vector store embedding model: "
                 f"{query_model!r} != {vector_model!r}"
             )
@@ -63,10 +68,10 @@ class RAGControl:
     @staticmethod
     def _normalize_embedding_model(model: str, source: str) -> str:
         if not isinstance(model, str):
-            raise TypeError(f"{source} must be a str")
+            raise EmbeddingModelTypeError(f"{source} must be a str")
 
         normalized_model = model.strip()
         if not normalized_model:
-            raise ValueError(f"{source} must be non-empty")
+            raise EmbeddingModelValidationError(f"{source} must be non-empty")
 
         return normalized_model
