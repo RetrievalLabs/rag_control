@@ -31,19 +31,6 @@ class RAGControl:
         :type query: str
         """
         query_embedding_res = self.query_embedding.embed(query)
-        response_model = self._normalize_embedding_model(
-            query_embedding_res.metadata.model,
-            "query embedding response model",
-        )
-        vector_store_model = self._normalize_embedding_model(
-            self.vector_store.embedding_model,
-            "vector store embedding model",
-        )
-        if response_model != vector_store_model:
-            raise ValueError(
-                "query embedding model must match vector store embedding model: "
-                f"{response_model!r} != {vector_store_model!r}"
-            )
 
         retrieve_res = self.vector_store.search(query_embedding_res.embedding)
         docs = retrieve_res.records
