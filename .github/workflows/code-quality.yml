@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run typo check
-        uses: crate-ci/typos-action@v1
+        uses: crate-ci/typos@v1
 
   quality:
     runs-on: ubuntu-latest
