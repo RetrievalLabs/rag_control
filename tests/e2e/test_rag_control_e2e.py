@@ -42,11 +42,6 @@ def test_rag_control_run_returns_llm_response_with_retrieval_context() -> None:
         prompt_tokens=12,
     )
 
-    # Bridge current engine callsite (`retrieve`) to vector-store contract (`search`).
-    vector_store.retrieve = lambda embedded: vector_store.search(embedded.embedding)  # type: ignore[attr-defined]
-    # Engine passes structured messages; relax FakeLLM prompt validator for this e2e.
-    llm._validate_prompt = lambda prompt: None  # type: ignore[method-assign]
-
     engine = RAGControl(llm=llm, query_embedding=query_embedding, vector_store=vector_store)
     llm_response = engine.run("what is policy status?")
 

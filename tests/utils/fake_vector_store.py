@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from rag_control.adapters.vector_store import VectorStore
 from rag_control.models.vector_store import (
@@ -104,6 +105,12 @@ class FakeVectorStore(VectorStore):
                 raw={},
             ),
         )
+
+    def retrieve(self, query_embedding_response: Any, top_k: int = 5) -> VectorStoreSearchResponse:
+        embedding = query_embedding_response
+        if hasattr(query_embedding_response, "embedding"):
+            embedding = query_embedding_response.embedding
+        return self.search(embedding=embedding, top_k=top_k)
 
     def _next_planned_output(self) -> _PlannedSearch:
         if self._planned_outputs:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from rag_control.adapters.llm import LLM
 from rag_control.models.llm import (
@@ -45,7 +46,7 @@ class FakeLLM(LLM):
         self.default_provider = provider
         self.default_latency_ms = latency_ms
 
-        self.prompts: list[str] = []
+        self.prompts: list[Any] = []
         self.generate_calls = 0
         self.stream_calls = 0
 
@@ -86,7 +87,7 @@ class FakeLLM(LLM):
     def fail_next(self, error: Exception) -> None:
         self._next_error = error
 
-    def generate(self, prompt: str) -> LLMResponse:
+    def generate(self, prompt: Any) -> LLMResponse:
         if self._next_error is not None:
             error = self._next_error
             self._next_error = None
@@ -101,7 +102,7 @@ class FakeLLM(LLM):
         metadata = self._metadata_for(planned)
         return LLMResponse(content=planned.content, usage=usage, metadata=metadata)
 
-    def stream(self, prompt: str) -> LLMStreamResponse:
+    def stream(self, prompt: Any) -> LLMStreamResponse:
         if self._next_error is not None:
             error = self._next_error
             self._next_error = None
@@ -133,13 +134,28 @@ class FakeLLM(LLM):
         )
 
     @staticmethod
-    def _validate_prompt(prompt: str) -> None:
-        if not isinstance(prompt, str):
-            raise TypeError("prompt must be a str")
+    def _validate_prompt(prompt: Any) -> None:
+        if isinstance(prompt, str):
+            return
+        if isinstance(prompt, list):
+            for message in prompt:
+                if not isinstance(message, dict):
+                    raise TypeError("prompt list entries must be dict messages")
+                if not isinstance(message.get("role"), str):
+                    raise TypeError("prompt message role must be a str")
+                if not isinstance(message.get("content"), str):
+                    raise TypeError("prompt message content must be a str")
+            return
+        raise TypeError("prompt must be a str or a list of chat messages")
 
     @staticmethod
-    def _usage_for(prompt: str, content: str, planned: _PlannedOutput) -> LLMUsage:
-        prompt_tokens = planned.prompt_tokens if planned.prompt_tokens is not None else len(prompt.split())
+    def _usage_for(prompt: Any, content: str, planned: _PlannedOutput) -> LLMUsage:
+        prompt_text = FakeLLM._prompt_to_text(prompt)
+        prompt_tokens = (
+            planned.prompt_tokens
+            if planned.prompt_tokens is not None
+            else len(prompt_text.split())
+        )
         completion_tokens = (
             planned.completion_tokens
             if planned.completion_tokens is not None
@@ -151,6 +167,18 @@ class FakeLLM(LLM):
             completion_tokens=max(0, completion_tokens),
             total_tokens=max(0, total_tokens),
         )
+
+    @staticmethod
+    def _prompt_to_text(prompt: Any) -> str:
+        if isinstance(prompt, str):
+            return prompt
+        if isinstance(prompt, list):
+            return " ".join(
+                message["content"]
+                for message in prompt
+                if isinstance(message, dict) and isinstance(message.get("content"), str)
+            )
+        return ""
 
     @staticmethod
     def _metadata_for(planned: _PlannedOutput) -> LLMMetadata:
