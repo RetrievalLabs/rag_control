@@ -1,5 +1,5 @@
+from .contracts import CONTRACT_STATUS, CONTRACT_VERSION, CONTRACTS
 from .core.engine import RAGControl
-from .contracts import CONTRACTS, CONTRACT_STATUS, CONTRACT_VERSION
 from .version import __version__
 
 __all__ = [

@@ -152,9 +152,7 @@ class FakeLLM(LLM):
     def _usage_for(prompt: Any, content: str, planned: _PlannedOutput) -> LLMUsage:
         prompt_text = FakeLLM._prompt_to_text(prompt)
         prompt_tokens = (
-            planned.prompt_tokens
-            if planned.prompt_tokens is not None
-            else len(prompt_text.split())
+            planned.prompt_tokens if planned.prompt_tokens is not None else len(prompt_text.split())
         )
         completion_tokens = (
             planned.completion_tokens

@@ -22,11 +22,12 @@ keywords = [
 
 dependencies = []
 
-
 [tool.ruff]
 line-length = 100
-select = ["E", "F", "I"]
 fix = true
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
 
 [tool.black]
 line-length = 100

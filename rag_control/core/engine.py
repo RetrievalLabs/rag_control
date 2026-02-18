@@ -21,7 +21,9 @@ class RAGControl:
     - Auditable lifecycle
     """
 
-    def __init__(self, llm: LLM, query_embedding: QueryEmbedding, vector_store: VectorStore) -> None:
+    def __init__(
+        self, llm: LLM, query_embedding: QueryEmbedding, vector_store: VectorStore
+    ) -> None:
         self.llm = llm
         self.query_embedding = query_embedding
         self.vector_store = vector_store
