@@ -1,3 +1,4 @@
+from .prompt import RAGPromptBuilder
 
 class RAGControl:
     """
@@ -14,6 +15,7 @@ class RAGControl:
         self.llm = llm
         self.query_embedding = query_embedding
         self.vector_store = vector_store
+        self.prompt_builder = RAGPromptBuilder()
 
     def run(self, query: str):
         """
@@ -23,7 +25,12 @@ class RAGControl:
         :type query: str
         """
         query_embedding_vec = self.query_embedding.embed(query)
-        docs = self.vector_store.retrieve(query_embedding_vec)
+        retrieve_res = self.vector_store.retrieve(query_embedding_vec)
+        docs = retrieve_res.records
+        messages = self.prompt_builder.build(
+            query=query,
+            retrieved_docs=docs
+        )
         
-        response = self.llm.generate(query)
-        return query_embedding_vec, response
+        response = self.llm.generate(messages)
+        return response
