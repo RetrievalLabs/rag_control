@@ -1,0 +1,47 @@
+name: Code Quality
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - main
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Create virtual environment
+        run: make venv
+
+      - name: Install dev dependencies
+        run: uv sync --python .venv/bin/python --group dev
+
+      - name: Check formatting
+        run: |
+          uv run --python .venv/bin/python ruff format --check .
+          uv run --python .venv/bin/python black --check .
+
+      - name: Run linting
+        run: uv run --python .venv/bin/python ruff check .
+
+      - name: Run type checks
+        run: uv run --python .venv/bin/python mypy .
