@@ -14,7 +14,7 @@ class RAGPromptBuilder:
         4. USER (lowest)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._system_layer = self._build_system_layer()
         self._developer_layer = self._build_developer_layer()
 

@@ -6,6 +6,7 @@ from rag_control.exceptions import (
     EmbeddingModelTypeError,
     EmbeddingModelValidationError,
 )
+from rag_control.models.llm import LLMResponse
 
 from .prompt import RAGPromptBuilder
 
@@ -30,7 +31,7 @@ class RAGControl:
         self.prompt_builder = RAGPromptBuilder()
         self._validate_embedding_model_compatibility()
 
-    def run(self, query: str):
+    def run(self, query: str) -> LLMResponse:
         """
         Single public execution path.
 
