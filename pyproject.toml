@@ -22,7 +22,22 @@ keywords = [
 
 dependencies = []
 
-[project.optional-dependencies]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I"]
+fix = true
+
+[tool.black]
+line-length = 100
+
+[tool.mypy]
+strict = true
+
+[dependency-groups]
 dev = [
-  "pytest>=8.0.0",
+    "black>=25.11.0",
+    "mypy>=1.19.1",
+    "pytest>=8.4.2",
+    "ruff>=0.15.1",
 ]
