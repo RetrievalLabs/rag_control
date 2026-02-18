@@ -1,0 +1,55 @@
+RetrievalLabs Business-Restricted License (RBRL) v1.0
+Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
+
+1. Definitions
+"Business Use" means any use by or for a legal entity, government entity, non-profit,
+or sole proprietor in connection with commercial, organizational, operational, internal,
+or external business activities, whether or not for direct monetary gain.
+
+"Personal Use" means non-commercial use by an individual solely for personal learning,
+evaluation, experimentation, or research purposes, and not on behalf of any organization.
+
+"Derivative Work" means any software, source code, or other work that is based on,
+adapted from, modified from, translated from, or incorporates all or part of the Software.
+
+2. Grant of Rights
+Subject to this License, RetrievalLabs Co grants individuals a limited, revocable,
+non-exclusive, non-transferable license to use the Software for Personal Use only.
+No right to modify, create Derivative Works, sublicense, or redistribute is granted.
+
+3. Prohibited Uses
+Without a separate written contract signed by RetrievalLabs Co, you may not:
+(a) use the Software for any Business Use;
+(b) modify, adapt, translate, or create any Derivative Work from the Software;
+(c) use the Software, in whole or in part, to create your own software product,
+framework, model, service, or platform;
+(d) deploy or provide the Software in production or as part of a service for any organization;
+(e) sublicense, sell, lease, distribute, or otherwise make the Software available to third parties.
+
+4. Business Licensing Requirement
+Any Business Use requires a separate written contract with RetrievalLabs Co.
+Contact: legal@retrievallabs.ai
+
+5. Ownership
+The Software is licensed, not sold. RetrievalLabs Co retains all right, title, and interest
+in and to the Software and all related intellectual property rights.
+
+6. Termination
+This License is effective until terminated. It terminates automatically if you violate any term.
+Upon termination, you must cease all use and destroy all copies of the Software.
+
+7. No Warranty
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+AND NON-INFRINGEMENT.
+
+8. Limitation of Liability
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, RETRIEVALLABS CO SHALL NOT BE LIABLE FOR ANY
+INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR EXEMPLARY DAMAGES, OR ANY LOSS OF PROFITS,
+DATA, OR GOODWILL, ARISING FROM OR RELATING TO THE SOFTWARE OR THIS LICENSE.
+
+9. Governing Law
+This License is governed by the laws specified in the applicable contract with RetrievalLabs Co,
+or if none applies, by the laws of the jurisdiction of RetrievalLabs Co's principal place of business.
+
+By using the Software, you agree to this License.
