@@ -10,8 +10,8 @@ Purpose
 
 Scope
 - Applies to:
-  - `LLM.generate(prompt: str) -> LLMResponse`
-  - `LLM.stream(prompt: str) -> LLMStreamResponse`
+  - `LLM.generate(prompt) -> LLMResponse`
+  - `LLM.stream(prompt) -> LLMStreamResponse`
 - Output models are defined in `rag_control/models/llm.py`.
 
 Normative Terms
@@ -21,7 +21,10 @@ Normative Terms
 
 Generate Contract
 - Input:
-  - `prompt` MUST be a `str`.
+  - `prompt` MUST be either:
+    - a `str`, or
+    - a chat message list shaped as `list[dict[str, str]]` containing at least `role` and `content`.
+  - Engine integrations SHOULD support chat message list prompts because `RAGControl` sends structured messages.
   - Empty prompt handling is provider-defined, but adapter SHOULD fail fast with a clear exception when invalid.
 - Output:
   - MUST return `LLMResponse`.
@@ -42,7 +45,7 @@ Generate Contract
 
 Stream Contract
 - Input:
-  - `prompt` MUST be a `str`.
+  - `prompt` MUST follow the same type contract as `generate`.
 - Output:
   - MUST return `LLMStreamResponse`.
   - `LLMStreamResponse.stream` MUST be an iterator yielding `LLMStreamChunk`.

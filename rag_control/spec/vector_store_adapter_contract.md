@@ -10,6 +10,7 @@ Purpose
 
 Scope
 - Applies to:
+  - `VectorStore.embedding_model -> str`
   - `VectorStore.search(embedding: list[float], top_k: int = 5) -> VectorStoreSearchResponse`
 - Output models are defined in `rag_control/models/vector_store.py`.
 
@@ -17,6 +18,12 @@ Normative Terms
 - MUST: required.
 - SHOULD: recommended unless provider constraints prevent it.
 - MAY: optional.
+
+Embedding Model Contract
+- `embedding_model` MUST be implemented as a property returning a non-empty `str`.
+- Returned value MUST be stable for a given adapter instance.
+- Returned value MUST identify the canonical embedding model expected by the index.
+- Returned value MUST match the query embedding adapter's `embedding_model` for the same engine instance.
 
 Search Contract
 - Input:
