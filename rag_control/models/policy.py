@@ -30,8 +30,3 @@ class Policy(BaseModel):
     logging: LoggingPolicy
     enforcement: EnforcementPolicy
 
-
-class OverrideRule(BaseModel):
-    name: str
-    when: Dict[str, str | int]
-    apply_policy: Policy
