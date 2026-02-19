@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Dict
 
 from pydantic import BaseModel
 
@@ -29,3 +29,9 @@ class Policy(BaseModel):
     generation: GenerationPolicy
     logging: LoggingPolicy
     enforcement: EnforcementPolicy
+
+
+class OverrideRule(BaseModel):
+    name: str
+    when: Dict[str, str | int]
+    apply_policy: Policy
