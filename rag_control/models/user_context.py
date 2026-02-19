@@ -1,10 +1,9 @@
-
-from dataclasses import dataclass
 from typing import Any
 
+from pydantic import BaseModel
 
-@dataclass
-class UserContext:
+
+class UserContext(BaseModel):
     user_id: str
     org_id: str
     attributes: dict[str, Any]

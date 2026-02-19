@@ -1,29 +1,29 @@
-from dataclasses import dataclass
 from typing import Literal
 
-@dataclass
-class GenerationPolicy:
+from pydantic import BaseModel
+
+
+class GenerationPolicy(BaseModel):
     reasoning_level: Literal["none", "limited", "full"] = "limited"
     allow_external_knowledge: bool = False
     require_citations: bool = True
     fallback: Literal["strict", "soft"] = "strict"
     temperature: float = 0.0
 
-@dataclass
-class LoggingPolicy:
+
+class LoggingPolicy(BaseModel):
     level: Literal["minimal", "full", "forensic"] = "full"
 
 
-@dataclass
-class EnforcementPolicy:
+class EnforcementPolicy(BaseModel):
     validate_citations: bool = True
     block_on_missing_citations: bool = True
     enforce_strict_fallback: bool = True
     prevent_external_knowledge: bool = True
     max_output_tokens: int | None = None
 
-@dataclass
-class Policy:
+
+class Policy(BaseModel):
     name: str
     description: str | None = None
     generation: GenerationPolicy

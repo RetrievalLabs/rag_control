@@ -22,7 +22,9 @@ keywords = [
   "enterprise-ai"
 ]
 
-dependencies = []
+dependencies = [
+  "pydantic>=2.0",
+]
 
 [tool.ruff]
 line-length = 100
