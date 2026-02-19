@@ -11,7 +11,7 @@ from rag_control.exceptions import (
     EmbeddingModelTypeError,
     EmbeddingModelValidationError,
 )
-from rag_control.models.llm import LLMResponse
+from rag_control.models.llm import LLMResponse, LLMStreamResponse
 
 from .prompt import RAGPromptBuilder
 
@@ -53,6 +53,25 @@ class RAGControl:
         )
 
         response = self.llm.generate(messages)
+        return response
+
+    def stream(self, query: str) -> LLMStreamResponse:
+        """
+        Streaming public execution path.
+
+        :param query: User query to process through the RAG
+        :type query: str
+        """
+        query_embedding_res = self.query_embedding.embed(query)
+
+        retrieve_res = self.vector_store.search(query_embedding_res.embedding)
+        docs = retrieve_res.records
+        messages = self.prompt_builder.build(
+            query=query,
+            retrieved_docs=docs,
+        )
+
+        response = self.llm.stream(messages)
         return response
 
     def _validate_embedding_model_compatibility(self) -> str:
