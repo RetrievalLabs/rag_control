@@ -49,41 +49,47 @@ filters:
       source: context
 
 
-acme_corp:
-  default_policy: strict_citations
-  policy_rules:
-    - name: deny_low_confidence
-      priority: 10
-      effect: deny
-      when:
-        any:
-          - field: confidence_score
-            operator: lte
-            value: 40
+orgs:
+  - org_id: acme_corp
+    description: Acme Corporation with strict citation requirements.
+    default_policy: strict_citations
+    policy_rules:
+      - name: deny_low_confidence
+        description: Deny responses when retrieval confidence is too low.
+        priority: 10
+        effect: deny
+        when:
+          any:
+            - field: confidence_score
+              operator: lte
+              value: 40
 
-    - name: allow_enterprise_strict
-      priority: 50
-      effect: allow
-      apply_policy: strict_citations
-      when:
-        all:
-          - field: org_tier
-            operator: equals
-            value: enterprise
-            source: context
-  filter_name: enterprise_only
+      - name: allow_enterprise_strict
+        description: Allow enterprise traffic under the strict citations policy.
+        priority: 50
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          all:
+            - field: org_tier
+              operator: equals
+              value: enterprise
+              source: context
+    filter_name: enterprise_only
 
-beta_labs:
-  default_policy: soft_research
-  policy_rules:
-    - name: allow_research_mode
-      priority: 20
-      effect: allow
-      apply_policy: soft_research
-      when:
-        all:
-          - field: user_role
-            operator: equals
-            value: analyst
-            source: context
-  filter_name: pii_sensitive
+  - org_id: beta_labs
+    description: Beta Labs with flexible research policies.
+    default_policy: soft_research
+    policy_rules:
+      - name: allow_research_mode
+        description: Allow analyst research workflows using soft fallback.
+        priority: 20
+        effect: allow
+        apply_policy: soft_research
+        when:
+          all:
+            - field: user_role
+              operator: equals
+              value: analyst
+              source: context
+    filter_name: pii_sensitive
