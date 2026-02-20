@@ -19,6 +19,7 @@ class LogicalCondition(BaseModel):
 
 class PolicyRule(BaseModel):
     name: str
+    description: Optional[str] = None
     priority: int
     effect: Literal["allow", "deny"]
     apply_policy: Optional[str] = None
