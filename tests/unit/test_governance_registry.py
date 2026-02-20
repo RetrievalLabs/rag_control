@@ -90,6 +90,21 @@ def _build_governance_config() -> ControlPlaneConfig:
                         ),
                     ),
                     PolicyRule(
+                        name="allow_session_exists",
+                        priority=85,
+                        effect="allow",
+                        apply_policy="research_policy",
+                        when=LogicalCondition(
+                            any=[
+                                Condition(
+                                    field="session_id",
+                                    operator="exists",
+                                    source="context",
+                                )
+                            ]
+                        ),
+                    ),
+                    PolicyRule(
                         name="deny_banned_user",
                         priority=100,
                         effect="deny",
@@ -169,7 +184,7 @@ def test_governance_registry_sorts_policy_rules_by_priority_descending() -> None
 
     assert org is not None
     priorities = [rule.priority for rule in org.policy_rules]
-    assert priorities == [100, 90, 80, 70, 60]
+    assert priorities == [100, 90, 85, 80, 70, 60]
 
 
 def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
@@ -221,6 +236,17 @@ def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
             "expected_rule_name": None,
         },
         {
+            "name": "exists_operator_matches_when_key_present",
+            "user_context": UserContext(
+                user_id="u-4b",
+                org_id="test_org",
+                attributes={"session_id": "sess-123"},
+            ),
+            "expected_policy": "research_policy",
+            "expected_exception": None,
+            "expected_rule_name": None,
+        },
+        {
             "name": "numeric_gte_rule_match",
             "user_context": UserContext(
                 user_id="u-5",
@@ -228,6 +254,17 @@ def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
                 attributes={"trust_score": 95},
             ),
             "expected_policy": "premium_policy",
+            "expected_exception": None,
+            "expected_rule_name": None,
+        },
+        {
+            "name": "exists_operator_false_when_key_missing",
+            "user_context": UserContext(
+                user_id="u-6b",
+                org_id="test_org",
+                attributes={"region": "ap-south-1"},
+            ),
+            "expected_policy": "default_policy",
             "expected_exception": None,
             "expected_rule_name": None,
         },

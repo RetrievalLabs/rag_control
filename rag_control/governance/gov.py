@@ -15,6 +15,7 @@ from rag_control.models.rule import (
     RULE_EFFECT_DENY,
     RULE_NUMERIC_OPERATORS,
     RULE_OPERATOR_EQUALS,
+    RULE_OPERATOR_EXISTS,
     RULE_OPERATOR_GT,
     RULE_OPERATOR_GTE,
     RULE_OPERATOR_INTERSECTS,
@@ -106,6 +107,9 @@ class GovernanceRegistry:
         actual_value = context.get(condition.field)
         expected_value = condition.value
         operator = condition.operator
+
+        if operator == RULE_OPERATOR_EXISTS:
+            return condition.field in context
 
         if operator == RULE_OPERATOR_EQUALS:
             return actual_value == expected_value
