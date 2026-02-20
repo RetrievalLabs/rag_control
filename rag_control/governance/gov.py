@@ -5,6 +5,10 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from typing import Any
 
+from rag_control.exceptions import (
+    GovernanceOrgNotFoundError,
+    GovernancePolicyDeniedError,
+)
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.org import OrgConfig
 from rag_control.models.rule import (
@@ -41,10 +45,10 @@ class GovernanceRegistry:
     def get_org(self, org_name: str) -> OrgConfig | None:
         return self.org_map.get(org_name)
 
-    def resolve_policy(self, user_context: UserContext) -> str | None:
+    def resolve_policy(self, user_context: UserContext) -> str:
         org = self.get_org(user_context.org_id)
         if org is None:
-            return None
+            raise GovernanceOrgNotFoundError(user_context)
 
         default_policy = org.default_policy
         context = user_context.attributes
@@ -53,7 +57,7 @@ class GovernanceRegistry:
             if not self._matches_logical_condition(rule.when, context):
                 continue
             if rule.effect == RULE_EFFECT_DENY:
-                return None
+                raise GovernancePolicyDeniedError(user_context, rule.name)
             if rule.apply_policy is not None:
                 return rule.apply_policy
             return default_policy

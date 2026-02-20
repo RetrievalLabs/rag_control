@@ -10,6 +10,11 @@ from .embedding_model import (
     EmbeddingModelTypeError,
     EmbeddingModelValidationError,
 )
+from .governance import (
+    GovernanceOrgNotFoundError,
+    GovernancePolicyDeniedError,
+    GovernanceResolutionError,
+)
 
 __all__ = [
     "RagControlError",
@@ -17,4 +22,7 @@ __all__ = [
     "EmbeddingModelTypeError",
     "EmbeddingModelValidationError",
     "EmbeddingModelMismatchError",
+    "GovernanceResolutionError",
+    "GovernanceOrgNotFoundError",
+    "GovernancePolicyDeniedError",
 ]
