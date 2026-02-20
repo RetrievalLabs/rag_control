@@ -17,6 +17,8 @@ class Condition(BaseModel):
 
 
 class Filter(BaseModel):
+    name: str
+    description: Optional[str] = None
     and_: Optional[List["Filter"]] = Field(default=None, alias="and")
     or_: Optional[List["Filter"]] = Field(default=None, alias="or")
     condition: Optional[Condition] = None
