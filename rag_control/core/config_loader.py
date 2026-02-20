@@ -7,11 +7,10 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
+import yaml
 
 from rag_control.exceptions import ControlPlaneConfigValidationError
 from rag_control.models.config import ControlPlaneConfig
-
-import yaml
 
 def load_control_plane_config(path: str | Path) -> ControlPlaneConfig:
     config_path = Path(path)
