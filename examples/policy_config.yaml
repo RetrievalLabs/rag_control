@@ -35,18 +35,72 @@ policies:
 
 filters:
   - name: enterprise_only
-    description: Only apply to enterprise org context.
+    description: Only apply to enterprise tier organizations.
     condition:
       field: org_tier
       operator: equals
+      value: enterprise
       source: context
 
   - name: pii_sensitive
-    description: Filter for teams handling regulated data.
+    description: Filter for teams handling regulated data classes.
     condition:
       field: data_classification
       operator: intersects
+      value:
+        - pii
+        - phi
       source: context
+
+  - name: finance_high_assurance
+    description: Finance use cases with high assurance guardrails.
+    and:
+      - condition:
+          field: department
+          operator: equals
+          value: finance
+          source: context
+      - or:
+          - condition:
+              field: data_classification
+              operator: intersects
+              value:
+                - confidential
+                - restricted
+              source: context
+          - condition:
+              field: region
+              operator: in
+              value:
+                - us
+                - eu
+              source: context
+      - condition:
+          field: user_clearance_level
+          operator: gte
+          value: 3
+          source: context
+
+  - name: production_write_guard
+    description: Extra checks before allowing production write operations.
+    and:
+      - condition:
+          field: environment
+          operator: equals
+          value: production
+          source: context
+      - condition:
+          field: action
+          operator: in
+          value:
+            - write
+            - delete
+          source: context
+      - condition:
+          field: risk_score
+          operator: lte
+          value: 70
+          source: context
 
 
 orgs:
