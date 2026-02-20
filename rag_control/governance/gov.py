@@ -12,8 +12,6 @@ from rag_control.exceptions import (
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.org import OrgConfig
 from rag_control.models.rule import (
-    Condition,
-    LogicalCondition,
     RULE_EFFECT_DENY,
     RULE_NUMERIC_OPERATORS,
     RULE_OPERATOR_EQUALS,
@@ -22,6 +20,8 @@ from rag_control.models.rule import (
     RULE_OPERATOR_INTERSECTS,
     RULE_OPERATOR_LT,
     RULE_OPERATOR_LTE,
+    Condition,
+    LogicalCondition,
 )
 from rag_control.models.user_context import UserContext
 

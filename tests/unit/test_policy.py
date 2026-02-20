@@ -10,6 +10,8 @@ from rag_control.models.policy import (
     EnforcementPolicy,
     GenerationPolicy,
     LoggingPolicy,
+)
+from rag_control.models.policy import (
     Policy as PolicyModel,
 )
 from rag_control.policy.policy import Policy as PolicyRegistry
@@ -31,9 +33,7 @@ def test_policy_get_with_multiple_conditions(fake_config: ControlPlaneConfig) ->
         enforcement=EnforcementPolicy(block_on_missing_citations=False),
     )
 
-    config = fake_config.model_copy(
-        update={"policies": [*fake_config.policies, research_policy]}
-    )
+    config = fake_config.model_copy(update={"policies": [*fake_config.policies, research_policy]})
     policy_registry = PolicyRegistry(config)
 
     test_cases: list[_PolicyLookupCase] = [

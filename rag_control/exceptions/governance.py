@@ -4,6 +4,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
 from rag_control.models.user_context import UserContext
+
 from .base import RagControlError
 
 
