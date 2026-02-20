@@ -14,7 +14,6 @@ from rag_control.models.org import OrgConfig
 from rag_control.models.rule import (
     Condition,
     LogicalCondition,
-    PolicyRule,
     RULE_EFFECT_DENY,
     RULE_NUMERIC_OPERATORS,
     RULE_OPERATOR_EQUALS,
