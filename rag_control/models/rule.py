@@ -3,9 +3,9 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
-from pydantic import BaseModel
-from typing import List, Optional, Literal, Union
+from typing import List, Literal, Optional, Union
 
+from pydantic import BaseModel
 
 Operator = Literal["equals", "lt", "lte", "gt", "gte", "intersects"]
 

@@ -130,7 +130,5 @@ orgs:
                 assert isinstance(config, ControlPlaneConfig), case["name"]
                 continue
 
-            with pytest.raises(
-                ControlPlaneConfigValidationError, match=case["expected_error"]
-            ):
+            with pytest.raises(ControlPlaneConfigValidationError, match=case["expected_error"]):
                 load_control_plane_config(case["path"])

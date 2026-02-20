@@ -6,11 +6,12 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from pathlib import Path
 from typing import Any
 
-from pydantic import ValidationError
 import yaml
+from pydantic import ValidationError
 
 from rag_control.exceptions import ControlPlaneConfigValidationError
 from rag_control.models.config import ControlPlaneConfig
+
 
 def load_control_plane_config(path: str | Path) -> ControlPlaneConfig:
     config_path = Path(path)
@@ -48,6 +49,4 @@ def load_control_plane_config(path: str | Path) -> ControlPlaneConfig:
     try:
         return ControlPlaneConfig.model_validate(parsed)
     except ValidationError as exc:
-        raise ControlPlaneConfigValidationError(
-            f"invalid control plane config: {exc}"
-        ) from exc
+        raise ControlPlaneConfigValidationError(f"invalid control plane config: {exc}") from exc

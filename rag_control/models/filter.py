@@ -3,17 +3,12 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
+from typing import List, Literal, Optional, Union
+
 from pydantic import BaseModel, ConfigDict, Field
 
-from typing import Literal, Optional, List, Union
+Operator = Literal["equals", "in", "intersects", "lte", "gte"]
 
-Operator = Literal[
-    "equals",
-    "in",
-    "intersects",
-    "lte",
-    "gte"
-]
 
 class Condition(BaseModel):
     field: str
@@ -31,4 +26,3 @@ class Filter(BaseModel):
     and_: Optional[List["Filter"]] = Field(default=None, alias="and")
     or_: Optional[List["Filter"]] = Field(default=None, alias="or")
     condition: Optional[Condition] = None
-    

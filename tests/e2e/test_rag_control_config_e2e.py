@@ -68,9 +68,7 @@ def test_rag_control_config_inputs_with_multiple_conditions(
             assert isinstance(engine.config, ControlPlaneConfig), case["name"]
             continue
 
-        with pytest.raises(
-            ControlPlaneConfigValidationError, match=case["expected_error"]
-        ):
+        with pytest.raises(ControlPlaneConfigValidationError, match=case["expected_error"]):
             RAGControl(
                 llm=llm,
                 query_embedding=query_embedding,

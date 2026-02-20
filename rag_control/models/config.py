@@ -65,10 +65,7 @@ class ControlPlaneConfig(BaseModel):
                 )
 
             for rule in org.policy_rules:
-                if (
-                    rule.apply_policy is not None
-                    and rule.apply_policy not in policy_name_set
-                ):
+                if rule.apply_policy is not None and rule.apply_policy not in policy_name_set:
                     raise ControlPlaneConfigValidationError(
                         f"org '{org.org_id}' rule '{rule.name}' apply_policy "
                         f"'{rule.apply_policy}' does not exist"

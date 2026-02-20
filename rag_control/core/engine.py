@@ -47,9 +47,7 @@ class RAGControl:
                 "provide either 'config' or 'config_path', not both"
             )
         if config is None and config_path is None:
-            raise ControlPlaneConfigValidationError(
-                "provide one of 'config' or 'config_path'"
-            )
+            raise ControlPlaneConfigValidationError("provide one of 'config' or 'config_path'")
 
         self.llm = llm
         self.query_embedding = query_embedding
