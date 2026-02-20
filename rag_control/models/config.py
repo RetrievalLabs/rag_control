@@ -29,7 +29,6 @@ class ControlPlaneConfig(BaseModel):
 
         policy_name_set = set(policy_names)
         filter_name_set = set(filter_names)
-        all_rule_names: list[str] = []
 
         for org in self.orgs:
             if org.default_policy not in policy_name_set:
@@ -47,7 +46,16 @@ class ControlPlaneConfig(BaseModel):
                 raise ValueError(
                     f"org '{org.org_id}' policy_rules must have unique names"
                 )
-            all_rule_names.extend(rule_names)
+
+            rule_priorities = [rule.priority for rule in org.policy_rules]
+            if any(priority <= 0 for priority in rule_priorities):
+                raise ValueError(
+                    f"org '{org.org_id}' policy_rules priorities must be greater than 0"
+                )
+            if len(rule_priorities) != len(set(rule_priorities)):
+                raise ValueError(
+                    f"org '{org.org_id}' policy_rules priorities must be unique"
+                )
 
             for rule in org.policy_rules:
                 if (
@@ -58,8 +66,5 @@ class ControlPlaneConfig(BaseModel):
                         f"org '{org.org_id}' rule '{rule.name}' apply_policy "
                         f"'{rule.apply_policy}' does not exist"
                     )
-
-        if len(all_rule_names) != len(set(all_rule_names)):
-            raise ValueError("policy_rules must have globally unique names")
 
         return self
