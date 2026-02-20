@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from typing import Literal, Optional, List
+from typing import Literal, Optional, List, Union
 
 Operator = Literal[
     "equals",
@@ -13,6 +13,7 @@ Operator = Literal[
 class Condition(BaseModel):
     field: str
     operator: Operator
+    value: Optional[Union[str, int, List[str], List[int]]] = None
     source: Literal["context"] = "context"
 
 
@@ -26,4 +27,3 @@ class Filter(BaseModel):
     class Config:
         allow_population_by_field_name = True
     
-
