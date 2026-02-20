@@ -1,4 +1,4 @@
-from typing import Literal, Dict
+from typing import Literal
 
 from pydantic import BaseModel
 
