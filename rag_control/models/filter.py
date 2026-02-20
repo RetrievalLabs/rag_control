@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from typing import Literal, Optional, List, Union
 
@@ -18,12 +18,11 @@ class Condition(BaseModel):
 
 
 class Filter(BaseModel):
+    model_config = ConfigDict(validate_by_name=True)
+
     name: str
     description: Optional[str] = None
     and_: Optional[List["Filter"]] = Field(default=None, alias="and")
     or_: Optional[List["Filter"]] = Field(default=None, alias="or")
     condition: Optional[Condition] = None
-
-    class Config:
-        allow_population_by_field_name = True
     

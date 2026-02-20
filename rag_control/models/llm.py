@@ -6,7 +6,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from datetime import datetime
 from typing import Any, Dict, Iterator, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LLMUsage(BaseModel):
@@ -37,6 +37,8 @@ class LLMStreamChunk(BaseModel):
 
 
 class LLMStreamResponse(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     stream: Iterator[LLMStreamChunk]
     usage: Optional[LLMUsage] = None
     metadata: Optional[LLMMetadata] = None

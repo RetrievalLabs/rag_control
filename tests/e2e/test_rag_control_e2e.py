@@ -10,7 +10,9 @@ from tests.utils.fake_query_embedding import FakeQueryEmbedding
 from tests.utils.fake_vector_store import FakeVectorStore
 
 
-def test_rag_control_run_returns_llm_response_with_retrieval_context() -> None:
+def test_rag_control_run_returns_llm_response_with_retrieval_context(
+    fake_config,
+) -> None:
     llm = FakeLLM()
     query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
     vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
@@ -47,7 +49,12 @@ def test_rag_control_run_returns_llm_response_with_retrieval_context() -> None:
         prompt_tokens=12,
     )
 
-    engine = RAGControl(llm=llm, query_embedding=query_embedding, vector_store=vector_store)
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+    )
     llm_response = engine.run("what is policy status?")
 
     assert llm_response.content == "approved answer"
@@ -69,7 +76,9 @@ def test_rag_control_run_returns_llm_response_with_retrieval_context() -> None:
     assert query_embedding.embed_calls == 1
 
 
-def test_rag_control_stream_returns_llm_stream_response_with_retrieval_context() -> None:
+def test_rag_control_stream_returns_llm_stream_response_with_retrieval_context(
+    fake_config,
+) -> None:
     llm = FakeLLM()
     query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
     vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
@@ -107,7 +116,12 @@ def test_rag_control_stream_returns_llm_stream_response_with_retrieval_context()
         stream_chunks=("streamed ", "answer"),
     )
 
-    engine = RAGControl(llm=llm, query_embedding=query_embedding, vector_store=vector_store)
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+    )
     llm_stream_response = engine.stream("who owns policy?")
 
     streamed_text = "".join(chunk.delta for chunk in llm_stream_response.stream)
