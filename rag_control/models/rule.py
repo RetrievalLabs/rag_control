@@ -17,7 +17,7 @@ class LogicalCondition(BaseModel):
     any: Optional[List[Condition]] = None
 
 
-class Rule(BaseModel):
+class PolicyRule(BaseModel):
     name: str
     priority: int
     effect: Literal["allow", "deny"]

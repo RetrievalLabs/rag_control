@@ -1,0 +1,89 @@
+policies:
+  - name: strict_citations
+    description: Default strict policy with citation enforcement.
+    generation:
+      reasoning_level: limited
+      allow_external_knowledge: false
+      require_citations: true
+      fallback: strict
+      temperature: 0.0
+    logging:
+      level: full
+    enforcement:
+      validate_citations: true
+      block_on_missing_citations: true
+      enforce_strict_fallback: true
+      prevent_external_knowledge: true
+      max_output_tokens: 512
+
+  - name: soft_research
+    description: Relaxed fallback policy for exploratory answers.
+    generation:
+      reasoning_level: full
+      allow_external_knowledge: false
+      require_citations: true
+      fallback: soft
+      temperature: 0.1
+    logging:
+      level: forensic
+    enforcement:
+      validate_citations: true
+      block_on_missing_citations: false
+      enforce_strict_fallback: false
+      prevent_external_knowledge: true
+      max_output_tokens: 1024
+
+filters:
+  - name: enterprise_only
+    description: Only apply to enterprise org context.
+    condition:
+      field: org_tier
+      operator: equals
+      source: context
+
+  - name: pii_sensitive
+    description: Filter for teams handling regulated data.
+    condition:
+      field: data_classification
+      operator: intersects
+      source: context
+
+
+acme_corp:
+  default_policy: strict_citations
+  policy_rules:
+    - name: deny_low_confidence
+      priority: 10
+      effect: deny
+      when:
+        any:
+          - field: confidence_score
+            operator: lte
+            value: 40
+
+    - name: allow_enterprise_strict
+      priority: 50
+      effect: allow
+      apply_policy: strict_citations
+      when:
+        all:
+          - field: org_tier
+            operator: equals
+            value: enterprise
+            source: context
+  filter_name: enterprise_only
+
+beta_labs:
+  default_policy: soft_research
+  policy_rules:
+    - name: allow_research_mode
+      priority: 20
+      effect: allow
+      apply_policy: soft_research
+      when:
+        all:
+          - field: user_role
+            operator: equals
+            value: analyst
+            source: context
+  filter_name: pii_sensitive
