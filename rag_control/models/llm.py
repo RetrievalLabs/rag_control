@@ -37,6 +37,8 @@ class LLMStreamChunk(BaseModel):
 
 
 class LLMStreamResponse(BaseModel):
+    # Pydantic v2 cannot generate a core schema for Iterator[LLMStreamChunk]
+    # by default, so allow this runtime stream type explicitly.
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     stream: Iterator[LLMStreamChunk]

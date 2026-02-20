@@ -18,6 +18,7 @@ class Condition(BaseModel):
 
 
 class Filter(BaseModel):
+    # Accept both field names (`and_`/`or_`) and aliases (`and`/`or`) in input.
     model_config = ConfigDict(validate_by_name=True)
 
     name: str
