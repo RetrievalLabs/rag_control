@@ -3,20 +3,19 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Iterator, Optional
 
+from pydantic import BaseModel, ConfigDict, Field
 
-@dataclass(slots=True)
-class LLMUsage:
+
+class LLMUsage(BaseModel):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
 
 
-@dataclass(slots=True)
-class LLMMetadata:
+class LLMMetadata(BaseModel):
     model: str
     provider: str
     latency_ms: float
@@ -24,23 +23,24 @@ class LLMMetadata:
     timestamp: Optional[datetime] = None
     temperature: Optional[float] = None
     top_p: Optional[float] = None
-    raw: Dict[str, Any] = field(default_factory=dict)
+    raw: Dict[str, Any] = Field(default_factory=dict)
 
 
-@dataclass(slots=True)
-class LLMResponse:
+class LLMResponse(BaseModel):
     content: str
     usage: LLMUsage
     metadata: LLMMetadata
 
 
-@dataclass(slots=True)
-class LLMStreamChunk:
+class LLMStreamChunk(BaseModel):
     delta: str
 
 
-@dataclass(slots=True)
-class LLMStreamResponse:
+class LLMStreamResponse(BaseModel):
+    # Pydantic v2 cannot generate a core schema for Iterator[LLMStreamChunk]
+    # by default, so allow this runtime stream type explicitly.
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     stream: Iterator[LLMStreamChunk]
     usage: Optional[LLMUsage] = None
     metadata: Optional[LLMMetadata] = None

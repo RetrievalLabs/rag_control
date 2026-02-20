@@ -4,6 +4,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
 from .base import RagControlError
+from .control_plane_config import ControlPlaneConfigValidationError
 from .embedding_model import (
     EmbeddingModelMismatchError,
     EmbeddingModelTypeError,
@@ -12,6 +13,7 @@ from .embedding_model import (
 
 __all__ = [
     "RagControlError",
+    "ControlPlaneConfigValidationError",
     "EmbeddingModelTypeError",
     "EmbeddingModelValidationError",
     "EmbeddingModelMismatchError",

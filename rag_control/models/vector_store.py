@@ -3,21 +3,20 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from pydantic import BaseModel, Field
 
-@dataclass(slots=True)
-class VectorStoreRecord:
+
+class VectorStoreRecord(BaseModel):
     id: str
     content: str
     score: float
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-@dataclass(slots=True)
-class VectorStoreSearchMetadata:
+class VectorStoreSearchMetadata(BaseModel):
     provider: str
     index: str
     latency_ms: float
@@ -25,10 +24,9 @@ class VectorStoreSearchMetadata:
     returned: int
     request_id: str | None = None
     timestamp: datetime | None = None
-    raw: dict[str, Any] = field(default_factory=dict)
+    raw: dict[str, Any] = Field(default_factory=dict)
 
 
-@dataclass(slots=True)
-class VectorStoreSearchResponse:
+class VectorStoreSearchResponse(BaseModel):
     records: list[VectorStoreRecord]
     metadata: VectorStoreSearchMetadata

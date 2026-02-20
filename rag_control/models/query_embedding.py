@@ -3,23 +3,22 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from pydantic import BaseModel, Field
 
-@dataclass(slots=True)
-class QueryEmbeddingMetadata:
+
+class QueryEmbeddingMetadata(BaseModel):
     model: str
     provider: str
     latency_ms: float
     dimensions: int
     request_id: str | None = None
     timestamp: datetime | None = None
-    raw: dict[str, Any] = field(default_factory=dict)
+    raw: dict[str, Any] = Field(default_factory=dict)
 
 
-@dataclass(slots=True)
-class QueryEmbeddingResponse:
+class QueryEmbeddingResponse(BaseModel):
     embedding: list[float]
     metadata: QueryEmbeddingMetadata

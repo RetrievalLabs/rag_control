@@ -3,16 +3,23 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
+from pathlib import Path
+
+from pydantic import ValidationError
+
 from rag_control.adapters.llm import LLM
 from rag_control.adapters.query_embedding import QueryEmbedding
 from rag_control.adapters.vector_store import VectorStore
 from rag_control.exceptions import (
+    ControlPlaneConfigValidationError,
     EmbeddingModelMismatchError,
     EmbeddingModelTypeError,
     EmbeddingModelValidationError,
 )
+from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.llm import LLMResponse, LLMStreamResponse
 
+from .config_loader import load_control_plane_config
 from .prompt import RAGPromptBuilder
 
 
@@ -28,11 +35,32 @@ class RAGControl:
     """
 
     def __init__(
-        self, llm: LLM, query_embedding: QueryEmbedding, vector_store: VectorStore
+        self,
+        llm: LLM,
+        query_embedding: QueryEmbedding,
+        vector_store: VectorStore,
+        config: ControlPlaneConfig | None = None,
+        config_path: str | Path | None = None,
     ) -> None:
+        if config is not None and config_path is not None:
+            raise ControlPlaneConfigValidationError(
+                "provide either 'config' or 'config_path', not both"
+            )
+        if config is None and config_path is None:
+            raise ControlPlaneConfigValidationError("provide one of 'config' or 'config_path'")
+
         self.llm = llm
         self.query_embedding = query_embedding
         self.vector_store = vector_store
+        if config_path is not None:
+            self.config = load_control_plane_config(config_path)
+        elif config is not None:
+            try:
+                self.config = ControlPlaneConfig.model_validate(config)
+            except ValidationError as exc:
+                raise ControlPlaneConfigValidationError(
+                    f"invalid control plane config: {exc}"
+                ) from exc
         self.prompt_builder = RAGPromptBuilder()
         self._validate_embedding_model_compatibility()
 
