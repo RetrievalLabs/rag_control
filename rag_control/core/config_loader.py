@@ -6,7 +6,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from pathlib import Path
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pydantic import ValidationError
 
 from rag_control.exceptions import ControlPlaneConfigValidationError

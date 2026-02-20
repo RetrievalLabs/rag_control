@@ -4,6 +4,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
 from rag_control.core.engine import RAGControl
+from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.vector_store import VectorStoreRecord
 from tests.utils.fake_llm import FakeLLM
 from tests.utils.fake_query_embedding import FakeQueryEmbedding
@@ -11,7 +12,7 @@ from tests.utils.fake_vector_store import FakeVectorStore
 
 
 def test_rag_control_run_returns_llm_response_with_retrieval_context(
-    fake_config,
+    fake_config: ControlPlaneConfig,
 ) -> None:
     llm = FakeLLM()
     query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
@@ -77,7 +78,7 @@ def test_rag_control_run_returns_llm_response_with_retrieval_context(
 
 
 def test_rag_control_stream_returns_llm_stream_response_with_retrieval_context(
-    fake_config,
+    fake_config: ControlPlaneConfig,
 ) -> None:
     llm = FakeLLM()
     query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")

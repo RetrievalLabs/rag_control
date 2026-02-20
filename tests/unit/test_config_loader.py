@@ -4,12 +4,20 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
 from pathlib import Path
+from typing import TypedDict
 
 import pytest
 
 from rag_control.core.config_loader import load_control_plane_config
 from rag_control.exceptions import ControlPlaneConfigValidationError
 from rag_control.models.config import ControlPlaneConfig
+
+
+class _LoaderCase(TypedDict, total=False):
+    name: str
+    path: Path
+    expected_error: str | None
+    simulate_read_error: bool
 
 
 def test_load_control_plane_config_with_multiple_conditions(
@@ -69,7 +77,7 @@ orgs:
 
     original_read_text = Path.read_text
 
-    test_cases = [
+    test_cases: list[_LoaderCase] = [
         {
             "name": "valid_config",
             "path": valid_config_path,
@@ -130,5 +138,6 @@ orgs:
                 assert isinstance(config, ControlPlaneConfig), case["name"]
                 continue
 
+            assert case["expected_error"] is not None
             with pytest.raises(ControlPlaneConfigValidationError, match=case["expected_error"]):
                 load_control_plane_config(case["path"])
