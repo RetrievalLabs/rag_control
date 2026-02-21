@@ -24,6 +24,7 @@ from rag_control.models.policy import (
 )
 from rag_control.models.rule import Condition, LogicalCondition, PolicyRule
 from rag_control.models.user_context import UserContext
+from rag_control.models.vector_store import VectorStoreRecord
 
 
 class _ResolvePolicyCase(TypedDict):
@@ -341,3 +342,116 @@ def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
             assert error.user_context == case["user_context"], case["name"]
         if isinstance(error, GovernanceOrgNotFoundError):
             assert error.user_context == case["user_context"], case["name"]
+
+
+def test_governance_registry_resolve_policy_with_source_document_match_modes() -> None:
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="any_doc_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="all_docs_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="doc_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_all_docs_public",
+                            priority=90,
+                            effect="allow",
+                            apply_policy="all_docs_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="metadata.classification",
+                                        operator="equals",
+                                        value="public",
+                                        source="source_document",
+                                        document_match="all",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_any_doc_public",
+                            priority=80,
+                            effect="allow",
+                            apply_policy="any_doc_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="metadata.classification",
+                                        operator="equals",
+                                        value="public",
+                                        source="source_document",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+    user_context = UserContext(user_id="u-docs", org_id="doc_org", attributes={})
+
+    all_public_docs = [
+        VectorStoreRecord(
+            id="doc-1",
+            content="alpha",
+            score=0.95,
+            metadata={"classification": "public"},
+        ),
+        VectorStoreRecord(
+            id="doc-2",
+            content="beta",
+            score=0.91,
+            metadata={"classification": "public"},
+        ),
+    ]
+    mixed_docs = [
+        VectorStoreRecord(
+            id="doc-3",
+            content="gamma",
+            score=0.93,
+            metadata={"classification": "public"},
+        ),
+        VectorStoreRecord(
+            id="doc-4",
+            content="delta",
+            score=0.89,
+            metadata={"classification": "internal"},
+        ),
+    ]
+    no_public_docs = [
+        VectorStoreRecord(
+            id="doc-5",
+            content="epsilon",
+            score=0.85,
+            metadata={"classification": "internal"},
+        )
+    ]
+
+    assert registry.resolve_policy(user_context, source_documents=all_public_docs) == "all_docs_policy"
+    assert registry.resolve_policy(user_context, source_documents=mixed_docs) == "any_doc_policy"
+    assert registry.resolve_policy(user_context, source_documents=no_public_docs) == "default_policy"
+    assert registry.resolve_policy(user_context, source_documents=[]) == "default_policy"

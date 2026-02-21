@@ -85,9 +85,10 @@ Policy Rule Condition Models
   - `any: list[Condition] | None`
 - `Condition`
   - `field: str` (required)
-  - `operator`: one of `equals | lt | lte | gt | gte | intersects`
+  - `operator`: one of `equals | lt | lte | gt | gte | intersects | exists`
   - `value: str | int | None`
-  - `source: "context" | None`
+  - `source: "context" | "source_document" | None`
+  - `document_match: "any" | "all" | None` (only valid when `source` is `"source_document"`)
 
 Filter Model: `Filter`
 - Fields:

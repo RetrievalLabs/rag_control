@@ -26,13 +26,15 @@ RULE_NUMERIC_OPERATORS = {
 }
 
 Operator = Literal["equals", "lt", "lte", "gt", "gte", "intersects", "exists"]
+DocumentMatchOperator = Literal["any", "all"]
 
 
 class Condition(BaseModel):
     field: str
     operator: Operator
     value: Optional[Union[str, StrictInt, StrictFloat]] = None
-    source: Optional[Literal["context"]] = None
+    source: Optional[Literal["context", "source_document"]] = None
+    document_match: Optional[DocumentMatchOperator] = None
 
 
 class LogicalCondition(BaseModel):

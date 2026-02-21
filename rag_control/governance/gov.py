@@ -25,6 +25,7 @@ from rag_control.models.rule import (
     LogicalCondition,
 )
 from rag_control.models.user_context import UserContext
+from rag_control.models.vector_store import VectorStoreRecord
 
 
 class GovernanceRegistry:
@@ -45,7 +46,11 @@ class GovernanceRegistry:
     def get_org(self, org_name: str) -> OrgConfig | None:
         return self.org_map.get(org_name)
 
-    def resolve_policy(self, user_context: UserContext) -> str:
+    def resolve_policy(
+        self,
+        user_context: UserContext,
+        source_documents: list[VectorStoreRecord] | None = None,
+    ) -> str:
         org = self.get_org(user_context.org_id)
         if org is None:
             raise GovernanceOrgNotFoundError(user_context)
@@ -54,7 +59,7 @@ class GovernanceRegistry:
         context = user_context.attributes
 
         for rule in org.policy_rules:
-            if not self._matches_logical_condition(rule.when, context):
+            if not self._matches_logical_condition(rule.when, context, source_documents):
                 continue
             if rule.effect == RULE_EFFECT_DENY:
                 raise GovernancePolicyDeniedError(user_context, rule.name)
@@ -66,7 +71,9 @@ class GovernanceRegistry:
 
     @staticmethod
     def _matches_logical_condition(
-        logical_condition: LogicalCondition, context: dict[str, Any]
+        logical_condition: LogicalCondition,
+        context: dict[str, Any],
+        source_documents: list[VectorStoreRecord] | None = None,
     ) -> bool:
         all_conditions = logical_condition.all
         any_conditions = logical_condition.any
@@ -80,7 +87,7 @@ class GovernanceRegistry:
         all_match = (
             len(all_conditions) > 0
             and all(
-                GovernanceRegistry._matches_condition(condition, context)
+                GovernanceRegistry._matches_condition(condition, context, source_documents)
                 for condition in all_conditions
             )
             if all_conditions is not None
@@ -90,7 +97,7 @@ class GovernanceRegistry:
         any_match = (
             len(any_conditions) > 0
             and any(
-                GovernanceRegistry._matches_condition(condition, context)
+                GovernanceRegistry._matches_condition(condition, context, source_documents)
                 for condition in any_conditions
             )
             if any_conditions is not None
@@ -103,7 +110,17 @@ class GovernanceRegistry:
         return all_match if has_all else any_match
 
     @staticmethod
-    def _matches_condition(condition: Condition, context: dict[str, Any]) -> bool:
+    def _matches_condition(
+        condition: Condition,
+        context: dict[str, Any],
+        source_documents: list[VectorStoreRecord] | None = None,
+    ) -> bool:
+        source = condition.source or "context"
+        if source == "source_document":
+            return GovernanceRegistry._matches_source_document_condition(
+                condition, source_documents or []
+            )
+
         actual_value = context.get(condition.field)
         expected_value = condition.value
         operator = condition.operator
@@ -140,3 +157,72 @@ class GovernanceRegistry:
             return False
 
         return False
+
+    @staticmethod
+    def _matches_source_document_condition(
+        condition: Condition, source_documents: list[VectorStoreRecord]
+    ) -> bool:
+        if len(source_documents) == 0:
+            return False
+
+        require_all_docs = condition.document_match == "all"
+        document_matches = [
+            GovernanceRegistry._matches_condition_for_document(condition, source_document)
+            for source_document in source_documents
+        ]
+        if require_all_docs:
+            return all(document_matches)
+        return any(document_matches)
+
+    @staticmethod
+    def _matches_condition_for_document(
+        condition: Condition, source_document: VectorStoreRecord
+    ) -> bool:
+        source_document_data = source_document.model_dump()
+        has_field, actual_value = GovernanceRegistry._resolve_nested_value(
+            source_document_data, condition.field
+        )
+        expected_value = condition.value
+        operator = condition.operator
+
+        if operator == RULE_OPERATOR_EXISTS:
+            return has_field
+
+        if operator == RULE_OPERATOR_EQUALS:
+            return actual_value == expected_value
+
+        if expected_value is None:
+            return False
+
+        if operator in RULE_NUMERIC_OPERATORS:
+            if not isinstance(actual_value, (int, float)) or not isinstance(
+                expected_value, (int, float)
+            ):
+                return False
+            if operator == RULE_OPERATOR_LT:
+                return actual_value < expected_value
+            if operator == RULE_OPERATOR_LTE:
+                return actual_value <= expected_value
+            if operator == RULE_OPERATOR_GT:
+                return actual_value > expected_value
+            if operator == RULE_OPERATOR_GTE:
+                return actual_value >= expected_value
+            return actual_value >= expected_value
+
+        if operator == RULE_OPERATOR_INTERSECTS:
+            if isinstance(actual_value, (list, set, tuple)):
+                return expected_value in actual_value
+            if isinstance(actual_value, str) and isinstance(expected_value, str):
+                return expected_value in actual_value
+            return False
+
+        return False
+
+    @staticmethod
+    def _resolve_nested_value(data: dict[str, Any], path: str) -> tuple[bool, Any]:
+        current: Any = data
+        for key in path.split("."):
+            if not isinstance(current, dict) or key not in current:
+                return False, None
+            current = current[key]
+        return True, current

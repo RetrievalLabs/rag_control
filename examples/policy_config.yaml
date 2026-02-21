@@ -108,6 +108,18 @@ orgs:
     description: Acme Corporation with strict citation requirements.
     default_policy: strict_citations
     policy_rules:
+      - name: deny_untrusted_document_source
+        description: Deny if any retrieved document comes from an untrusted source.
+        priority: 60
+        effect: deny
+        when:
+          any:
+            - field: metadata.source
+              operator: equals
+              value: public-web
+              source: source_document
+              document_match: any
+
       - name: deny_low_confidence
         description: Deny responses when retrieval confidence is too low.
         priority: 10
@@ -129,12 +141,67 @@ orgs:
               operator: equals
               value: enterprise
               source: context
+
+      - name: allow_enterprise_with_policy_docs
+        description: Allow enterprise requests when at least one policy KB doc is retrieved.
+        priority: 40
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          all:
+            - field: org_tier
+              operator: equals
+              value: enterprise
+              source: context
+            - field: metadata.source
+              operator: equals
+              value: policy-kb
+              source: source_document
+              document_match: any
     filter_name: enterprise_only
 
   - org_id: beta_labs
     description: Beta Labs with flexible research policies.
     default_policy: soft_research
     policy_rules:
+      - name: allow_trusted_docs_only
+        description: Escalate to strict policy when all retrieved docs are from trusted KB.
+        priority: 30
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          all:
+            - field: metadata.source
+              operator: equals
+              value: policy-kb
+              source: source_document
+              document_match: all
+
+      - name: allow_any_trusted_doc
+        description: Apply strict citations when any retrieved doc comes from the trusted KB.
+        priority: 25
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          any:
+            - field: metadata.source
+              operator: equals
+              value: policy-kb
+              source: source_document
+              document_match: any
+
+      - name: deny_unknown_doc_source
+        description: Deny when any retrieved doc is explicitly marked as unknown source.
+        priority: 24
+        effect: deny
+        when:
+          any:
+            - field: metadata.source
+              operator: equals
+              value: unknown
+              source: source_document
+              document_match: any
+
       - name: allow_research_mode
         description: Allow analyst research workflows using soft fallback.
         priority: 20
