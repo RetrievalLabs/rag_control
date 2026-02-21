@@ -21,3 +21,5 @@ htmlcov/
 rag_control.egg-info/
 
 uv.lock
+
+.uv-cache
