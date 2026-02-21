@@ -162,10 +162,6 @@ class GovernanceRegistry:
         root_context = user_context.model_dump()
         attributes = user_context.attributes
 
-        # Backward compatible path: direct attributes lookup for existing rule configs.
-        if field in attributes:
-            return True, attributes[field]
-
         # Support top-level fields and custom extra keys on UserContext.
         if field in root_context:
             return True, root_context[field]
