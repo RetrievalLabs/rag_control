@@ -158,6 +158,18 @@ orgs:
               value: policy-kb
               source: documents
               document_match: any
+
+      - name: allow_finance_department_nested
+        description: Allow when user department is provided as a nested user path.
+        priority: 35
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          any:
+            - field: attributes.department
+              operator: equals
+              value: finance
+              source: user
     filter_name: enterprise_only
 
   - org_id: beta_labs
@@ -190,9 +202,22 @@ orgs:
               source: documents
               document_match: any
 
+      - name: allow_active_doc_region_status
+        description: Apply strict citations when any doc has nested region status metadata.
+        priority: 23
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          any:
+            - field: metadata.region.status
+              operator: equals
+              value: active
+              source: documents
+              document_match: any
+
       - name: deny_unknown_doc_source
         description: Deny when any retrieved doc is explicitly marked as unknown source.
-        priority: 24
+        priority: 22
         effect: deny
         when:
           any:
@@ -204,7 +229,7 @@ orgs:
 
       - name: allow_research_mode
         description: Allow analyst research workflows using soft fallback.
-        priority: 20
+        priority: 21
         effect: allow
         apply_policy: soft_research
         when:
