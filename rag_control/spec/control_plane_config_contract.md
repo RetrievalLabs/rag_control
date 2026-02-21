@@ -83,6 +83,12 @@ Policy Rule Condition Models
 - `LogicalCondition`
   - `all: list[Condition] | None`
   - `any: list[Condition] | None`
+  - Evaluation semantics:
+    - If only `all` is present, all listed conditions MUST match.
+    - If only `any` is present, at least one listed condition MUST match.
+    - If both `all` and `any` are present, implementations MUST require
+      `all` **and** `any` to match.
+    - Empty lists SHOULD evaluate as non-match.
 - `Condition`
   - `field: str` (required)
   - `operator`: one of `equals | lt | lte | gt | gte | intersects | exists`
