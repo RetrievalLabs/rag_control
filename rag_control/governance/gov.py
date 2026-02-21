@@ -118,7 +118,9 @@ class GovernanceRegistry:
                 condition, source_documents or []
             )
 
-        has_field, actual_value = GovernanceRegistry._resolve_user_value(user_context, condition.field)
+        has_field, actual_value = GovernanceRegistry._resolve_user_value(
+            user_context, condition.field
+        )
         expected_value = condition.value
         operator = condition.operator
 

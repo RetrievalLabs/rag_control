@@ -13,12 +13,12 @@ from .filter import Filter
 from .org import OrgConfig
 from .policy import Policy
 from .rule import (
-    Condition,
-    LogicalCondition,
     RULE_NUMERIC_OPERATORS,
     RULE_OPERATOR_EQUALS,
     RULE_OPERATOR_EXISTS,
     RULE_OPERATOR_INTERSECTS,
+    Condition,
+    LogicalCondition,
 )
 
 
@@ -105,15 +105,12 @@ class ControlPlaneConfig(BaseModel):
         if condition.operator == RULE_OPERATOR_EQUALS:
             if condition.value is None:
                 raise ControlPlaneConfigValidationError(
-                    f"org '{org_id}' rule '{rule_name}': "
-                    "value is required for 'equals' operator"
+                    f"org '{org_id}' rule '{rule_name}': value is required for 'equals' operator"
                 )
             return
 
         if condition.operator in RULE_NUMERIC_OPERATORS:
-            if not isinstance(condition.value, (int, float)) or isinstance(
-                condition.value, bool
-            ):
+            if not isinstance(condition.value, (int, float)) or isinstance(condition.value, bool):
                 raise ControlPlaneConfigValidationError(
                     f"org '{org_id}' rule '{rule_name}': "
                     "value must be an int or float for numeric operators: lt/lte/gt/gte"
@@ -122,6 +119,5 @@ class ControlPlaneConfig(BaseModel):
 
         if condition.operator == RULE_OPERATOR_INTERSECTS and condition.value is None:
             raise ControlPlaneConfigValidationError(
-                f"org '{org_id}' rule '{rule_name}': "
-                "value is required for 'intersects' operator"
+                f"org '{org_id}' rule '{rule_name}': value is required for 'intersects' operator"
             )

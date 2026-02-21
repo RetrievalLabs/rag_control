@@ -478,9 +478,13 @@ def test_governance_registry_resolve_policy_with_source_document_match_modes() -
         )
     ]
 
-    assert registry.resolve_policy(user_context, source_documents=all_public_docs) == "all_docs_policy"
+    assert (
+        registry.resolve_policy(user_context, source_documents=all_public_docs) == "all_docs_policy"
+    )
     assert registry.resolve_policy(user_context, source_documents=mixed_docs) == "any_doc_policy"
-    assert registry.resolve_policy(user_context, source_documents=no_public_docs) == "default_policy"
+    assert (
+        registry.resolve_policy(user_context, source_documents=no_public_docs) == "default_policy"
+    )
     assert registry.resolve_policy(user_context, source_documents=[]) == "default_policy"
 
 
@@ -789,8 +793,14 @@ def test_governance_registry_resolve_policy_with_nested_document_paths() -> None
         )
     ]
 
-    assert registry.resolve_policy(user_context, source_documents=top_nested_docs) == "doc_status_top_policy"
-    assert registry.resolve_policy(user_context, source_documents=mid_nested_docs) == "doc_status_policy"
+    assert (
+        registry.resolve_policy(user_context, source_documents=top_nested_docs)
+        == "doc_status_top_policy"
+    )
+    assert (
+        registry.resolve_policy(user_context, source_documents=mid_nested_docs)
+        == "doc_status_policy"
+    )
     assert registry.resolve_policy(user_context, source_documents=no_match_docs) == "default_policy"
 
 
