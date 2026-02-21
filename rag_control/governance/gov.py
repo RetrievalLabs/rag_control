@@ -103,7 +103,7 @@ class GovernanceRegistry:
         )
 
         if has_all and has_any:
-            return all_match or any_match
+            return all_match and any_match
 
         return all_match if has_all else any_match
 

@@ -908,3 +908,91 @@ def test_governance_registry_resolve_policy_with_mixed_user_and_document_conditi
         )
         == "default_policy"
     )
+
+
+def test_governance_registry_logical_condition_requires_all_and_any_when_both_present() -> None:
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="combined_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="logical_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_all_and_any_rule",
+                            priority=10,
+                            effect="allow",
+                            apply_policy="combined_policy",
+                            when=LogicalCondition(
+                                all=[
+                                    Condition(
+                                        field="department",
+                                        operator="equals",
+                                        value="finance",
+                                        source="user",
+                                    )
+                                ],
+                                any=[
+                                    Condition(
+                                        field="region",
+                                        operator="equals",
+                                        value="eu",
+                                        source="user",
+                                    )
+                                ],
+                            ),
+                        )
+                    ],
+                )
+            ],
+        )
+    )
+
+    # all=True, any=True -> match
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="l-1",
+                org_id="logical_org",
+                attributes={"department": "finance", "region": "eu"},
+            )
+        )
+        == "combined_policy"
+    )
+    # all=True, any=False -> no match
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="l-2",
+                org_id="logical_org",
+                attributes={"department": "finance", "region": "us"},
+            )
+        )
+        == "default_policy"
+    )
+    # all=False, any=True -> no match
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="l-3",
+                org_id="logical_org",
+                attributes={"department": "legal", "region": "eu"},
+            )
+        )
+        == "default_policy"
+    )
