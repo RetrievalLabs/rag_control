@@ -10,8 +10,8 @@ Purpose
 
 Scope
 - Applies to:
-  - `LLM.generate(prompt) -> LLMResponse`
-  - `LLM.stream(prompt) -> LLMStreamResponse`
+  - `LLM.generate(prompt, temperature: float | None = None, user_context: UserContext | None = None) -> LLMResponse`
+  - `LLM.stream(prompt, temperature: float | None = None, user_context: UserContext | None = None) -> LLMStreamResponse`
 - Output models are defined in `rag_control/models/llm.py`.
 
 Normative Terms
@@ -24,6 +24,8 @@ Generate Contract
   - `prompt` MUST be either:
     - a `str`, or
     - a chat message list shaped as `list[dict[str, str]]` containing at least `role` and `content`.
+  - `temperature` MAY be provided to control decoding behavior.
+  - `user_context` MAY be provided to support user-aware generation behavior.
   - Engine integrations SHOULD support chat message list prompts because `RAGControl` sends structured messages.
   - Empty prompt handling is provider-defined, but adapter SHOULD fail fast with a clear exception when invalid.
 - Output:
@@ -46,6 +48,8 @@ Generate Contract
 Stream Contract
 - Input:
   - `prompt` MUST follow the same type contract as `generate`.
+  - `temperature` MAY be provided to control decoding behavior.
+  - `user_context` MAY be provided to support user-aware generation behavior.
 - Output:
   - MUST return `LLMStreamResponse`.
   - `LLMStreamResponse.stream` MUST be an iterator yielding `LLMStreamChunk`.

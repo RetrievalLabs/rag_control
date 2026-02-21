@@ -18,6 +18,7 @@ from rag_control.models.llm import (
     LLMStreamResponse,
     LLMUsage,
 )
+from rag_control.models.user_context import UserContext
 
 
 @dataclass(slots=True)
@@ -52,6 +53,10 @@ class FakeLLM(LLM):
         self.default_latency_ms = latency_ms
 
         self.prompts: list[Any] = []
+        self.generate_temperatures: list[float | None] = []
+        self.stream_temperatures: list[float | None] = []
+        self.generate_user_contexts: list[UserContext | None] = []
+        self.stream_user_contexts: list[UserContext | None] = []
         self.generate_calls = 0
         self.stream_calls = 0
 
@@ -92,7 +97,12 @@ class FakeLLM(LLM):
     def fail_next(self, error: Exception) -> None:
         self._next_error = error
 
-    def generate(self, prompt: Any) -> LLMResponse:
+    def generate(
+        self,
+        prompt: Any,
+        temperature: float | None = None,
+        user_context: UserContext | None = None,
+    ) -> LLMResponse:
         if self._next_error is not None:
             error = self._next_error
             self._next_error = None
@@ -100,6 +110,8 @@ class FakeLLM(LLM):
 
         self._validate_prompt(prompt)
         self.prompts.append(prompt)
+        self.generate_temperatures.append(temperature)
+        self.generate_user_contexts.append(user_context)
         self.generate_calls += 1
 
         planned = self._next_planned_output()
@@ -107,7 +119,12 @@ class FakeLLM(LLM):
         metadata = self._metadata_for(planned)
         return LLMResponse(content=planned.content, usage=usage, metadata=metadata)
 
-    def stream(self, prompt: Any) -> LLMStreamResponse:
+    def stream(
+        self,
+        prompt: Any,
+        temperature: float | None = None,
+        user_context: UserContext | None = None,
+    ) -> LLMStreamResponse:
         if self._next_error is not None:
             error = self._next_error
             self._next_error = None
@@ -115,6 +132,8 @@ class FakeLLM(LLM):
 
         self._validate_prompt(prompt)
         self.prompts.append(prompt)
+        self.stream_temperatures.append(temperature)
+        self.stream_user_contexts.append(user_context)
         self.stream_calls += 1
 
         planned = self._next_planned_output()
