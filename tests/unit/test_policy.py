@@ -5,8 +5,12 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from typing import TypedDict
 
+import pytest
+from pydantic import ValidationError
+
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.policy import (
+    DocumentPolicy,
     EnforcementPolicy,
     GenerationPolicy,
     LoggingPolicy,
@@ -31,6 +35,7 @@ def test_policy_get_with_multiple_conditions(fake_config: ControlPlaneConfig) ->
         generation=GenerationPolicy(reasoning_level="full", fallback="soft"),
         logging=LoggingPolicy(level="forensic"),
         enforcement=EnforcementPolicy(block_on_missing_citations=False),
+        document_policy=DocumentPolicy(mik_top_k=2, max_top_k=8),
     )
 
     config = fake_config.model_copy(update={"policies": [*fake_config.policies, research_policy]})
@@ -63,6 +68,45 @@ def test_policy_get_with_multiple_conditions(fake_config: ControlPlaneConfig) ->
             assert result is not None, case["name"]
             assert result.name == case["policy_name"], case["name"]
             assert result.description == case["expected_description"], case["name"]
+            if case["policy_name"] == "research_policy":
+                assert result.document_policy.mik_top_k == 2, case["name"]
+                assert result.document_policy.max_top_k == 8, case["name"]
             continue
 
         assert result is None, case["name"]
+
+
+@pytest.mark.parametrize(
+    ("document_policy", "expected_error"),
+    [
+        (
+            DocumentPolicy(mik_top_k=0, max_top_k=5),
+            "document_policy.mik_top_k must be greater than 0",
+        ),
+        (
+            DocumentPolicy(mik_top_k=3, max_top_k=0),
+            "document_policy.max_top_k must be greater than 0",
+        ),
+        (
+            DocumentPolicy(mik_top_k=6, max_top_k=5),
+            "document_policy.mik_top_k must be less than or equal to document_policy.max_top_k",
+        ),
+    ],
+)
+def test_document_policy_validation_errors(
+    fake_config: ControlPlaneConfig,
+    document_policy: DocumentPolicy,
+    expected_error: str,
+) -> None:
+    invalid_policy = PolicyModel(
+        name="invalid_document_policy",
+        generation=GenerationPolicy(),
+        logging=LoggingPolicy(),
+        enforcement=EnforcementPolicy(),
+        document_policy=document_policy,
+    )
+
+    with pytest.raises(ValidationError, match=expected_error):
+        dumped_config = fake_config.model_dump()
+        dumped_config["policies"].append(invalid_policy.model_dump())
+        ControlPlaneConfig.model_validate(dumped_config)
