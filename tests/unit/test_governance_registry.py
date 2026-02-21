@@ -1068,6 +1068,173 @@ def test_governance_registry_resolve_policy_with_mixed_user_and_document_conditi
     )
 
 
+def test_governance_registry_user_context_missing_and_wrong_types_fall_back_to_default() -> None:
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="profile_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="risk_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="region_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="user_type_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_profile_department_exists",
+                            priority=30,
+                            effect="allow",
+                            apply_policy="profile_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="profile.department",
+                                        operator="exists",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_risk_score_gte_80",
+                            priority=20,
+                            effect="allow",
+                            apply_policy="risk_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="risk.score",
+                                        operator="gte",
+                                        value=80,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_region_intersects_eu",
+                            priority=10,
+                            effect="allow",
+                            apply_policy="region_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="region",
+                                        operator="intersects",
+                                        value="eu",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+
+    assert (
+        registry.resolve_policy(
+            UserContext.model_validate(
+                {
+                    "user_id": "u-pass",
+                    "org_id": "user_type_org",
+                    "attributes": {"risk": {"score": 90}},
+                    "profile": {"department": "security"},
+                }
+            )
+        )
+        == "profile_policy"
+    )
+
+    assert (
+        registry.resolve_policy(
+            UserContext(user_id="u-missing-1", org_id="user_type_org", attributes={})
+        )
+        == "default_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext.model_validate(
+                {
+                    "user_id": "u-missing-2",
+                    "org_id": "user_type_org",
+                    "attributes": {},
+                    "profile": {},
+                }
+            )
+        )
+        == "default_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext.model_validate(
+                {
+                    "user_id": "u-missing-3",
+                    "org_id": "user_type_org",
+                    "attributes": {},
+                    "profile": "security",
+                }
+            )
+        )
+        == "default_policy"
+    )
+
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-type-1",
+                org_id="user_type_org",
+                attributes={"risk": {"score": "high"}},
+            )
+        )
+        == "default_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-type-2",
+                org_id="user_type_org",
+                attributes={"risk": {"score": {"value": 95}}},
+            )
+        )
+        == "default_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-type-3",
+                org_id="user_type_org",
+                attributes={"region": {"name": "eu"}},
+            )
+        )
+        == "default_policy"
+    )
+
+
 def test_governance_registry_logical_condition_requires_all_and_any_when_both_present() -> None:
     registry = GovernanceRegistry(
         ControlPlaneConfig(
