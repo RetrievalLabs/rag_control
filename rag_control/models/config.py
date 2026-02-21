@@ -9,7 +9,15 @@ from pydantic import BaseModel, model_validator
 
 from rag_control.exceptions import ControlPlaneConfigValidationError
 
-from .filter import Filter
+from .filter import (
+    FILTER_NUMERIC_OPERATORS,
+    FILTER_OPERATOR_EQUALS,
+    FILTER_OPERATOR_EXISTS,
+    FILTER_OPERATOR_IN,
+    FILTER_OPERATOR_INTERSECTS,
+    Filter,
+)
+from .filter import Condition as FilterCondition
 from .org import OrgConfig
 from .policy import Policy
 from .rule import (
@@ -44,6 +52,9 @@ class ControlPlaneConfig(BaseModel):
 
         policy_name_set = set(policy_names)
         filter_name_set = set(filter_names)
+
+        for flt in self.filters:
+            self._validate_filter(flt.name, flt)
 
         for org in self.orgs:
             if org.default_policy not in policy_name_set:
@@ -120,4 +131,78 @@ class ControlPlaneConfig(BaseModel):
         if condition.operator == RULE_OPERATOR_INTERSECTS and condition.value is None:
             raise ControlPlaneConfigValidationError(
                 f"org '{org_id}' rule '{rule_name}': value is required for 'intersects' operator"
+            )
+
+    @staticmethod
+    def _validate_filter(filter_name: str, flt: Filter, path: str = "root") -> None:
+        defined_nodes = sum(
+            [
+                flt.condition is not None,
+                flt.and_ is not None,
+                flt.or_ is not None,
+            ]
+        )
+        if defined_nodes != 1:
+            raise ControlPlaneConfigValidationError(
+                f"filter '{filter_name}' at '{path}' must include exactly one of: "
+                "condition, and, or"
+            )
+
+        if flt.condition is not None:
+            ControlPlaneConfig._validate_filter_condition(filter_name, path, flt.condition)
+
+        if flt.and_ is not None:
+            if len(flt.and_) == 0:
+                raise ControlPlaneConfigValidationError(
+                    f"filter '{filter_name}' at '{path}.and' must not be empty"
+                )
+            for index, child_filter in enumerate(flt.and_):
+                ControlPlaneConfig._validate_filter(
+                    filter_name, child_filter, path=f"{path}.and[{index}]"
+                )
+
+        if flt.or_ is not None:
+            if len(flt.or_) == 0:
+                raise ControlPlaneConfigValidationError(
+                    f"filter '{filter_name}' at '{path}.or' must not be empty"
+                )
+            for index, child_filter in enumerate(flt.or_):
+                ControlPlaneConfig._validate_filter(
+                    filter_name, child_filter, path=f"{path}.or[{index}]"
+                )
+
+    @staticmethod
+    def _validate_filter_condition(filter_name: str, path: str, condition: FilterCondition) -> None:
+        if condition.operator == FILTER_OPERATOR_EXISTS:
+            return
+
+        if condition.operator == FILTER_OPERATOR_IN:
+            if not isinstance(condition.value, list):
+                raise ControlPlaneConfigValidationError(
+                    f"filter '{filter_name}' at '{path}': value must be a list for 'in' operator"
+                )
+            if len(condition.value) == 0:
+                raise ControlPlaneConfigValidationError(
+                    f"filter '{filter_name}' at '{path}': value must not be empty for 'in' operator"
+                )
+            return
+
+        if condition.operator == FILTER_OPERATOR_EQUALS:
+            if condition.value is None:
+                raise ControlPlaneConfigValidationError(
+                    f"filter '{filter_name}' at '{path}': value is required for 'equals' operator"
+                )
+            return
+
+        if condition.operator in FILTER_NUMERIC_OPERATORS:
+            if not isinstance(condition.value, (int, float)) or isinstance(condition.value, bool):
+                raise ControlPlaneConfigValidationError(
+                    f"filter '{filter_name}' at '{path}': "
+                    "value must be an int or float for numeric operators: lt/lte/gt/gte"
+                )
+            return
+
+        if condition.operator == FILTER_OPERATOR_INTERSECTS and condition.value is None:
+            raise ControlPlaneConfigValidationError(
+                f"filter '{filter_name}' at '{path}': value is required for 'intersects' operator"
             )

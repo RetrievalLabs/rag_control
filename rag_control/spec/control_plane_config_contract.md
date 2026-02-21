@@ -114,15 +114,17 @@ Filter Model: `Filter`
   - `and` / `and_`: optional list of nested `Filter`
   - `or` / `or_`: optional list of nested `Filter`
   - `condition: FilterCondition | None`
+- Node semantics:
+  - Each filter node MUST include exactly one of: `condition`, `and`, `or`.
 - Input alias behavior:
   - Implementations MUST accept both `and` and `and_`.
   - Implementations MUST accept both `or` and `or_`.
 
 Filter Condition Model
 - `field: str` (required)
-- `operator`: one of `equals | in | intersects | lte | gte`
+- `operator`: one of `equals | in | intersects | lt | lte | gt | gte | exists`
 - `value: str | int | list[str] | list[int] | None`
-- `source: "context"` (default `"context"`)
+- `source: "user"` (default `"user"`)
 
 Minimum Validation/Test Contract
 - A valid config MUST instantiate `ControlPlaneConfig` without error.

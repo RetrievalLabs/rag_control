@@ -40,7 +40,7 @@ filters:
       field: org_tier
       operator: equals
       value: enterprise
-      source: context
+      source: user
 
   - name: pii_sensitive
     description: Filter for teams handling regulated data classes.
@@ -50,7 +50,7 @@ filters:
       value:
         - pii
         - phi
-      source: context
+      source: user
 
   - name: finance_high_assurance
     description: Finance use cases with high assurance guardrails.
@@ -59,7 +59,7 @@ filters:
           field: department
           operator: equals
           value: finance
-          source: context
+          source: user
       - or:
           - condition:
               field: data_classification
@@ -67,19 +67,19 @@ filters:
               value:
                 - confidential
                 - restricted
-              source: context
+              source: user
           - condition:
               field: region
               operator: in
               value:
                 - us
                 - eu
-              source: context
+              source: user
       - condition:
           field: user_clearance_level
           operator: gte
           value: 3
-          source: context
+          source: user
 
   - name: production_write_guard
     description: Extra checks before allowing production write operations.
@@ -88,19 +88,19 @@ filters:
           field: environment
           operator: equals
           value: production
-          source: context
+          source: user
       - condition:
           field: action
           operator: in
           value:
             - write
             - delete
-          source: context
+          source: user
       - condition:
           field: risk_score
           operator: lte
           value: 70
-          source: context
+          source: user
 
 
 orgs:

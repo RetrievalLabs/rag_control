@@ -64,7 +64,7 @@ def _build_governance_config() -> ControlPlaneConfig:
                     field="org_tier",
                     operator="equals",
                     value="enterprise",
-                    source="context",
+                    source="user",
                 ),
             )
         ],
