@@ -7,14 +7,14 @@ from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-Operator = Literal["equals", "in", "intersects", "lte", "gte"]
+Operator = Literal["equals", "in", "intersects", "lt", "lte", "gt", "gte", "exists"]
 
 
 class Condition(BaseModel):
     field: str
     operator: Operator
     value: Optional[Union[str, int, List[str], List[int]]] = None
-    source: Literal["context"] = "context"
+    source: Literal["user"] = "user"
 
 
 class Filter(BaseModel):
