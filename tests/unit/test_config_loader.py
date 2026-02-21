@@ -109,6 +109,37 @@ orgs:
         encoding="utf-8",
     )
 
+    invalid_filter_mixed_path = tmp_path / "invalid_filter_mixed.yaml"
+    invalid_filter_mixed_path.write_text(
+        """
+policies:
+  - name: default_policy
+    generation: {}
+    logging: {}
+    enforcement: {}
+filters:
+  - name: default_filter
+    condition:
+      field: org_tier
+      operator: equals
+      value: enterprise
+      source: user
+    and:
+      - name: nested_filter
+        condition:
+          field: department
+          operator: equals
+          value: finance
+          source: user
+orgs:
+  - org_id: test_org
+    default_policy: default_policy
+    filter_name: default_filter
+    policy_rules: []
+""".strip(),
+        encoding="utf-8",
+    )
+
     empty_file_path = tmp_path / "empty.yaml"
     empty_file_path.write_text("", encoding="utf-8")
 
@@ -165,7 +196,12 @@ orgs:
         {
             "name": "invalid_filter_empty",
             "path": invalid_filter_empty_path,
-            "expected_error": "must include at least one of: condition, and, or",
+            "expected_error": "must include exactly one of: condition, and, or",
+        },
+        {
+            "name": "invalid_filter_mixed",
+            "path": invalid_filter_mixed_path,
+            "expected_error": "must include exactly one of: condition, and, or",
         },
         {
             "name": "empty_file",

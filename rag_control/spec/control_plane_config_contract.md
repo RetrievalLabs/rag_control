@@ -114,6 +114,8 @@ Filter Model: `Filter`
   - `and` / `and_`: optional list of nested `Filter`
   - `or` / `or_`: optional list of nested `Filter`
   - `condition: FilterCondition | None`
+- Node semantics:
+  - Each filter node MUST include exactly one of: `condition`, `and`, `or`.
 - Input alias behavior:
   - Implementations MUST accept both `and` and `and_`.
   - Implementations MUST accept both `or` and `or_`.

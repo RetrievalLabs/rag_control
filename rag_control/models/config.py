@@ -133,9 +133,16 @@ class ControlPlaneConfig(BaseModel):
 
     @staticmethod
     def _validate_filter(filter_name: str, flt: Filter, path: str = "root") -> None:
-        if flt.condition is None and flt.and_ is None and flt.or_ is None:
+        defined_nodes = sum(
+            [
+                flt.condition is not None,
+                flt.and_ is not None,
+                flt.or_ is not None,
+            ]
+        )
+        if defined_nodes != 1:
             raise ControlPlaneConfigValidationError(
-                f"filter '{filter_name}' at '{path}' must include at least one of: condition, and, or"
+                f"filter '{filter_name}' at '{path}' must include exactly one of: condition, and, or"
             )
 
         if flt.condition is not None:
@@ -163,7 +170,7 @@ class ControlPlaneConfig(BaseModel):
 
     @staticmethod
     def _validate_filter_condition(filter_name: str, path: str, condition: FilterCondition) -> None:
-        if condition.operator == RULE_OPERATOR_EXISTS:
+        if condition.operator == FILTER_OPERATOR_EXISTS:
             return
 
         if condition.operator == FILTER_OPERATOR_IN:
