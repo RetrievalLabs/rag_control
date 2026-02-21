@@ -52,7 +52,7 @@ orgs:
             - field: org_tier
               operator: equals
               value: enterprise
-              source: context
+              source: user
 """.strip(),
         encoding="utf-8",
     )

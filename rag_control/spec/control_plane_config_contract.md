@@ -83,11 +83,29 @@ Policy Rule Condition Models
 - `LogicalCondition`
   - `all: list[Condition] | None`
   - `any: list[Condition] | None`
+  - Evaluation semantics:
+    - If only `all` is present, all listed conditions MUST match.
+    - If only `any` is present, at least one listed condition MUST match.
+    - If both `all` and `any` are present, implementations MUST require
+      `all` **and** `any` to match.
+    - Empty lists SHOULD evaluate as non-match.
 - `Condition`
   - `field: str` (required)
-  - `operator`: one of `equals | lt | lte | gt | gte | intersects`
+  - `operator`: one of `equals | lt | lte | gt | gte | intersects | exists`
   - `value: str | int | None`
-  - `source: "context" | None`
+  - `source: "user" | "documents" (default "user")`
+  - `document_match: "any" | "all" | None` (only valid when `source` is `"documents"`)
+  - `field` path resolution behavior:
+    - For `source: "user"`, implementations MUST resolve:
+      - top-level `UserContext` fields (for example `user_id`, `org_id`)
+      - extra custom top-level fields on `UserContext` (for example `profile`)
+      - keys under `attributes` both with and without prefix
+        (for example `department` and `attributes.department`)
+      - nested dot paths (for example `region.status`, `region.status.top`)
+    - For `source: "documents"`, implementations MUST resolve nested dot paths
+      against retrieved document records (for example `metadata.source`,
+      `metadata.region.status`, `metadata.region.status.top`)
+    - Missing paths SHOULD evaluate as not matched.
 
 Filter Model: `Filter`
 - Fields:
@@ -111,6 +129,8 @@ Minimum Validation/Test Contract
 - Invalid cross-references (`default_policy`, `filter_name`, `apply_policy`) MUST fail with `ControlPlaneConfigValidationError`.
 - Duplicate names (`policy`, `filter`, `org`, org-local `policy_rule`) MUST fail.
 - Non-positive or duplicate org-local `policy_rule.priority` MUST fail.
+- Rule condition source semantics SHOULD include unit coverage for nested user
+  and document paths.
 
 Reference Files
 - Models:

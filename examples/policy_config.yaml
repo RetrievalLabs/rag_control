@@ -108,6 +108,18 @@ orgs:
     description: Acme Corporation with strict citation requirements.
     default_policy: strict_citations
     policy_rules:
+      - name: deny_untrusted_document_source
+        description: Deny if any retrieved document comes from an untrusted source.
+        priority: 60
+        effect: deny
+        when:
+          any:
+            - field: metadata.source
+              operator: equals
+              value: public-web
+              source: documents
+              document_match: any
+
       - name: deny_low_confidence
         description: Deny responses when retrieval confidence is too low.
         priority: 10
@@ -128,16 +140,113 @@ orgs:
             - field: org_tier
               operator: equals
               value: enterprise
-              source: context
+              source: user
+
+      - name: allow_enterprise_with_policy_docs
+        description: Allow enterprise requests when at least one policy KB doc is retrieved.
+        priority: 40
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          all:
+            - field: org_tier
+              operator: equals
+              value: enterprise
+              source: user
+            - field: metadata.source
+              operator: equals
+              value: policy-kb
+              source: documents
+              document_match: any
+
+      - name: allow_finance_department_nested
+        description: Allow when user department is provided as a nested user path.
+        priority: 35
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          any:
+            - field: attributes.department
+              operator: equals
+              value: finance
+              source: user
     filter_name: enterprise_only
 
   - org_id: beta_labs
     description: Beta Labs with flexible research policies.
     default_policy: soft_research
     policy_rules:
+      - name: allow_trusted_docs_only
+        description: Escalate to strict policy when all retrieved docs are from trusted KB.
+        priority: 30
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          all:
+            - field: metadata.source
+              operator: equals
+              value: policy-kb
+              source: documents
+              document_match: all
+
+      - name: allow_any_trusted_doc
+        description: Apply strict citations when any retrieved doc comes from the trusted KB.
+        priority: 25
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          any:
+            - field: metadata.source
+              operator: equals
+              value: policy-kb
+              source: documents
+              document_match: any
+
+      - name: allow_analyst_with_trusted_docs
+        description: Apply strict citations only when user role and retrieved docs both satisfy policy.
+        priority: 24
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          all:
+            - field: user_role
+              operator: equals
+              value: analyst
+              source: user
+            - field: metadata.source
+              operator: equals
+              value: policy-kb
+              source: documents
+              document_match: any
+
+      - name: allow_active_doc_region_status
+        description: Apply strict citations when any doc has nested region status metadata.
+        priority: 23
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          any:
+            - field: metadata.region.status
+              operator: equals
+              value: active
+              source: documents
+              document_match: any
+
+      - name: deny_unknown_doc_source
+        description: Deny when any retrieved doc is explicitly marked as unknown source.
+        priority: 22
+        effect: deny
+        when:
+          any:
+            - field: metadata.source
+              operator: equals
+              value: unknown
+              source: documents
+              document_match: any
+
       - name: allow_research_mode
         description: Allow analyst research workflows using soft fallback.
-        priority: 20
+        priority: 21
         effect: allow
         apply_policy: soft_research
         when:
@@ -145,5 +254,5 @@ orgs:
             - field: user_role
               operator: equals
               value: analyst
-              source: context
+              source: user
     filter_name: pii_sensitive

@@ -5,16 +5,37 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from typing import List, Literal, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictFloat, StrictInt
 
-Operator = Literal["equals", "lt", "lte", "gt", "gte", "intersects"]
+RULE_EFFECT_ALLOW = "allow"
+RULE_EFFECT_DENY = "deny"
+
+RULE_OPERATOR_EQUALS = "equals"
+RULE_OPERATOR_LT = "lt"
+RULE_OPERATOR_LTE = "lte"
+RULE_OPERATOR_GT = "gt"
+RULE_OPERATOR_GTE = "gte"
+RULE_OPERATOR_INTERSECTS = "intersects"
+RULE_OPERATOR_EXISTS = "exists"
+
+RULE_NUMERIC_OPERATORS = {
+    RULE_OPERATOR_LT,
+    RULE_OPERATOR_LTE,
+    RULE_OPERATOR_GT,
+    RULE_OPERATOR_GTE,
+}
+
+Operator = Literal["equals", "lt", "lte", "gt", "gte", "intersects", "exists"]
+DocumentMatchOperator = Literal["any", "all"]
+ConditionSource = Literal["user", "documents"]
 
 
 class Condition(BaseModel):
     field: str
     operator: Operator
-    value: Optional[Union[str, int]] = None
-    source: Optional[Literal["context"]] = None
+    value: Optional[Union[str, StrictInt, StrictFloat]] = None
+    source: ConditionSource = "user"
+    document_match: Optional[DocumentMatchOperator] = None
 
 
 class LogicalCondition(BaseModel):
