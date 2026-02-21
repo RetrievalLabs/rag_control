@@ -46,6 +46,8 @@ Embed Contract
 
 Error Contract
 - Adapter MUST raise exceptions for transport/provider failures.
+- Transport/provider failures SHOULD be raised as `QueryEmbeddingAdapterError`
+  (or a subclass) from `rag_control.adapters.exceptions`.
 - Exceptions SHOULD preserve actionable context (provider name, request id if available, and root cause message).
 - Adapter SHOULD raise `TypeError` or `ValueError` for invalid input and malformed provider payloads.
 - Adapter MUST NOT silently coerce structurally invalid embeddings (for example non-numeric vectors).
@@ -68,4 +70,5 @@ Test Contract (Minimum)
 
 Reference Interfaces
 - Adapter interface: `rag_control/adapters/query_embedding.py`
+- Adapter exceptions: `rag_control/adapters/exceptions.py`
 - Models: `rag_control/models/query_embedding.py`

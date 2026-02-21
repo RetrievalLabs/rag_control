@@ -53,6 +53,8 @@ Search Contract
 
 Error Contract
 - Adapter MUST raise exceptions for transport/provider failures.
+- Transport/provider failures SHOULD be raised as `VectorStoreAdapterError` (or a subclass)
+  from `rag_control.adapters.exceptions`.
 - Adapter SHOULD raise `TypeError` or `ValueError` for invalid input and malformed payloads.
 - Adapter MUST NOT silently coerce structurally invalid records.
 
@@ -73,4 +75,5 @@ Test Contract (Minimum)
 
 Reference Interfaces
 - Adapter interface: `rag_control/adapters/vector_store.py`
+- Adapter exceptions: `rag_control/adapters/exceptions.py`
 - Models: `rag_control/models/vector_store.py`
