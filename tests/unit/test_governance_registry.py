@@ -258,6 +258,17 @@ def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
             "expected_rule_name": None,
         },
         {
+            "name": "numeric_operator_with_wrong_context_type_falls_back_to_default",
+            "user_context": UserContext(
+                user_id="u-5b",
+                org_id="test_org",
+                attributes={"trust_score": "high"},
+            ),
+            "expected_policy": "default_policy",
+            "expected_exception": None,
+            "expected_rule_name": None,
+        },
+        {
             "name": "exists_operator_false_when_key_missing",
             "user_context": UserContext(
                 user_id="u-6b",
@@ -274,6 +285,17 @@ def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
                 user_id="u-6",
                 org_id="test_org",
                 attributes={"region": "eu-west-1"},
+            ),
+            "expected_policy": "default_policy",
+            "expected_exception": None,
+            "expected_rule_name": None,
+        },
+        {
+            "name": "intersects_with_wrong_context_type_falls_back_to_default",
+            "user_context": UserContext(
+                user_id="u-6c",
+                org_id="test_org",
+                attributes={"region": 123},
             ),
             "expected_policy": "default_policy",
             "expected_exception": None,
