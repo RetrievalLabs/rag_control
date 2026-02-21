@@ -806,6 +806,164 @@ def test_governance_registry_resolve_policy_with_nested_document_paths() -> None
     assert registry.resolve_policy(user_context, source_documents=no_match_docs) == "default_policy"
 
 
+def test_governance_registry_document_missing_field_falls_back_to_default() -> None:
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="doc_exists_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="doc_missing_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_when_classification_exists_on_any_doc",
+                            priority=10,
+                            effect="allow",
+                            apply_policy="doc_exists_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="metadata.classification",
+                                        operator="exists",
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        )
+                    ],
+                )
+            ],
+        )
+    )
+    user_context = UserContext(user_id="u-doc-missing", org_id="doc_missing_org", attributes={})
+
+    docs_with_missing_field = [
+        VectorStoreRecord(
+            id="doc-m1",
+            content="missing-classification",
+            score=0.74,
+            metadata={"source": "kb"},
+        )
+    ]
+
+    assert (
+        registry.resolve_policy(user_context, source_documents=docs_with_missing_field)
+        == "default_policy"
+    )
+
+
+def test_governance_registry_document_wrong_type_falls_back_to_default() -> None:
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="doc_numeric_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="doc_intersects_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="doc_type_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_numeric_doc_score",
+                            priority=20,
+                            effect="allow",
+                            apply_policy="doc_numeric_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="metadata.risk_score",
+                                        operator="gte",
+                                        value=80,
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_doc_region_intersects",
+                            priority=10,
+                            effect="allow",
+                            apply_policy="doc_intersects_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="metadata.region",
+                                        operator="intersects",
+                                        value="eu",
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+    user_context = UserContext(user_id="u-doc-type", org_id="doc_type_org", attributes={})
+
+    docs_with_wrong_numeric_type = [
+        VectorStoreRecord(
+            id="doc-t1",
+            content="risk-as-string",
+            score=0.8,
+            metadata={"risk_score": "high"},
+        )
+    ]
+    docs_with_wrong_intersects_type = [
+        VectorStoreRecord(
+            id="doc-t2",
+            content="region-as-number",
+            score=0.81,
+            metadata={"region": 123},
+        )
+    ]
+
+    assert (
+        registry.resolve_policy(user_context, source_documents=docs_with_wrong_numeric_type)
+        == "default_policy"
+    )
+    assert (
+        registry.resolve_policy(user_context, source_documents=docs_with_wrong_intersects_type)
+        == "default_policy"
+    )
+
+
 def test_governance_registry_resolve_policy_with_mixed_user_and_document_conditions() -> None:
     registry = GovernanceRegistry(
         ControlPlaneConfig(
