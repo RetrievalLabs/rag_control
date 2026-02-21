@@ -56,10 +56,8 @@ class GovernanceRegistry:
             raise GovernanceOrgNotFoundError(user_context)
 
         default_policy = org.default_policy
-        context = user_context.attributes
-
         for rule in org.policy_rules:
-            if not self._matches_logical_condition(rule.when, context, source_documents):
+            if not self._matches_logical_condition(rule.when, user_context, source_documents):
                 continue
             if rule.effect == RULE_EFFECT_DENY:
                 raise GovernancePolicyDeniedError(user_context, rule.name)
@@ -72,7 +70,7 @@ class GovernanceRegistry:
     @staticmethod
     def _matches_logical_condition(
         logical_condition: LogicalCondition,
-        context: dict[str, Any],
+        user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
     ) -> bool:
         all_conditions = logical_condition.all
@@ -87,7 +85,7 @@ class GovernanceRegistry:
         all_match = (
             len(all_conditions) > 0
             and all(
-                GovernanceRegistry._matches_condition(condition, context, source_documents)
+                GovernanceRegistry._matches_condition(condition, user_context, source_documents)
                 for condition in all_conditions
             )
             if all_conditions is not None
@@ -97,7 +95,7 @@ class GovernanceRegistry:
         any_match = (
             len(any_conditions) > 0
             and any(
-                GovernanceRegistry._matches_condition(condition, context, source_documents)
+                GovernanceRegistry._matches_condition(condition, user_context, source_documents)
                 for condition in any_conditions
             )
             if any_conditions is not None
@@ -112,7 +110,7 @@ class GovernanceRegistry:
     @staticmethod
     def _matches_condition(
         condition: Condition,
-        context: dict[str, Any],
+        user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
     ) -> bool:
         if condition.source == "documents":
@@ -120,12 +118,12 @@ class GovernanceRegistry:
                 condition, source_documents or []
             )
 
-        actual_value = context.get(condition.field)
+        has_field, actual_value = GovernanceRegistry._resolve_user_value(user_context, condition.field)
         expected_value = condition.value
         operator = condition.operator
 
         if operator == RULE_OPERATOR_EXISTS:
-            return condition.field in context
+            return has_field
 
         if operator == RULE_OPERATOR_EQUALS:
             return actual_value == expected_value
@@ -156,6 +154,28 @@ class GovernanceRegistry:
             return False
 
         return False
+
+    @staticmethod
+    def _resolve_user_value(user_context: UserContext, field: str) -> tuple[bool, Any]:
+        root_context = user_context.model_dump()
+        attributes = user_context.attributes
+
+        # Backward compatible path: direct attributes lookup for existing rule configs.
+        if field in attributes:
+            return True, attributes[field]
+
+        # Support top-level fields and custom extra keys on UserContext.
+        if field in root_context:
+            return True, root_context[field]
+
+        # Support nested paths anywhere in UserContext, e.g. "profile.department"
+        # or "attributes.department".
+        has_nested, nested_value = GovernanceRegistry._resolve_nested_value(root_context, field)
+        if has_nested:
+            return True, nested_value
+
+        # Support nested keys in attributes without requiring "attributes." prefix.
+        return GovernanceRegistry._resolve_nested_value(attributes, field)
 
     @staticmethod
     def _matches_source_document_condition(

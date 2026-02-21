@@ -159,6 +159,22 @@ def _build_governance_config() -> ControlPlaneConfig:
                         ),
                     ),
                     PolicyRule(
+                        name="allow_department_via_attributes_path",
+                        priority=65,
+                        effect="allow",
+                        apply_policy="research_policy",
+                        when=LogicalCondition(
+                            any=[
+                                Condition(
+                                    field="attributes.department",
+                                    operator="equals",
+                                    value="finance",
+                                    source="user",
+                                )
+                            ]
+                        ),
+                    ),
+                    PolicyRule(
                         name="allow_eu_default",
                         priority=60,
                         effect="allow",
@@ -185,7 +201,7 @@ def test_governance_registry_sorts_policy_rules_by_priority_descending() -> None
 
     assert org is not None
     priorities = [rule.priority for rule in org.policy_rules]
-    assert priorities == [100, 90, 85, 80, 70, 60]
+    assert priorities == [100, 90, 85, 80, 70, 65, 60]
 
 
 def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
@@ -266,6 +282,17 @@ def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
                 attributes={"trust_score": "high"},
             ),
             "expected_policy": "default_policy",
+            "expected_exception": None,
+            "expected_rule_name": None,
+        },
+        {
+            "name": "attributes_dot_path_matches_user_attribute",
+            "user_context": UserContext(
+                user_id="u-5c",
+                org_id="test_org",
+                attributes={"department": "finance"},
+            ),
+            "expected_policy": "research_policy",
             "expected_exception": None,
             "expected_rule_name": None,
         },
@@ -455,3 +482,213 @@ def test_governance_registry_resolve_policy_with_source_document_match_modes() -
     assert registry.resolve_policy(user_context, source_documents=mixed_docs) == "any_doc_policy"
     assert registry.resolve_policy(user_context, source_documents=no_public_docs) == "default_policy"
     assert registry.resolve_policy(user_context, source_documents=[]) == "default_policy"
+
+
+def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fields() -> None:
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="org_scope_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="user_id_scope_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="profile_scope_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="department_scope_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="region_status_scope_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="region_status_top_scope_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="special_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_region_status_top_match",
+                            priority=60,
+                            effect="allow",
+                            apply_policy="region_status_top_scope_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="region.status.top",
+                                        operator="equals",
+                                        value="green",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_region_status_match",
+                            priority=50,
+                            effect="allow",
+                            apply_policy="region_status_scope_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="region.status",
+                                        operator="equals",
+                                        value="active",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_department_match",
+                            priority=40,
+                            effect="allow",
+                            apply_policy="department_scope_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="department",
+                                        operator="equals",
+                                        value="finance",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_user_id_match",
+                            priority=30,
+                            effect="allow",
+                            apply_policy="user_id_scope_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="user_id",
+                                        operator="equals",
+                                        value="vip-user",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_nested_extra_field_match",
+                            priority=20,
+                            effect="allow",
+                            apply_policy="profile_scope_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="profile.department",
+                                        operator="equals",
+                                        value="security",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_org_id_match",
+                            priority=10,
+                            effect="allow",
+                            apply_policy="org_scope_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="org_id",
+                                        operator="equals",
+                                        value="special_org",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+
+    assert (
+        registry.resolve_policy(
+            UserContext(user_id="u-1", org_id="special_org", attributes={"role": "analyst"})
+        )
+        == "org_scope_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext(user_id="vip-user", org_id="special_org", attributes={"role": "analyst"})
+        )
+        == "user_id_scope_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-3",
+                org_id="special_org",
+                attributes={"role": "analyst"},
+                profile={"department": "security"},
+            )
+        )
+        == "profile_scope_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-4",
+                org_id="special_org",
+                attributes={"department": "finance"},
+            )
+        )
+        == "department_scope_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-5",
+                org_id="special_org",
+                attributes={"region": {"status": "active"}},
+            )
+        )
+        == "region_status_scope_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-6",
+                org_id="special_org",
+                attributes={"region": {"status": {"top": "green"}}},
+            )
+        )
+        == "region_status_top_scope_policy"
+    )
