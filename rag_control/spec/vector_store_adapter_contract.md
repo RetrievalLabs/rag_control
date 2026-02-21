@@ -11,7 +11,7 @@ Purpose
 Scope
 - Applies to:
   - `VectorStore.embedding_model -> str`
-  - `VectorStore.search(embedding: list[float], top_k: int = 5) -> VectorStoreSearchResponse`
+  - `VectorStore.search(embedding: list[float], top_k: int = 5, user_context: UserContext | None = None, filter: Filter | None = None) -> VectorStoreSearchResponse`
 - Output models are defined in `rag_control/models/vector_store.py`.
 
 Normative Terms
@@ -30,6 +30,8 @@ Search Contract
   - `embedding` MUST be a `list[float]`.
   - `embedding` SHOULD be non-empty for valid retrieval requests.
   - `top_k` MUST be an integer >= 1.
+  - `user_context` MAY be provided to support user-scoped retrieval.
+  - `filter` MAY be provided to support metadata-constrained retrieval.
 - Output:
   - MUST return `VectorStoreSearchResponse`.
   - `VectorStoreSearchResponse.records` MUST be a list of `VectorStoreRecord`.
