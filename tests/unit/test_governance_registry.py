@@ -692,3 +692,103 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
         )
         == "region_status_top_scope_policy"
     )
+
+
+def test_governance_registry_resolve_policy_with_nested_document_paths() -> None:
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="doc_status_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="doc_status_top_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="doc_nested_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_doc_region_status_top",
+                            priority=20,
+                            effect="allow",
+                            apply_policy="doc_status_top_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="metadata.region.status.top",
+                                        operator="equals",
+                                        value="green",
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_doc_region_status",
+                            priority=10,
+                            effect="allow",
+                            apply_policy="doc_status_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="metadata.region.status",
+                                        operator="equals",
+                                        value="active",
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+    user_context = UserContext(user_id="u-doc-nested", org_id="doc_nested_org", attributes={})
+
+    top_nested_docs = [
+        VectorStoreRecord(
+            id="doc-n1",
+            content="nested-top",
+            score=0.91,
+            metadata={"region": {"status": {"top": "green"}}},
+        )
+    ]
+    mid_nested_docs = [
+        VectorStoreRecord(
+            id="doc-n2",
+            content="nested-mid",
+            score=0.87,
+            metadata={"region": {"status": "active"}},
+        )
+    ]
+    no_match_docs = [
+        VectorStoreRecord(
+            id="doc-n3",
+            content="nested-none",
+            score=0.73,
+            metadata={"region": {"status": "inactive"}},
+        )
+    ]
+
+    assert registry.resolve_policy(user_context, source_documents=top_nested_docs) == "doc_status_top_policy"
+    assert registry.resolve_policy(user_context, source_documents=mid_nested_docs) == "doc_status_policy"
+    assert registry.resolve_policy(user_context, source_documents=no_match_docs) == "default_policy"
