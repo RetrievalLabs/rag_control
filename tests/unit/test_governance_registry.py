@@ -7,7 +7,7 @@ from typing import TypedDict
 
 import pytest
 
-from rag_control.exceptions import (
+from rag_control.exceptions.governance import (
     GovernanceOrgNotFoundError,
     GovernancePolicyDeniedError,
 )

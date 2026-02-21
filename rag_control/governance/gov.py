@@ -5,7 +5,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from typing import Any
 
-from rag_control.exceptions import (
+from rag_control.exceptions.governance import (
     GovernanceOrgNotFoundError,
     GovernancePolicyDeniedError,
 )
