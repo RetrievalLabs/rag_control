@@ -128,7 +128,7 @@ class GovernanceRegistry:
             return has_field
 
         if operator == RULE_OPERATOR_EQUALS:
-            return actual_value == expected_value
+            return bool(actual_value == expected_value)
 
         if expected_value is None:
             return False
@@ -210,7 +210,7 @@ class GovernanceRegistry:
             return has_field
 
         if operator == RULE_OPERATOR_EQUALS:
-            return actual_value == expected_value
+            return bool(actual_value == expected_value)
 
         if expected_value is None:
             return False

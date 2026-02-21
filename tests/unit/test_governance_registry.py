@@ -657,11 +657,13 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
     )
     assert (
         registry.resolve_policy(
-            UserContext(
-                user_id="u-3",
-                org_id="special_org",
-                attributes={"role": "analyst"},
-                profile={"department": "security"},
+            UserContext.model_validate(
+                {
+                    "user_id": "u-3",
+                    "org_id": "special_org",
+                    "attributes": {"role": "analyst"},
+                    "profile": {"department": "security"},
+                }
             )
         )
         == "profile_scope_policy"
