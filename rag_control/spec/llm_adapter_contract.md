@@ -10,8 +10,8 @@ Purpose
 
 Scope
 - Applies to:
-  - `LLM.generate(prompt) -> LLMResponse`
-  - `LLM.stream(prompt) -> LLMStreamResponse`
+  - `LLM.generate(prompt, temperature: float | None = None, user_context: UserContext | None = None) -> LLMResponse`
+  - `LLM.stream(prompt, temperature: float | None = None, user_context: UserContext | None = None) -> LLMStreamResponse`
 - Output models are defined in `rag_control/models/llm.py`.
 
 Normative Terms
@@ -24,6 +24,8 @@ Generate Contract
   - `prompt` MUST be either:
     - a `str`, or
     - a chat message list shaped as `list[dict[str, str]]` containing at least `role` and `content`.
+  - `temperature` MAY be provided to control decoding behavior.
+  - `user_context` MAY be provided to support user-aware generation behavior.
   - Engine integrations SHOULD support chat message list prompts because `RAGControl` sends structured messages.
   - Empty prompt handling is provider-defined, but adapter SHOULD fail fast with a clear exception when invalid.
 - Output:
@@ -46,6 +48,8 @@ Generate Contract
 Stream Contract
 - Input:
   - `prompt` MUST follow the same type contract as `generate`.
+  - `temperature` MAY be provided to control decoding behavior.
+  - `user_context` MAY be provided to support user-aware generation behavior.
 - Output:
   - MUST return `LLMStreamResponse`.
   - `LLMStreamResponse.stream` MUST be an iterator yielding `LLMStreamChunk`.
@@ -60,6 +64,8 @@ Stream Contract
 
 Error Contract
 - Adapter MUST raise exceptions for transport/provider failures.
+- Transport/provider failures SHOULD be raised as `LLMAdapterError` (or a subclass) from
+  `rag_control.adapters.exceptions`.
 - Exceptions SHOULD preserve actionable context (provider name, request id if available, and root cause message).
 - Adapter MUST NOT silently swallow stream errors.
 - On stream failure, partial chunks already yielded MAY be retained by caller; adapter SHOULD fail on next iteration with a clear exception.
@@ -87,4 +93,5 @@ Test Contract (Minimum)
 
 Reference Interfaces
 - Adapter interface: `rag_control/adapters/llm.py`
+- Adapter exceptions: `rag_control/adapters/exceptions.py`
 - Models: `rag_control/models/llm.py`

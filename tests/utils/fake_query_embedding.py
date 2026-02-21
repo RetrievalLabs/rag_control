@@ -13,6 +13,7 @@ from rag_control.models.query_embedding import (
     QueryEmbeddingMetadata,
     QueryEmbeddingResponse,
 )
+from rag_control.models.user_context import UserContext
 
 
 @dataclass(slots=True)
@@ -43,6 +44,7 @@ class FakeQueryEmbedding(QueryEmbedding):
         self.default_latency_ms = latency_ms
 
         self.queries: list[str] = []
+        self.user_contexts: list[UserContext | None] = []
         self.embed_calls = 0
         self._planned_outputs: list[_PlannedEmbedding] = []
         self._next_error: Exception | None = None
@@ -76,7 +78,7 @@ class FakeQueryEmbedding(QueryEmbedding):
     def fail_next(self, error: Exception) -> None:
         self._next_error = error
 
-    def embed(self, query: str) -> QueryEmbeddingResponse:
+    def embed(self, query: str, user_context: UserContext | None = None) -> QueryEmbeddingResponse:
         if self._next_error is not None:
             error = self._next_error
             self._next_error = None
@@ -84,6 +86,7 @@ class FakeQueryEmbedding(QueryEmbedding):
 
         self._validate_query(query)
         self.queries.append(query)
+        self.user_contexts.append(user_context)
         self.embed_calls += 1
 
         planned = self._next_planned_output()

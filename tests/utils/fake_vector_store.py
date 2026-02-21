@@ -10,6 +10,8 @@ from datetime import datetime
 from typing import Any
 
 from rag_control.adapters.vector_store import VectorStore
+from rag_control.models.filter import Filter
+from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import (
     VectorStoreRecord,
     VectorStoreSearchMetadata,
@@ -50,6 +52,8 @@ class FakeVectorStore(VectorStore):
         self.search_calls = 0
         self.embeddings: list[list[float]] = []
         self.top_ks: list[int] = []
+        self.user_contexts: list[UserContext | None] = []
+        self.filters: list[Filter | None] = []
 
         self._planned_outputs: list[_PlannedSearch] = []
         self._next_error: Exception | None = None
@@ -86,6 +90,8 @@ class FakeVectorStore(VectorStore):
         self,
         embedding: list[float],
         top_k: int = 5,
+        user_context: UserContext | None = None,
+        filter: Filter | None = None,
     ) -> VectorStoreSearchResponse:
         if self._next_error is not None:
             error = self._next_error
@@ -99,6 +105,8 @@ class FakeVectorStore(VectorStore):
         self.search_calls += 1
         self.embeddings.append(embedding)
         self.top_ks.append(top_k)
+        self.user_contexts.append(user_context)
+        self.filters.append(filter)
 
         planned = self._next_planned_output()
         records = planned.records[:top_k]

@@ -11,7 +11,7 @@ Purpose
 Scope
 - Applies to:
   - `VectorStore.embedding_model -> str`
-  - `VectorStore.search(embedding: list[float], top_k: int = 5) -> VectorStoreSearchResponse`
+  - `VectorStore.search(embedding: list[float], top_k: int = 5, user_context: UserContext | None = None, filter: Filter | None = None) -> VectorStoreSearchResponse`
 - Output models are defined in `rag_control/models/vector_store.py`.
 
 Normative Terms
@@ -30,6 +30,8 @@ Search Contract
   - `embedding` MUST be a `list[float]`.
   - `embedding` SHOULD be non-empty for valid retrieval requests.
   - `top_k` MUST be an integer >= 1.
+  - `user_context` MAY be provided to support user-scoped retrieval.
+  - `filter` MAY be provided to support metadata-constrained retrieval.
 - Output:
   - MUST return `VectorStoreSearchResponse`.
   - `VectorStoreSearchResponse.records` MUST be a list of `VectorStoreRecord`.
@@ -51,6 +53,8 @@ Search Contract
 
 Error Contract
 - Adapter MUST raise exceptions for transport/provider failures.
+- Transport/provider failures SHOULD be raised as `VectorStoreAdapterError` (or a subclass)
+  from `rag_control.adapters.exceptions`.
 - Adapter SHOULD raise `TypeError` or `ValueError` for invalid input and malformed payloads.
 - Adapter MUST NOT silently coerce structurally invalid records.
 
@@ -71,4 +75,5 @@ Test Contract (Minimum)
 
 Reference Interfaces
 - Adapter interface: `rag_control/adapters/vector_store.py`
+- Adapter exceptions: `rag_control/adapters/exceptions.py`
 - Models: `rag_control/models/vector_store.py`
