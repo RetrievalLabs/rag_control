@@ -93,10 +93,10 @@ class ControlPlaneConfig(BaseModel):
 
     @staticmethod
     def _validate_rule_condition(org_id: str, rule_name: str, condition: Condition) -> None:
-        if condition.document_match is not None and condition.source != "source_document":
+        if condition.document_match is not None and condition.source != "documents":
             raise ControlPlaneConfigValidationError(
                 f"org '{org_id}' rule '{rule_name}': "
-                "document_match is only supported when source is 'source_document'"
+                "document_match is only supported when source is 'documents'"
             )
 
         if condition.operator == RULE_OPERATOR_EXISTS:

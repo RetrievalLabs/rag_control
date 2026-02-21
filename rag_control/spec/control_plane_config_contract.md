@@ -87,8 +87,8 @@ Policy Rule Condition Models
   - `field: str` (required)
   - `operator`: one of `equals | lt | lte | gt | gte | intersects | exists`
   - `value: str | int | None`
-  - `source: "context" | "source_document" | None`
-  - `document_match: "any" | "all" | None` (only valid when `source` is `"source_document"`)
+  - `source: "user" | "documents" (default "user")`
+  - `document_match: "any" | "all" | None` (only valid when `source` is `"documents"`)
 
 Filter Model: `Filter`
 - Fields:

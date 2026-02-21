@@ -117,7 +117,7 @@ orgs:
             - field: metadata.source
               operator: equals
               value: public-web
-              source: source_document
+              source: documents
               document_match: any
 
       - name: deny_low_confidence
@@ -140,7 +140,7 @@ orgs:
             - field: org_tier
               operator: equals
               value: enterprise
-              source: context
+              source: user
 
       - name: allow_enterprise_with_policy_docs
         description: Allow enterprise requests when at least one policy KB doc is retrieved.
@@ -152,11 +152,11 @@ orgs:
             - field: org_tier
               operator: equals
               value: enterprise
-              source: context
+              source: user
             - field: metadata.source
               operator: equals
               value: policy-kb
-              source: source_document
+              source: documents
               document_match: any
     filter_name: enterprise_only
 
@@ -174,7 +174,7 @@ orgs:
             - field: metadata.source
               operator: equals
               value: policy-kb
-              source: source_document
+              source: documents
               document_match: all
 
       - name: allow_any_trusted_doc
@@ -187,7 +187,7 @@ orgs:
             - field: metadata.source
               operator: equals
               value: policy-kb
-              source: source_document
+              source: documents
               document_match: any
 
       - name: deny_unknown_doc_source
@@ -199,7 +199,7 @@ orgs:
             - field: metadata.source
               operator: equals
               value: unknown
-              source: source_document
+              source: documents
               document_match: any
 
       - name: allow_research_mode
@@ -212,5 +212,5 @@ orgs:
             - field: user_role
               operator: equals
               value: analyst
-              source: context
+              source: user
     filter_name: pii_sensitive

@@ -85,7 +85,7 @@ def _build_governance_config() -> ControlPlaneConfig:
                                     field="plan",
                                     operator="equals",
                                     value="gold",
-                                    source="context",
+                                    source="user",
                                 )
                             ]
                         ),
@@ -100,7 +100,7 @@ def _build_governance_config() -> ControlPlaneConfig:
                                 Condition(
                                     field="session_id",
                                     operator="exists",
-                                    source="context",
+                                    source="user",
                                 )
                             ]
                         ),
@@ -115,7 +115,7 @@ def _build_governance_config() -> ControlPlaneConfig:
                                     field="user_status",
                                     operator="equals",
                                     value="banned",
-                                    source="context",
+                                    source="user",
                                 )
                             ]
                         ),
@@ -131,13 +131,13 @@ def _build_governance_config() -> ControlPlaneConfig:
                                     field="role",
                                     operator="equals",
                                     value="analyst",
-                                    source="context",
+                                    source="user",
                                 ),
                                 Condition(
                                     field="risk_score",
                                     operator="lte",
                                     value=50,
-                                    source="context",
+                                    source="user",
                                 ),
                             ]
                         ),
@@ -153,7 +153,7 @@ def _build_governance_config() -> ControlPlaneConfig:
                                     field="trust_score",
                                     operator="gte",
                                     value=90,
-                                    source="context",
+                                    source="user",
                                 )
                             ]
                         ),
@@ -168,7 +168,7 @@ def _build_governance_config() -> ControlPlaneConfig:
                                     field="region",
                                     operator="intersects",
                                     value="eu",
-                                    source="context",
+                                    source="user",
                                 )
                             ]
                         ),
@@ -384,7 +384,7 @@ def test_governance_registry_resolve_policy_with_source_document_match_modes() -
                                         field="metadata.classification",
                                         operator="equals",
                                         value="public",
-                                        source="source_document",
+                                        source="documents",
                                         document_match="all",
                                     )
                                 ]
@@ -401,7 +401,7 @@ def test_governance_registry_resolve_policy_with_source_document_match_modes() -
                                         field="metadata.classification",
                                         operator="equals",
                                         value="public",
-                                        source="source_document",
+                                        source="documents",
                                         document_match="any",
                                     )
                                 ]

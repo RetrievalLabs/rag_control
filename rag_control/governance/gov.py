@@ -115,8 +115,7 @@ class GovernanceRegistry:
         context: dict[str, Any],
         source_documents: list[VectorStoreRecord] | None = None,
     ) -> bool:
-        source = condition.source or "context"
-        if source == "source_document":
+        if condition.source == "documents":
             return GovernanceRegistry._matches_source_document_condition(
                 condition, source_documents or []
             )

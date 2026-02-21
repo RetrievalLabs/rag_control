@@ -81,40 +81,40 @@ def test_condition_validate_value_for_operator_with_multiple_conditions() -> Non
             "expected_error": None,
         },
         {
-            "name": "source_document_any_is_valid",
+            "name": "documents_any_is_valid",
             "payload": {
                 "field": "metadata.source",
                 "operator": "equals",
                 "value": "policy-kb",
-                "source": "source_document",
+                "source": "documents",
                 "document_match": "any",
             },
             "should_pass": True,
             "expected_error": None,
         },
         {
-            "name": "source_document_all_is_valid",
+            "name": "documents_all_is_valid",
             "payload": {
                 "field": "metadata.source",
                 "operator": "equals",
                 "value": "policy-kb",
-                "source": "source_document",
+                "source": "documents",
                 "document_match": "all",
             },
             "should_pass": True,
             "expected_error": None,
         },
         {
-            "name": "document_match_with_context_source_is_invalid",
+            "name": "document_match_with_user_source_is_invalid",
             "payload": {
                 "field": "role",
                 "operator": "equals",
                 "value": "analyst",
-                "source": "context",
+                "source": "user",
                 "document_match": "all",
             },
             "should_pass": False,
-            "expected_error": "document_match is only supported when source is 'source_document'",
+            "expected_error": "document_match is only supported when source is 'documents'",
         },
     ]
 
