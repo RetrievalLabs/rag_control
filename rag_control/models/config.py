@@ -9,13 +9,15 @@ from pydantic import BaseModel, model_validator
 
 from rag_control.exceptions import ControlPlaneConfigValidationError
 
+from .filter import (
+    FILTER_NUMERIC_OPERATORS,
+    FILTER_OPERATOR_EQUALS,
+    FILTER_OPERATOR_EXISTS,
+    FILTER_OPERATOR_IN,
+    FILTER_OPERATOR_INTERSECTS,
+    Filter,
+)
 from .filter import Condition as FilterCondition
-from .filter import FILTER_OPERATOR_EQUALS
-from .filter import FILTER_OPERATOR_EXISTS
-from .filter import FILTER_OPERATOR_IN
-from .filter import FILTER_OPERATOR_INTERSECTS
-from .filter import FILTER_NUMERIC_OPERATORS
-from .filter import Filter
 from .org import OrgConfig
 from .policy import Policy
 from .rule import (
@@ -142,7 +144,8 @@ class ControlPlaneConfig(BaseModel):
         )
         if defined_nodes != 1:
             raise ControlPlaneConfigValidationError(
-                f"filter '{filter_name}' at '{path}' must include exactly one of: condition, and, or"
+                f"filter '{filter_name}' at '{path}' must include exactly one of: "
+                "condition, and, or"
             )
 
         if flt.condition is not None:
