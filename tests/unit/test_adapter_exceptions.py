@@ -17,4 +17,3 @@ def test_adapter_exceptions_are_publicly_exported() -> None:
     assert issubclass(LLMAdapterError, AdapterError)
     assert issubclass(QueryEmbeddingAdapterError, AdapterError)
     assert issubclass(VectorStoreAdapterError, AdapterError)
-

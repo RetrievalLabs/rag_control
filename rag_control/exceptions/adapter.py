@@ -20,4 +20,3 @@ class QueryEmbeddingAdapterError(AdapterError):
 
 class VectorStoreAdapterError(AdapterError):
     """Base exception for vector store adapter failures."""
-
