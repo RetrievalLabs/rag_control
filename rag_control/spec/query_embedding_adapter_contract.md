@@ -11,7 +11,7 @@ Purpose
 Scope
 - Applies to:
   - `QueryEmbedding.embedding_model -> str`
-  - `QueryEmbedding.embed(query: str) -> QueryEmbeddingResponse`
+  - `QueryEmbedding.embed(query: str, user_context: UserContext | None = None) -> QueryEmbeddingResponse`
 - Output models are defined in `rag_control/models/query_embedding.py`.
 
 Normative Terms
@@ -28,6 +28,7 @@ Embedding Model Contract
 Embed Contract
 - Input:
   - `query` MUST be a `str`.
+  - `user_context` MAY be provided to support user-aware embedding behavior.
   - Empty query handling is provider-defined, but adapter SHOULD fail fast with a clear exception when invalid.
 - Output:
   - MUST return `QueryEmbeddingResponse`.
