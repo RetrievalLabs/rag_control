@@ -7,6 +7,21 @@ from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
+FILTER_OPERATOR_IN = "in"
+FILTER_OPERATOR_EQUALS = "equals"
+FILTER_OPERATOR_LT = "lt"
+FILTER_OPERATOR_LTE = "lte"
+FILTER_OPERATOR_GT = "gt"
+FILTER_OPERATOR_GTE = "gte"
+FILTER_OPERATOR_INTERSECTS = "intersects"
+FILTER_OPERATOR_EXISTS = "exists"
+FILTER_NUMERIC_OPERATORS = {
+    FILTER_OPERATOR_LT,
+    FILTER_OPERATOR_LTE,
+    FILTER_OPERATOR_GT,
+    FILTER_OPERATOR_GTE,
+}
+
 Operator = Literal["equals", "in", "intersects", "lt", "lte", "gt", "gte", "exists"]
 
 
