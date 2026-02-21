@@ -12,6 +12,14 @@ from rag_control.exceptions import ControlPlaneConfigValidationError
 from .filter import Filter
 from .org import OrgConfig
 from .policy import Policy
+from .rule import (
+    Condition,
+    LogicalCondition,
+    RULE_NUMERIC_OPERATORS,
+    RULE_OPERATOR_EQUALS,
+    RULE_OPERATOR_EXISTS,
+    RULE_OPERATOR_INTERSECTS,
+)
 
 
 class ControlPlaneConfig(BaseModel):
@@ -65,6 +73,7 @@ class ControlPlaneConfig(BaseModel):
                 )
 
             for rule in org.policy_rules:
+                self._validate_rule_conditions(org.org_id, rule.name, rule.when)
                 if rule.apply_policy is not None and rule.apply_policy not in policy_name_set:
                     raise ControlPlaneConfigValidationError(
                         f"org '{org.org_id}' rule '{rule.name}' apply_policy "
@@ -72,3 +81,41 @@ class ControlPlaneConfig(BaseModel):
                     )
 
         return self
+
+    @staticmethod
+    def _validate_rule_conditions(org_id: str, rule_name: str, when: LogicalCondition) -> None:
+        if when.all is not None:
+            for condition in when.all:
+                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition)
+        if when.any is not None:
+            for condition in when.any:
+                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition)
+
+    @staticmethod
+    def _validate_rule_condition(org_id: str, rule_name: str, condition: Condition) -> None:
+        if condition.operator == RULE_OPERATOR_EXISTS:
+            return
+
+        if condition.operator == RULE_OPERATOR_EQUALS:
+            if condition.value is None:
+                raise ControlPlaneConfigValidationError(
+                    f"org '{org_id}' rule '{rule_name}': "
+                    "value is required for 'equals' operator"
+                )
+            return
+
+        if condition.operator in RULE_NUMERIC_OPERATORS:
+            if not isinstance(condition.value, (int, float)) or isinstance(
+                condition.value, bool
+            ):
+                raise ControlPlaneConfigValidationError(
+                    f"org '{org_id}' rule '{rule_name}': "
+                    "value must be an int or float for numeric operators: lt/lte/gt/gte"
+                )
+            return
+
+        if condition.operator == RULE_OPERATOR_INTERSECTS and condition.value is None:
+            raise ControlPlaneConfigValidationError(
+                f"org '{org_id}' rule '{rule_name}': "
+                "value is required for 'intersects' operator"
+            )

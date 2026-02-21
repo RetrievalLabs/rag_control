@@ -8,7 +8,7 @@ from typing import TypedDict
 import pytest
 from pydantic import ValidationError
 
-from rag_control.models.rule import Condition
+from rag_control.models.config import ControlPlaneConfig
 
 
 class _ConditionValidationCase(TypedDict):
@@ -82,13 +82,44 @@ def test_condition_validate_value_for_operator_with_multiple_conditions() -> Non
         },
     ]
 
+    def _build_config_payload(condition_payload: dict[str, object]) -> dict[str, object]:
+        return {
+            "policies": [
+                {
+                    "name": "default_policy",
+                    "generation": {},
+                    "logging": {},
+                    "enforcement": {},
+                }
+            ],
+            "filters": [],
+            "orgs": [
+                {
+                    "org_id": "test_org",
+                    "default_policy": "default_policy",
+                    "policy_rules": [
+                        {
+                            "name": "test_rule",
+                            "priority": 1,
+                            "effect": "allow",
+                            "apply_policy": "default_policy",
+                            "when": {"all": [condition_payload]},
+                        }
+                    ],
+                }
+            ],
+        }
+
     for case in test_cases:
+        config_payload = _build_config_payload(case["payload"])
         if case["should_pass"]:
-            condition = Condition.model_validate(case["payload"])
-            assert condition.field == case["payload"]["field"], case["name"]
-            assert condition.operator == case["payload"]["operator"], case["name"]
+            config = ControlPlaneConfig.model_validate(config_payload)
+            condition = config.orgs[0].policy_rules[0].when.all
+            assert condition is not None, case["name"]
+            assert condition[0].field == case["payload"]["field"], case["name"]
+            assert condition[0].operator == case["payload"]["operator"], case["name"]
             continue
 
         assert case["expected_error"] is not None
         with pytest.raises(ValidationError, match=case["expected_error"]):
-            Condition.model_validate(case["payload"])
+            ControlPlaneConfig.model_validate(config_payload)

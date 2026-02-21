@@ -5,9 +5,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from typing import List, Literal, Optional, Union
 
-from pydantic import BaseModel, StrictFloat, StrictInt, model_validator
-
-from rag_control.exceptions.rule import RuleConditionValidationError
+from pydantic import BaseModel, StrictFloat, StrictInt
 
 RULE_EFFECT_ALLOW = "allow"
 RULE_EFFECT_DENY = "deny"
@@ -35,34 +33,6 @@ class Condition(BaseModel):
     operator: Operator
     value: Optional[Union[str, StrictInt, StrictFloat]] = None
     source: Optional[Literal["context"]] = None
-
-    @model_validator(mode="after")
-    def validate_value_for_operator(self) -> "Condition":
-        if self.operator == RULE_OPERATOR_EXISTS:
-            return self
-
-        if self.operator == RULE_OPERATOR_EQUALS:
-            if self.value is None:
-                raise RuleConditionValidationError(
-                    "value is required for 'equals' operator"
-                )
-            return self
-
-        if self.operator in RULE_NUMERIC_OPERATORS:
-            if not isinstance(self.value, (int, float)) or isinstance(self.value, bool):
-                raise RuleConditionValidationError(
-                    "value must be an int or float for numeric operators: lt/lte/gt/gte"
-                )
-            return self
-
-        if self.operator == RULE_OPERATOR_INTERSECTS:
-            if self.value is None:
-                raise RuleConditionValidationError(
-                    "value is required for 'intersects' operator"
-                )
-            return self
-
-        return self
 
 
 class LogicalCondition(BaseModel):
