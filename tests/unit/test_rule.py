@@ -39,10 +39,16 @@ def test_condition_validate_value_for_operator_with_multiple_conditions() -> Non
             "expected_error": None,
         },
         {
+            "name": "numeric_with_float_value_is_valid",
+            "payload": {"field": "risk_score", "operator": "gt", "value": 50.5},
+            "should_pass": True,
+            "expected_error": None,
+        },
+        {
             "name": "numeric_with_string_value_is_invalid",
             "payload": {"field": "risk_score", "operator": "gt", "value": "fifty"},
             "should_pass": False,
-            "expected_error": "value must be an int for numeric operators",
+            "expected_error": "value must be an int or float for numeric operators",
         },
         {
             "name": "numeric_with_bool_value_is_invalid",

@@ -5,7 +5,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from typing import List, Literal, Optional, Union
 
-from pydantic import BaseModel, StrictInt, model_validator
+from pydantic import BaseModel, StrictFloat, StrictInt, model_validator
 
 from rag_control.exceptions.rule import RuleConditionValidationError
 
@@ -33,7 +33,7 @@ Operator = Literal["equals", "lt", "lte", "gt", "gte", "intersects", "exists"]
 class Condition(BaseModel):
     field: str
     operator: Operator
-    value: Optional[Union[str, StrictInt]] = None
+    value: Optional[Union[str, StrictInt, StrictFloat]] = None
     source: Optional[Literal["context"]] = None
 
     @model_validator(mode="after")
@@ -49,9 +49,9 @@ class Condition(BaseModel):
             return self
 
         if self.operator in RULE_NUMERIC_OPERATORS:
-            if not isinstance(self.value, int) or isinstance(self.value, bool):
+            if not isinstance(self.value, (int, float)) or isinstance(self.value, bool):
                 raise RuleConditionValidationError(
-                    "value must be an int for numeric operators: lt/lte/gt/gte"
+                    "value must be an int or float for numeric operators: lt/lte/gt/gte"
                 )
             return self
 
