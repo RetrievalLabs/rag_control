@@ -202,6 +202,23 @@ orgs:
               source: documents
               document_match: any
 
+      - name: allow_analyst_with_trusted_docs
+        description: Apply strict citations only when user role and retrieved docs both satisfy policy.
+        priority: 24
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          all:
+            - field: user_role
+              operator: equals
+              value: analyst
+              source: user
+            - field: metadata.source
+              operator: equals
+              value: policy-kb
+              source: documents
+              document_match: any
+
       - name: allow_active_doc_region_status
         description: Apply strict citations when any doc has nested region status metadata.
         priority: 23

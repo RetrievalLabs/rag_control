@@ -792,3 +792,107 @@ def test_governance_registry_resolve_policy_with_nested_document_paths() -> None
     assert registry.resolve_policy(user_context, source_documents=top_nested_docs) == "doc_status_top_policy"
     assert registry.resolve_policy(user_context, source_documents=mid_nested_docs) == "doc_status_policy"
     assert registry.resolve_policy(user_context, source_documents=no_match_docs) == "default_policy"
+
+
+def test_governance_registry_resolve_policy_with_mixed_user_and_document_conditions() -> None:
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="mixed_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="mixed_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_analyst_with_public_docs",
+                            priority=10,
+                            effect="allow",
+                            apply_policy="mixed_policy",
+                            when=LogicalCondition(
+                                all=[
+                                    Condition(
+                                        field="user_role",
+                                        operator="equals",
+                                        value="analyst",
+                                        source="user",
+                                    ),
+                                    Condition(
+                                        field="metadata.classification",
+                                        operator="equals",
+                                        value="public",
+                                        source="documents",
+                                        document_match="any",
+                                    ),
+                                ]
+                            ),
+                        )
+                    ],
+                )
+            ],
+        )
+    )
+
+    matching_docs = [
+        VectorStoreRecord(
+            id="mix-doc-1",
+            content="public-doc",
+            score=0.9,
+            metadata={"classification": "public"},
+        )
+    ]
+    non_matching_docs = [
+        VectorStoreRecord(
+            id="mix-doc-2",
+            content="internal-doc",
+            score=0.7,
+            metadata={"classification": "internal"},
+        )
+    ]
+
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="m-1",
+                org_id="mixed_org",
+                attributes={"user_role": "analyst"},
+            ),
+            source_documents=matching_docs,
+        )
+        == "mixed_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="m-2",
+                org_id="mixed_org",
+                attributes={"user_role": "viewer"},
+            ),
+            source_documents=matching_docs,
+        )
+        == "default_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="m-3",
+                org_id="mixed_org",
+                attributes={"user_role": "analyst"},
+            ),
+            source_documents=non_matching_docs,
+        )
+        == "default_policy"
+    )
