@@ -806,6 +806,164 @@ def test_governance_registry_resolve_policy_with_nested_document_paths() -> None
     assert registry.resolve_policy(user_context, source_documents=no_match_docs) == "default_policy"
 
 
+def test_governance_registry_document_missing_field_falls_back_to_default() -> None:
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="doc_exists_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="doc_missing_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_when_classification_exists_on_any_doc",
+                            priority=10,
+                            effect="allow",
+                            apply_policy="doc_exists_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="metadata.classification",
+                                        operator="exists",
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        )
+                    ],
+                )
+            ],
+        )
+    )
+    user_context = UserContext(user_id="u-doc-missing", org_id="doc_missing_org", attributes={})
+
+    docs_with_missing_field = [
+        VectorStoreRecord(
+            id="doc-m1",
+            content="missing-classification",
+            score=0.74,
+            metadata={"source": "kb"},
+        )
+    ]
+
+    assert (
+        registry.resolve_policy(user_context, source_documents=docs_with_missing_field)
+        == "default_policy"
+    )
+
+
+def test_governance_registry_document_wrong_type_falls_back_to_default() -> None:
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="doc_numeric_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="doc_intersects_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="doc_type_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_numeric_doc_score",
+                            priority=20,
+                            effect="allow",
+                            apply_policy="doc_numeric_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="metadata.risk_score",
+                                        operator="gte",
+                                        value=80,
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_doc_region_intersects",
+                            priority=10,
+                            effect="allow",
+                            apply_policy="doc_intersects_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="metadata.region",
+                                        operator="intersects",
+                                        value="eu",
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+    user_context = UserContext(user_id="u-doc-type", org_id="doc_type_org", attributes={})
+
+    docs_with_wrong_numeric_type = [
+        VectorStoreRecord(
+            id="doc-t1",
+            content="risk-as-string",
+            score=0.8,
+            metadata={"risk_score": "high"},
+        )
+    ]
+    docs_with_wrong_intersects_type = [
+        VectorStoreRecord(
+            id="doc-t2",
+            content="region-as-number",
+            score=0.81,
+            metadata={"region": 123},
+        )
+    ]
+
+    assert (
+        registry.resolve_policy(user_context, source_documents=docs_with_wrong_numeric_type)
+        == "default_policy"
+    )
+    assert (
+        registry.resolve_policy(user_context, source_documents=docs_with_wrong_intersects_type)
+        == "default_policy"
+    )
+
+
 def test_governance_registry_resolve_policy_with_mixed_user_and_document_conditions() -> None:
     registry = GovernanceRegistry(
         ControlPlaneConfig(
@@ -905,6 +1063,173 @@ def test_governance_registry_resolve_policy_with_mixed_user_and_document_conditi
                 attributes={"user_role": "analyst"},
             ),
             source_documents=non_matching_docs,
+        )
+        == "default_policy"
+    )
+
+
+def test_governance_registry_user_context_missing_and_wrong_types_fall_back_to_default() -> None:
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="profile_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="risk_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="region_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="user_type_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_profile_department_exists",
+                            priority=30,
+                            effect="allow",
+                            apply_policy="profile_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="profile.department",
+                                        operator="exists",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_risk_score_gte_80",
+                            priority=20,
+                            effect="allow",
+                            apply_policy="risk_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="risk.score",
+                                        operator="gte",
+                                        value=80,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_region_intersects_eu",
+                            priority=10,
+                            effect="allow",
+                            apply_policy="region_policy",
+                            when=LogicalCondition(
+                                any=[
+                                    Condition(
+                                        field="region",
+                                        operator="intersects",
+                                        value="eu",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+
+    assert (
+        registry.resolve_policy(
+            UserContext.model_validate(
+                {
+                    "user_id": "u-pass",
+                    "org_id": "user_type_org",
+                    "attributes": {"risk": {"score": 90}},
+                    "profile": {"department": "security"},
+                }
+            )
+        )
+        == "profile_policy"
+    )
+
+    assert (
+        registry.resolve_policy(
+            UserContext(user_id="u-missing-1", org_id="user_type_org", attributes={})
+        )
+        == "default_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext.model_validate(
+                {
+                    "user_id": "u-missing-2",
+                    "org_id": "user_type_org",
+                    "attributes": {},
+                    "profile": {},
+                }
+            )
+        )
+        == "default_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext.model_validate(
+                {
+                    "user_id": "u-missing-3",
+                    "org_id": "user_type_org",
+                    "attributes": {},
+                    "profile": "security",
+                }
+            )
+        )
+        == "default_policy"
+    )
+
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-type-1",
+                org_id="user_type_org",
+                attributes={"risk": {"score": "high"}},
+            )
+        )
+        == "default_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-type-2",
+                org_id="user_type_org",
+                attributes={"risk": {"score": {"value": 95}}},
+            )
+        )
+        == "default_policy"
+    )
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-type-3",
+                org_id="user_type_org",
+                attributes={"region": {"name": "eu"}},
+            )
         )
         == "default_policy"
     )
