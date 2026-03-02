@@ -43,8 +43,8 @@ class GovernanceRegistry:
             for org in config.orgs
         }
 
-    def get_org(self, org_name: str) -> OrgConfig | None:
-        return self.org_map.get(org_name)
+    def get_org(self, org_id: str) -> OrgConfig | None:
+        return self.org_map.get(org_id)
 
     def resolve_policy(
         self,

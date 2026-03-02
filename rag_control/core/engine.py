@@ -15,6 +15,8 @@ from rag_control.exceptions import (
     EmbeddingModelMismatchError,
     EmbeddingModelTypeError,
     EmbeddingModelValidationError,
+    GovernanceRegistryOrgNotFoundError,
+    GovernanceUserContextOrgIDRequiredError,
 )
 from rag_control.filter.filter import FilterRegistry
 from rag_control.governance.gov import GovernanceRegistry
@@ -78,13 +80,28 @@ class RAGControl:
         :param query: User query to process through the RAG
         :type query: str
         """
+
+        org_id = user_context.org_id
+        if org_id is None:
+            raise GovernanceUserContextOrgIDRequiredError()
+
+        org = self.governance_registry.get_org(org_id)
+        if org is None:
+            raise GovernanceRegistryOrgNotFoundError(org_id)
+        retrieval_filter = (
+            self.filter_registry.get(org.filter_name) if org.filter_name is not None else None
+        )
+
         query_embedding_res = self.query_embedding.embed(query, user_context=user_context)
 
         retrieve_res = self.vector_store.search(
             query_embedding_res.embedding,
             user_context=user_context,
+            filter=retrieval_filter,
         )
+
         docs = retrieve_res.records
+        self.governance_registry.resolve_policy(user_context=user_context, source_documents=docs)
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
