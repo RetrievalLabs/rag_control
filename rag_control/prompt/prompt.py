@@ -48,12 +48,21 @@ class RAGPromptBuilder(PromptBuilder):
             allow_external_knowledge = self._DEFAULT_ALLOW_EXTERNAL_KNOWLEDGE
             require_citations = self._DEFAULT_REQUIRE_CITATIONS
             fallback_mode = self._DEFAULT_FALLBACK_MODE
+            reasoning_level = "limited"
         else:
             allow_external_knowledge = policy.generation.allow_external_knowledge
             require_citations = policy.generation.require_citations
             fallback_mode = policy.generation.fallback
+            reasoning_level = policy.generation.reasoning_level
 
         policy_lines = ["DEVELOPER POLICY:"]
+        if reasoning_level == "none":
+            policy_lines.append("- Keep reasoning concise and direct.")
+        elif reasoning_level == "full":
+            policy_lines.append("- Provide comprehensive reasoning grounded in retrieved context.")
+        else:
+            policy_lines.append("- Provide brief reasoning grounded in retrieved context.")
+
         if allow_external_knowledge:
             policy_lines.append("- External knowledge MAY be used when context is insufficient.")
         else:
