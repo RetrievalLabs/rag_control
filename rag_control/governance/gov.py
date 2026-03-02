@@ -6,7 +6,6 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from typing import Any
 
 from rag_control.exceptions.governance import (
-    GovernanceOrgNotFoundError,
     GovernancePolicyDeniedError,
 )
 from rag_control.models.config import ControlPlaneConfig
@@ -51,9 +50,7 @@ class GovernanceRegistry:
         user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
     ) -> str:
-        org = self.get_org(user_context.org_id)
-        if org is None:
-            raise GovernanceOrgNotFoundError(user_context)
+        org = self.org_map[user_context.org_id]
 
         default_policy = org.default_policy
         for rule in org.policy_rules:
