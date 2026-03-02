@@ -68,7 +68,7 @@ class RAGControl:
                     f"invalid control plane config: {exc}"
                 ) from exc
         self._validate_embedding_model_compatibility()
-        self.policy_regustry = PolicyRegistry(self.config)
+        self.policy_registry = PolicyRegistry(self.config)
         self.governance_registry = GovernanceRegistry(self.config)
         self.filter_registry = FilterRegistry(self.config)
         self.prompt_builder = RAGPromptBuilder()
@@ -106,7 +106,7 @@ class RAGControl:
             user_context=user_context, source_documents=docs
         )
 
-        policy = self.policy_regustry.get(policy_name)
+        policy = self.policy_registry.get(policy_name)
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
@@ -142,8 +142,14 @@ class RAGControl:
             user_context=user_context,
             filter=self.filter_registry.get(org.filter_name),
         )
+
         docs = retrieve_res.records
-        self.governance_registry.resolve_policy(user_context=user_context, source_documents=docs)
+        policy_name = self.governance_registry.resolve_policy(
+            user_context=user_context, source_documents=docs
+        )
+
+        policy = self.policy_registry.get(policy_name)
+
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
@@ -151,6 +157,7 @@ class RAGControl:
 
         response = self.llm.stream(
             messages,
+            temperature=policy.generation.temperature if policy is not None else None,
             user_context=user_context,
         )
         return response
