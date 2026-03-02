@@ -25,8 +25,9 @@ from rag_control.models.llm import LLMResponse, LLMStreamResponse
 from rag_control.models.user_context import UserContext
 from rag_control.policy.policy import PolicyRegistry
 
+from ..prompt.base import PromptBuilder
+from ..prompt.prompt import RAGPromptBuilder
 from .config_loader import load_control_plane_config
-from .prompt import RAGPromptBuilder
 
 
 class RAGControl:
@@ -71,7 +72,7 @@ class RAGControl:
         self.policy_registry = PolicyRegistry(self.config)
         self.governance_registry = GovernanceRegistry(self.config)
         self.filter_registry = FilterRegistry(self.config)
-        self.prompt_builder = RAGPromptBuilder()
+        self.prompt_builder: PromptBuilder = RAGPromptBuilder()
 
     def run(self, query: str, user_context: UserContext) -> LLMResponse:
         """
@@ -110,6 +111,7 @@ class RAGControl:
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
+            policy=policy,
         )
 
         response = self.llm.generate(
@@ -153,6 +155,7 @@ class RAGControl:
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
+            policy=policy,
         )
 
         response = self.llm.stream(

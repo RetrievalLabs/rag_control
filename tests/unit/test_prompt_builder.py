@@ -3,8 +3,9 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
-from rag_control.core.prompt import RAGPromptBuilder
+from rag_control.models.policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
 from rag_control.models.vector_store import VectorStoreRecord
+from rag_control.prompt.prompt import RAGPromptBuilder
 
 
 def test_build_returns_expected_message_layers() -> None:
@@ -19,6 +20,7 @@ def test_build_returns_expected_message_layers() -> None:
                 metadata={"source": "kb"},
             ),
         ],
+        policy=None,
     )
 
     assert len(messages) == 3
@@ -28,6 +30,7 @@ def test_build_returns_expected_message_layers() -> None:
 
     assert "Authority Order" in messages[0]["content"]
     assert "DEVELOPER POLICY" in messages[1]["content"]
+    assert "Use ONLY the provided retrieved context to answer." in messages[1]["content"]
     assert "UNTRUSTED RETRIEVED CONTEXT" in messages[2]["content"]
     assert "USER QUESTION:\nWhat is the policy status?" in messages[2]["content"]
 
@@ -50,6 +53,7 @@ def test_build_formats_multiple_docs_with_numbering_and_strip() -> None:
                 metadata={},
             ),
         ],
+        policy=None,
     )
 
     user_content = messages[2]["content"]
@@ -59,7 +63,79 @@ def test_build_formats_multiple_docs_with_numbering_and_strip() -> None:
 
 def test_build_uses_no_documents_placeholder_when_context_empty() -> None:
     builder = RAGPromptBuilder()
-    messages = builder.build(query="Any updates?", retrieved_docs=[])
+    messages = builder.build(query="Any updates?", retrieved_docs=[], policy=None)
 
     assert "[NO DOCUMENTS RETRIEVED]" in messages[2]["content"]
     assert "USER QUESTION:\nAny updates?" in messages[2]["content"]
+
+
+def test_build_uses_policy_prompt_rules_with_multiple_conditions() -> None:
+    builder = RAGPromptBuilder()
+    test_cases = [
+        (
+            "default_none_policy",
+            None,
+            [
+                "Use ONLY the provided retrieved context to answer.",
+                "Every factual claim must be supported by the context.",
+                "respond exactly with:",
+            ],
+            [
+                "External knowledge MAY be used when context is insufficient.",
+                "Citations are optional unless explicitly requested.",
+            ],
+        ),
+        (
+            "strict_policy_explicit",
+            Policy(
+                name="strict_policy",
+                generation=GenerationPolicy(
+                    allow_external_knowledge=False,
+                    require_citations=True,
+                    fallback="strict",
+                ),
+                logging=LoggingPolicy(),
+                enforcement=EnforcementPolicy(),
+            ),
+            [
+                "Use ONLY the provided retrieved context to answer.",
+                "Include citations that reference retrieved document IDs.",
+                "respond exactly with:",
+            ],
+            [
+                "External knowledge MAY be used when context is insufficient.",
+                "Citations are optional unless explicitly requested.",
+            ],
+        ),
+        (
+            "soft_policy_relaxed",
+            Policy(
+                name="soft_policy",
+                generation=GenerationPolicy(
+                    allow_external_knowledge=True,
+                    require_citations=False,
+                    fallback="soft",
+                ),
+                logging=LoggingPolicy(),
+                enforcement=EnforcementPolicy(),
+            ),
+            [
+                "External knowledge MAY be used when context is insufficient.",
+                "Citations are optional unless explicitly requested.",
+                "provide a best-effort answer and clearly label uncertainty.",
+            ],
+            [
+                "Do NOT rely on prior knowledge.",
+                "respond exactly with:",
+            ],
+        ),
+    ]
+
+    for case_name, policy, expected_lines, unexpected_lines in test_cases:
+        messages = builder.build(query="Any updates?", retrieved_docs=[], policy=policy)
+        developer_content = messages[1]["content"]
+
+        for expected_line in expected_lines:
+            assert expected_line in developer_content, case_name
+        for unexpected_line in unexpected_lines:
+            assert unexpected_line not in developer_content, case_name
