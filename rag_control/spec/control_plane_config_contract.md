@@ -44,6 +44,10 @@ Org Model: `OrgConfig`
   - `default_policy: str` (required)
   - `policy_rules: list[PolicyRule]` (required)
   - `filter_name: str | None` (optional)
+  - `document_policy: DocumentPolicy` (optional; default values apply)
+
+Document Policy: `DocumentPolicy`
+- `top_k: int` (default `5`, MUST be `> 0`)
 
 Policy Model: `Policy`
 - Fields:

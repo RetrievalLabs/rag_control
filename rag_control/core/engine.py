@@ -96,6 +96,7 @@ class RAGControl:
 
         retrieve_res = self.vector_store.search(
             query_embedding_res.embedding,
+            top_k=org.document_policy.top_k,
             user_context=user_context,
             filter=retrieval_filter,
         )
@@ -113,7 +114,7 @@ class RAGControl:
 
         response = self.llm.generate(
             messages,
-            temperature=policy.generation.temperature,
+            temperature=policy.generation.temperature if policy is not None else None,
             user_context=user_context,
         )
         return response
@@ -137,6 +138,7 @@ class RAGControl:
 
         retrieve_res = self.vector_store.search(
             query_embedding_res.embedding,
+            top_k=org.document_policy.top_k,
             user_context=user_context,
             filter=self.filter_registry.get(org.filter_name),
         )
