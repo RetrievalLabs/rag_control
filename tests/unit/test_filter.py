@@ -3,22 +3,23 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
-from rag_control.filter.filter import Filter
+from rag_control.filter.filter import FilterRegistry
 from rag_control.models.config import ControlPlaneConfig
 
 
-def test_filter_get_returns_filter_by_name(fake_config: ControlPlaneConfig) -> None:
-    registry = Filter(fake_config)
+def test_filter_get_with_multiple_conditions(fake_config: ControlPlaneConfig) -> None:
+    registry = FilterRegistry(fake_config)
+    test_cases = [
+        ("known_name_returns_filter", "default_filter", "default_filter"),
+        ("unknown_name_returns_none", "missing_filter", None),
+        ("none_name_returns_none", None, None),
+    ]
 
-    model = registry.get("default_filter")
+    for case_name, filter_name, expected_name in test_cases:
+        model = registry.get(filter_name)
+        if expected_name is None:
+            assert model is None, case_name
+            continue
 
-    assert model is not None
-    assert model.name == "default_filter"
-
-
-def test_filter_get_returns_none_for_unknown_name(fake_config: ControlPlaneConfig) -> None:
-    registry = Filter(fake_config)
-
-    model = registry.get("missing_filter")
-
-    assert model is None
+        assert model is not None, case_name
+        assert model.name == expected_name, case_name

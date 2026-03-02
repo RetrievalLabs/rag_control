@@ -15,9 +15,15 @@ from rag_control.exceptions import (
     EmbeddingModelMismatchError,
     EmbeddingModelTypeError,
     EmbeddingModelValidationError,
+    GovernanceRegistryOrgNotFoundError,
+    GovernanceUserContextOrgIDRequiredError,
 )
+from rag_control.filter.filter import FilterRegistry
+from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.llm import LLMResponse, LLMStreamResponse
+from rag_control.models.user_context import UserContext
+from rag_control.policy.policy import PolicyRegistry
 
 from .config_loader import load_control_plane_config
 from .prompt import RAGPromptBuilder
@@ -61,45 +67,99 @@ class RAGControl:
                 raise ControlPlaneConfigValidationError(
                     f"invalid control plane config: {exc}"
                 ) from exc
-        self.prompt_builder = RAGPromptBuilder()
         self._validate_embedding_model_compatibility()
+        self.policy_registry = PolicyRegistry(self.config)
+        self.governance_registry = GovernanceRegistry(self.config)
+        self.filter_registry = FilterRegistry(self.config)
+        self.prompt_builder = RAGPromptBuilder()
 
-    def run(self, query: str) -> LLMResponse:
+    def run(self, query: str, user_context: UserContext) -> LLMResponse:
         """
         Single public execution path.
 
         :param query: User query to process through the RAG
         :type query: str
         """
-        query_embedding_res = self.query_embedding.embed(query)
 
-        retrieve_res = self.vector_store.search(query_embedding_res.embedding)
+        org_id = user_context.org_id
+        if org_id is None:
+            raise GovernanceUserContextOrgIDRequiredError()
+
+        org = self.governance_registry.get_org(org_id)
+        if org is None:
+            raise GovernanceRegistryOrgNotFoundError(org_id)
+        retrieval_filter = (
+            self.filter_registry.get(org.filter_name) if org.filter_name is not None else None
+        )
+
+        query_embedding_res = self.query_embedding.embed(query, user_context=user_context)
+
+        retrieve_res = self.vector_store.search(
+            query_embedding_res.embedding,
+            top_k=org.document_policy.top_k,
+            user_context=user_context,
+            filter=retrieval_filter,
+        )
+
         docs = retrieve_res.records
+        policy_name = self.governance_registry.resolve_policy(
+            user_context=user_context, source_documents=docs
+        )
+
+        policy = self.policy_registry.get(policy_name)
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
         )
 
-        response = self.llm.generate(messages)
+        response = self.llm.generate(
+            messages,
+            temperature=policy.generation.temperature if policy is not None else 0.0,
+            user_context=user_context,
+        )
         return response
 
-    def stream(self, query: str) -> LLMStreamResponse:
+    def stream(self, query: str, user_context: UserContext) -> LLMStreamResponse:
         """
         Streaming public execution path.
 
         :param query: User query to process through the RAG
         :type query: str
         """
-        query_embedding_res = self.query_embedding.embed(query)
+        org_id = user_context.org_id
+        if org_id is None:
+            raise GovernanceUserContextOrgIDRequiredError()
 
-        retrieve_res = self.vector_store.search(query_embedding_res.embedding)
+        org = self.governance_registry.get_org(org_id)
+        if org is None:
+            raise GovernanceRegistryOrgNotFoundError(org_id)
+
+        query_embedding_res = self.query_embedding.embed(query, user_context=user_context)
+
+        retrieve_res = self.vector_store.search(
+            query_embedding_res.embedding,
+            top_k=org.document_policy.top_k,
+            user_context=user_context,
+            filter=self.filter_registry.get(org.filter_name),
+        )
+
         docs = retrieve_res.records
+        policy_name = self.governance_registry.resolve_policy(
+            user_context=user_context, source_documents=docs
+        )
+
+        policy = self.policy_registry.get(policy_name)
+
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
         )
 
-        response = self.llm.stream(messages)
+        response = self.llm.stream(
+            messages,
+            temperature=policy.generation.temperature if policy is not None else 0.0,
+            user_context=user_context,
+        )
         return response
 
     def _validate_embedding_model_compatibility(self) -> str:

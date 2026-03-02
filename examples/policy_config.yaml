@@ -15,8 +15,6 @@ policies:
       enforce_strict_fallback: true
       prevent_external_knowledge: true
       max_output_tokens: 512
-    document_policy:
-      top_k: 8
 
   - name: soft_research
     description: Relaxed fallback policy for exploratory answers.
@@ -34,8 +32,6 @@ policies:
       enforce_strict_fallback: false
       prevent_external_knowledge: true
       max_output_tokens: 1024
-    document_policy:
-      top_k: 12
 
 filters:
   - name: enterprise_only
@@ -111,6 +107,8 @@ orgs:
   - org_id: acme_corp
     description: Acme Corporation with strict citation requirements.
     default_policy: strict_citations
+    document_policy:
+      top_k: 8
     policy_rules:
       - name: deny_untrusted_document_source
         description: Deny if any retrieved document comes from an untrusted source.
@@ -179,6 +177,8 @@ orgs:
   - org_id: beta_labs
     description: Beta Labs with flexible research policies.
     default_policy: soft_research
+    document_policy:
+      top_k: 12
     policy_rules:
       - name: allow_trusted_docs_only
         description: Escalate to strict policy when all retrieved docs are from trusted KB.

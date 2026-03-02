@@ -8,7 +8,6 @@ from typing import TypedDict
 import pytest
 
 from rag_control.exceptions.governance import (
-    GovernanceOrgNotFoundError,
     GovernancePolicyDeniedError,
 )
 from rag_control.governance.gov import GovernanceRegistry
@@ -340,17 +339,6 @@ def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
             "expected_exception": None,
             "expected_rule_name": None,
         },
-        {
-            "name": "unknown_org_raises_not_found",
-            "user_context": UserContext(
-                user_id="u-8",
-                org_id="missing_org",
-                attributes={},
-            ),
-            "expected_policy": None,
-            "expected_exception": GovernanceOrgNotFoundError,
-            "expected_rule_name": None,
-        },
     ]
 
     for case in test_cases:
@@ -366,8 +354,6 @@ def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
         error = exc_info.value
         if isinstance(error, GovernancePolicyDeniedError):
             assert error.rule_name == case["expected_rule_name"], case["name"]
-            assert error.user_context == case["user_context"], case["name"]
-        if isinstance(error, GovernanceOrgNotFoundError):
             assert error.user_context == case["user_context"], case["name"]
 
 

@@ -16,6 +16,12 @@ from .embedding_model import (
     EmbeddingModelTypeError,
     EmbeddingModelValidationError,
 )
+from .governance import (
+    GovernanceOrgNotFoundError,
+    GovernancePolicyDeniedError,
+    GovernanceRegistryOrgNotFoundError,
+    GovernanceUserContextOrgIDRequiredError,
+)
 
 __all__ = [
     "RagControlError",
@@ -27,4 +33,8 @@ __all__ = [
     "EmbeddingModelTypeError",
     "EmbeddingModelValidationError",
     "EmbeddingModelMismatchError",
+    "GovernanceOrgNotFoundError",
+    "GovernancePolicyDeniedError",
+    "GovernanceUserContextOrgIDRequiredError",
+    "GovernanceRegistryOrgNotFoundError",
 ]

@@ -44,6 +44,10 @@ Org Model: `OrgConfig`
   - `default_policy: str` (required)
   - `policy_rules: list[PolicyRule]` (required)
   - `filter_name: str | None` (optional)
+  - `document_policy: DocumentPolicy` (optional; default values apply)
+
+Document Policy: `DocumentPolicy`
+- `top_k: int` (default `5`, MUST be `> 0`)
 
 Policy Model: `Policy`
 - Fields:
@@ -52,7 +56,6 @@ Policy Model: `Policy`
   - `generation: GenerationPolicy` (required)
   - `logging: LoggingPolicy` (required)
   - `enforcement: EnforcementPolicy` (required)
-  - `document_policy: DocumentPolicy` (optional; default values apply)
 
 Generation Policy: `GenerationPolicy`
 - `reasoning_level`: one of `none | limited | full` (default `limited`)
@@ -70,9 +73,6 @@ Enforcement Policy: `EnforcementPolicy`
 - `enforce_strict_fallback: bool` (default `true`)
 - `prevent_external_knowledge: bool` (default `true`)
 - `max_output_tokens: int | None` (default `None`)
-
-Document Policy: `DocumentPolicy`
-- `top_k: int` (default `5`, MUST be `> 0`)
 
 Policy Rule Model: `PolicyRule`
 - Fields:

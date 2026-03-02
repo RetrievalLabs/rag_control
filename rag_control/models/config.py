@@ -53,16 +53,15 @@ class ControlPlaneConfig(BaseModel):
         policy_name_set = set(policy_names)
         filter_name_set = set(filter_names)
 
-        for policy in self.policies:
-            if policy.document_policy.top_k <= 0:
-                raise ControlPlaneConfigValidationError(
-                    f"policy '{policy.name}': document_policy.top_k must be greater than 0"
-                )
-
         for flt in self.filters:
             self._validate_filter(flt.name, flt)
 
         for org in self.orgs:
+            if org.document_policy.top_k <= 0:
+                raise ControlPlaneConfigValidationError(
+                    f"org '{org.org_id}': document_policy.top_k must be greater than 0"
+                )
+
             if org.default_policy not in policy_name_set:
                 raise ControlPlaneConfigValidationError(
                     f"org '{org.org_id}' default_policy '{org.default_policy}' does not exist"

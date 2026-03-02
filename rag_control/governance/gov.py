@@ -6,7 +6,6 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from typing import Any
 
 from rag_control.exceptions.governance import (
-    GovernanceOrgNotFoundError,
     GovernancePolicyDeniedError,
 )
 from rag_control.models.config import ControlPlaneConfig
@@ -43,17 +42,15 @@ class GovernanceRegistry:
             for org in config.orgs
         }
 
-    def get_org(self, org_name: str) -> OrgConfig | None:
-        return self.org_map.get(org_name)
+    def get_org(self, org_id: str) -> OrgConfig | None:
+        return self.org_map.get(org_id)
 
     def resolve_policy(
         self,
         user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
     ) -> str:
-        org = self.get_org(user_context.org_id)
-        if org is None:
-            raise GovernanceOrgNotFoundError(user_context)
+        org = self.org_map[user_context.org_id]
 
         default_policy = org.default_policy
         for rule in org.policy_rules:

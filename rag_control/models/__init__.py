@@ -13,8 +13,8 @@ from .llm import (
     LLMStreamResponse,
     LLMUsage,
 )
-from .org import OrgConfig
-from .policy import DocumentPolicy, EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
+from .org import DocumentPolicy, OrgConfig
+from .policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
 from .query_embedding import QueryEmbeddingMetadata, QueryEmbeddingResponse
 from .rule import Condition as RuleCondition
 from .rule import LogicalCondition, PolicyRule
@@ -31,12 +31,12 @@ __all__ = [
     "LLMStreamChunk",
     "LLMStreamResponse",
     "ControlPlaneConfig",
+    "DocumentPolicy",
     "OrgConfig",
     "Policy",
     "GenerationPolicy",
     "LoggingPolicy",
     "EnforcementPolicy",
-    "DocumentPolicy",
     "Filter",
     "FilterCondition",
     "PolicyRule",
