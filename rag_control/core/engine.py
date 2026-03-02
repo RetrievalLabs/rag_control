@@ -16,9 +16,12 @@ from rag_control.exceptions import (
     EmbeddingModelTypeError,
     EmbeddingModelValidationError,
 )
+from rag_control.filter.filter import FilterRegistry
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.llm import LLMResponse, LLMStreamResponse
 from rag_control.models.user_context import UserContext
+from rag_control.governance.gov import GovernanceRegistry
+from rag_control.policy.policy import PolicyRegistry
 
 from .config_loader import load_control_plane_config
 from .prompt import RAGPromptBuilder
@@ -62,6 +65,9 @@ class RAGControl:
                 raise ControlPlaneConfigValidationError(
                     f"invalid control plane config: {exc}"
                 ) from exc
+        self.policy_regustry = PolicyRegistry(self.config)
+        self.governance_registry = GovernanceRegistry(self.config)
+        self.filter_registry = FilterRegistry(self.config)
         self.prompt_builder = RAGPromptBuilder()
         self._validate_embedding_model_compatibility()
 

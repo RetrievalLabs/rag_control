@@ -7,7 +7,7 @@ from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.policy import Policy as PolicyModel
 
 
-class Policy:
+class PolicyRegistry:
     def __init__(self, config: ControlPlaneConfig):
         self.policy_map: dict[str, PolicyModel] = {
             policy.name: policy for policy in config.policies

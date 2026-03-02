@@ -18,7 +18,7 @@ from rag_control.models.policy import (
 from rag_control.models.policy import (
     Policy as PolicyModel,
 )
-from rag_control.policy.policy import Policy as PolicyRegistry
+from rag_control.policy.policy import PolicyRegistry
 
 
 class _PolicyLookupCase(TypedDict):
