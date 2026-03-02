@@ -29,8 +29,7 @@ class EnforcementPolicy(BaseModel):
 
 
 class DocumentPolicy(BaseModel):
-    mik_top_k: int = 1
-    max_top_k: int = 10
+    top_k: int = 5
 
 
 class Policy(BaseModel):

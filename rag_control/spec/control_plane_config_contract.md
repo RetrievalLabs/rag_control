@@ -72,9 +72,7 @@ Enforcement Policy: `EnforcementPolicy`
 - `max_output_tokens: int | None` (default `None`)
 
 Document Policy: `DocumentPolicy`
-- `mik_top_k: int` (default `1`, MUST be `> 0`)
-- `max_top_k: int` (default `10`, MUST be `> 0`)
-- Validation: `mik_top_k` MUST be less than or equal to `max_top_k`.
+- `top_k: int` (default `5`, MUST be `> 0`)
 
 Policy Rule Model: `PolicyRule`
 - Fields:
