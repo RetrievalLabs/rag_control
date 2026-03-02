@@ -76,11 +76,14 @@ def test_build_uses_policy_prompt_rules_with_multiple_conditions() -> None:
             "default_none_policy",
             None,
             [
+                "Provide brief reasoning grounded in retrieved context.",
                 "Use ONLY the provided retrieved context to answer.",
                 "Every factual claim must be supported by the context.",
                 "respond exactly with:",
             ],
             [
+                "Keep reasoning concise and direct.",
+                "Provide comprehensive reasoning grounded in retrieved context.",
                 "External knowledge MAY be used when context is insufficient.",
                 "Citations are optional unless explicitly requested.",
             ],
@@ -90,6 +93,7 @@ def test_build_uses_policy_prompt_rules_with_multiple_conditions() -> None:
             Policy(
                 name="strict_policy",
                 generation=GenerationPolicy(
+                    reasoning_level="full",
                     allow_external_knowledge=False,
                     require_citations=True,
                     fallback="strict",
@@ -98,11 +102,13 @@ def test_build_uses_policy_prompt_rules_with_multiple_conditions() -> None:
                 enforcement=EnforcementPolicy(),
             ),
             [
+                "Provide comprehensive reasoning grounded in retrieved context.",
                 "Use ONLY the provided retrieved context to answer.",
                 "Include citations that reference retrieved document IDs.",
                 "respond exactly with:",
             ],
             [
+                "Keep reasoning concise and direct.",
                 "External knowledge MAY be used when context is insufficient.",
                 "Citations are optional unless explicitly requested.",
             ],
@@ -112,6 +118,7 @@ def test_build_uses_policy_prompt_rules_with_multiple_conditions() -> None:
             Policy(
                 name="soft_policy",
                 generation=GenerationPolicy(
+                    reasoning_level="none",
                     allow_external_knowledge=True,
                     require_citations=False,
                     fallback="soft",
@@ -120,11 +127,14 @@ def test_build_uses_policy_prompt_rules_with_multiple_conditions() -> None:
                 enforcement=EnforcementPolicy(),
             ),
             [
+                "Keep reasoning concise and direct.",
                 "External knowledge MAY be used when context is insufficient.",
                 "Citations are optional unless explicitly requested.",
                 "provide a best-effort answer and clearly label uncertainty.",
             ],
             [
+                "Provide comprehensive reasoning grounded in retrieved context.",
+                "Provide brief reasoning grounded in retrieved context.",
                 "Do NOT rely on prior knowledge.",
                 "respond exactly with:",
             ],
