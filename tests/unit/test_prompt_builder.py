@@ -3,9 +3,9 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
-from rag_control.prompt.prompt import RAGPromptBuilder
 from rag_control.models.policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
 from rag_control.models.vector_store import VectorStoreRecord
+from rag_control.prompt.prompt import RAGPromptBuilder
 
 
 def test_build_returns_expected_message_layers() -> None:
