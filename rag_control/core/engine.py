@@ -17,10 +17,10 @@ from rag_control.exceptions import (
     EmbeddingModelValidationError,
 )
 from rag_control.filter.filter import FilterRegistry
+from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.llm import LLMResponse, LLMStreamResponse
 from rag_control.models.user_context import UserContext
-from rag_control.governance.gov import GovernanceRegistry
 from rag_control.policy.policy import PolicyRegistry
 
 from .config_loader import load_control_plane_config
@@ -70,7 +70,7 @@ class RAGControl:
         self.governance_registry = GovernanceRegistry(self.config)
         self.filter_registry = FilterRegistry(self.config)
         self.prompt_builder = RAGPromptBuilder()
-        
+
     def run(self, query: str, user_context: UserContext) -> LLMResponse:
         """
         Single public execution path.
