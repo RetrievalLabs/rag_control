@@ -5,6 +5,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from rag_control.core.engine import RAGControl
 from rag_control.models.config import ControlPlaneConfig
+from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import VectorStoreRecord
 from tests.utils.fake_llm import FakeLLM
 from tests.utils.fake_query_embedding import FakeQueryEmbedding
@@ -56,7 +57,12 @@ def test_rag_control_run_returns_llm_response_with_retrieval_context(
         vector_store=vector_store,
         config=fake_config,
     )
-    llm_response = engine.run("what is policy status?")
+    user_context = UserContext(
+        user_id="u-1",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+    llm_response = engine.run("what is policy status?", user_context=user_context)
 
     assert llm_response.content == "approved answer"
     assert llm_response.metadata.model == "fake-gpt"
@@ -71,6 +77,13 @@ def test_rag_control_run_returns_llm_response_with_retrieval_context(
     assert "what is policy status?" in llm.prompts[0][-1]["content"]
     assert query_embedding.queries == ["what is policy status?"]
     assert vector_store.embeddings == [[0.11, 0.22, 0.33]]
+    assert vector_store.top_ks == [5]
+    assert query_embedding.user_contexts == [user_context]
+    assert vector_store.user_contexts == [user_context]
+    assert llm.generate_user_contexts == [user_context]
+    assert llm.generate_temperatures == [None]
+    assert len(vector_store.filters) == 1
+    assert vector_store.filters[0] is None
     assert vector_store.search_calls == 1
     assert llm.generate_calls == 1
     assert llm.stream_calls == 0
@@ -123,7 +136,12 @@ def test_rag_control_stream_returns_llm_stream_response_with_retrieval_context(
         vector_store=vector_store,
         config=fake_config,
     )
-    llm_stream_response = engine.stream("who owns policy?")
+    user_context = UserContext(
+        user_id="u-2",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+    llm_stream_response = engine.stream("who owns policy?", user_context=user_context)
 
     streamed_text = "".join(chunk.delta for chunk in llm_stream_response.stream)
 
@@ -142,6 +160,13 @@ def test_rag_control_stream_returns_llm_stream_response_with_retrieval_context(
     assert "who owns policy?" in llm.prompts[0][-1]["content"]
     assert query_embedding.queries == ["who owns policy?"]
     assert vector_store.embeddings == [[0.31, 0.42, 0.53]]
+    assert vector_store.top_ks == [5]
+    assert query_embedding.user_contexts == [user_context]
+    assert vector_store.user_contexts == [user_context]
+    assert llm.stream_user_contexts == [user_context]
+    assert llm.stream_temperatures == [None]
+    assert len(vector_store.filters) == 1
+    assert vector_store.filters[0] is None
     assert vector_store.search_calls == 1
     assert llm.generate_calls == 0
     assert llm.stream_calls == 1

@@ -18,6 +18,7 @@ from rag_control.exceptions import (
 )
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.llm import LLMResponse, LLMStreamResponse
+from rag_control.models.user_context import UserContext
 
 from .config_loader import load_control_plane_config
 from .prompt import RAGPromptBuilder
@@ -64,42 +65,54 @@ class RAGControl:
         self.prompt_builder = RAGPromptBuilder()
         self._validate_embedding_model_compatibility()
 
-    def run(self, query: str) -> LLMResponse:
+    def run(self, query: str, user_context: UserContext) -> LLMResponse:
         """
         Single public execution path.
 
         :param query: User query to process through the RAG
         :type query: str
         """
-        query_embedding_res = self.query_embedding.embed(query)
+        query_embedding_res = self.query_embedding.embed(query, user_context=user_context)
 
-        retrieve_res = self.vector_store.search(query_embedding_res.embedding)
+        retrieve_res = self.vector_store.search(
+            query_embedding_res.embedding,
+            user_context=user_context,
+        )
         docs = retrieve_res.records
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
         )
 
-        response = self.llm.generate(messages)
+        response = self.llm.generate(
+            messages,
+            user_context=user_context,
+        )
         return response
 
-    def stream(self, query: str) -> LLMStreamResponse:
+    def stream(self, query: str, user_context: UserContext) -> LLMStreamResponse:
         """
         Streaming public execution path.
 
         :param query: User query to process through the RAG
         :type query: str
         """
-        query_embedding_res = self.query_embedding.embed(query)
+        query_embedding_res = self.query_embedding.embed(query, user_context=user_context)
 
-        retrieve_res = self.vector_store.search(query_embedding_res.embedding)
+        retrieve_res = self.vector_store.search(
+            query_embedding_res.embedding,
+            user_context=user_context,
+        )
         docs = retrieve_res.records
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
         )
 
-        response = self.llm.stream(messages)
+        response = self.llm.stream(
+            messages,
+            user_context=user_context,
+        )
         return response
 
     def _validate_embedding_model_compatibility(self) -> str:
