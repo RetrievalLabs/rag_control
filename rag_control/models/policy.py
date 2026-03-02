@@ -5,7 +5,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class GenerationPolicy(BaseModel):
@@ -28,14 +28,9 @@ class EnforcementPolicy(BaseModel):
     max_output_tokens: int | None = None
 
 
-class DocumentPolicy(BaseModel):
-    top_k: int = 5
-
-
 class Policy(BaseModel):
     name: str
     description: str | None = None
     generation: GenerationPolicy
     logging: LoggingPolicy
     enforcement: EnforcementPolicy
-    document_policy: DocumentPolicy = Field(default_factory=DocumentPolicy)

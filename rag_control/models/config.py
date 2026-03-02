@@ -53,12 +53,6 @@ class ControlPlaneConfig(BaseModel):
         policy_name_set = set(policy_names)
         filter_name_set = set(filter_names)
 
-        for policy in self.policies:
-            if policy.document_policy.top_k <= 0:
-                raise ControlPlaneConfigValidationError(
-                    f"policy '{policy.name}': document_policy.top_k must be greater than 0"
-                )
-
         for flt in self.filters:
             self._validate_filter(flt.name, flt)
 

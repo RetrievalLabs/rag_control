@@ -14,5 +14,5 @@ class PolicyRegistry:
         }
 
     # Returns the PolicyModel for the given name, or None if not found.
-    def get(self, name: str) -> PolicyModel | None:
+    def get(self, name: str) -> PolicyModel:
         return self.policy_map.get(name)

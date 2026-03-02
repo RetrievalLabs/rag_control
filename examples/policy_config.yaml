@@ -15,8 +15,6 @@ policies:
       enforce_strict_fallback: true
       prevent_external_knowledge: true
       max_output_tokens: 512
-    document_policy:
-      top_k: 8
 
   - name: soft_research
     description: Relaxed fallback policy for exploratory answers.
@@ -34,8 +32,6 @@ policies:
       enforce_strict_fallback: false
       prevent_external_knowledge: true
       max_output_tokens: 1024
-    document_policy:
-      top_k: 12
 
 filters:
   - name: enterprise_only
