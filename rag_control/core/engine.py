@@ -101,7 +101,11 @@ class RAGControl:
         )
 
         docs = retrieve_res.records
-        self.governance_registry.resolve_policy(user_context=user_context, source_documents=docs)
+        policy_name = self.governance_registry.resolve_policy(
+            user_context=user_context, source_documents=docs
+        )
+
+        policy = self.policy_regustry.get(policy_name)
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
@@ -109,6 +113,7 @@ class RAGControl:
 
         response = self.llm.generate(
             messages,
+            temperature=policy.generation.temperature,
             user_context=user_context,
         )
         return response
