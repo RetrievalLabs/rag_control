@@ -15,4 +15,6 @@ class FilterRegistry:
 
     # Returns the FilterModel for the given name, or None if not found.
     def get(self, name: str) -> FilterModel | None:
+        if name is None:
+            return None
         return self.filter_map.get(name)

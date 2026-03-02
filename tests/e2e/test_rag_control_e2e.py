@@ -173,7 +173,8 @@ def test_rag_control_stream_returns_llm_stream_response_with_retrieval_context(
     assert llm.stream_user_contexts == [user_context]
     assert llm.stream_temperatures == [None]
     assert len(vector_store.filters) == 1
-    assert vector_store.filters[0] is None
+    assert vector_store.filters[0] is not None
+    assert vector_store.filters[0].name == "default_filter"
     assert vector_store.search_calls == 1
     assert llm.generate_calls == 0
     assert llm.stream_calls == 1
