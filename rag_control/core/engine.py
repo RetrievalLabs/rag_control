@@ -114,7 +114,7 @@ class RAGControl:
 
         response = self.llm.generate(
             messages,
-            temperature=policy.generation.temperature if policy is not None else None,
+            temperature=policy.generation.temperature if policy is not None else 0.0,
             user_context=user_context,
         )
         return response
@@ -157,7 +157,7 @@ class RAGControl:
 
         response = self.llm.stream(
             messages,
-            temperature=policy.generation.temperature if policy is not None else None,
+            temperature=policy.generation.temperature if policy is not None else 0.0,
             user_context=user_context,
         )
         return response

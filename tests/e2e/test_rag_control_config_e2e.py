@@ -113,7 +113,7 @@ def test_rag_control_init_assigns_dependencies_and_registries(
     assert engine.llm is llm
     assert engine.query_embedding is query_embedding
     assert engine.vector_store is vector_store
-    assert isinstance(engine.policy_regustry, PolicyRegistry)
+    assert isinstance(engine.policy_registry, PolicyRegistry)
     assert isinstance(engine.governance_registry, GovernanceRegistry)
     assert isinstance(engine.filter_registry, FilterRegistry)
     assert isinstance(engine.prompt_builder, RAGPromptBuilder)

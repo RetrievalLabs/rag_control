@@ -171,7 +171,7 @@ def test_rag_control_stream_returns_llm_stream_response_with_retrieval_context(
     assert query_embedding.user_contexts == [user_context]
     assert vector_store.user_contexts == [user_context]
     assert llm.stream_user_contexts == [user_context]
-    assert llm.stream_temperatures == [None]
+    assert llm.stream_temperatures == [0.0]
     assert len(vector_store.filters) == 1
     assert vector_store.filters[0] is not None
     assert vector_store.filters[0].name == "default_filter"
