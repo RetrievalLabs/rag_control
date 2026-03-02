@@ -9,8 +9,12 @@ from typing import Any, TypedDict, cast
 import pytest
 
 from rag_control.core.engine import RAGControl
+from rag_control.core.prompt import RAGPromptBuilder
 from rag_control.exceptions import ControlPlaneConfigValidationError
+from rag_control.filter.filter import FilterRegistry
+from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
+from rag_control.policy.policy import PolicyRegistry
 from tests.utils.fake_llm import FakeLLM
 from tests.utils.fake_query_embedding import FakeQueryEmbedding
 from tests.utils.fake_vector_store import FakeVectorStore
@@ -90,3 +94,26 @@ def test_rag_control_config_inputs_with_multiple_conditions(
                 config=cast(Any, case["config"]),
                 config_path=case["config_path"],
             )
+
+
+def test_rag_control_init_assigns_dependencies_and_registries(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+    )
+
+    assert engine.llm is llm
+    assert engine.query_embedding is query_embedding
+    assert engine.vector_store is vector_store
+    assert isinstance(engine.policy_regustry, PolicyRegistry)
+    assert isinstance(engine.governance_registry, GovernanceRegistry)
+    assert isinstance(engine.filter_registry, FilterRegistry)
+    assert isinstance(engine.prompt_builder, RAGPromptBuilder)
