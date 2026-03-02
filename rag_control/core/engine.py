@@ -65,12 +65,12 @@ class RAGControl:
                 raise ControlPlaneConfigValidationError(
                     f"invalid control plane config: {exc}"
                 ) from exc
+        self._validate_embedding_model_compatibility()
         self.policy_regustry = PolicyRegistry(self.config)
         self.governance_registry = GovernanceRegistry(self.config)
         self.filter_registry = FilterRegistry(self.config)
         self.prompt_builder = RAGPromptBuilder()
-        self._validate_embedding_model_compatibility()
-
+        
     def run(self, query: str, user_context: UserContext) -> LLMResponse:
         """
         Single public execution path.
