@@ -9,7 +9,7 @@ from typing import Any, TypedDict, cast
 import pytest
 
 from rag_control.core.engine import RAGControl
-from rag_control.core.prompt import RAGPromptBuilder
+from rag_control.prompt.prompt import RAGPromptBuilder
 from rag_control.exceptions import ControlPlaneConfigValidationError
 from rag_control.filter.filter import FilterRegistry
 from rag_control.governance.gov import GovernanceRegistry

@@ -26,7 +26,7 @@ from rag_control.models.user_context import UserContext
 from rag_control.policy.policy import PolicyRegistry
 
 from .config_loader import load_control_plane_config
-from .prompt import RAGPromptBuilder
+from ..prompt.prompt import RAGPromptBuilder
 
 
 class RAGControl:

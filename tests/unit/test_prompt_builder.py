@@ -3,7 +3,7 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
-from rag_control.core.prompt import RAGPromptBuilder
+from rag_control.prompt.prompt import RAGPromptBuilder
 from rag_control.models.vector_store import VectorStoreRecord
 
 
