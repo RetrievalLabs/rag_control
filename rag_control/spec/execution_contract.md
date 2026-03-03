@@ -102,7 +102,6 @@ Audit Emission (Normative)
 - Audit level gating MUST follow `Policy.logging.level` semantics:
   - `minimal` emits only core lifecycle/deny/fail events.
   - `full` emits all audit events.
-  - `forensic` currently emits all audit events (same as `full`) and MAY include additional fields in future versions.
 
 Failure Semantics
 - Governance failures (for example missing/invalid org) MUST raise governance exceptions.

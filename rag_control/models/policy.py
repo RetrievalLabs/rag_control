@@ -17,7 +17,7 @@ class GenerationPolicy(BaseModel):
 
 
 class LoggingPolicy(BaseModel):
-    level: Literal["minimal", "full", "forensic"] = "full"
+    level: Literal["minimal", "full"] = "full"
 
 
 class EnforcementPolicy(BaseModel):

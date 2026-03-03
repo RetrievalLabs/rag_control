@@ -12,7 +12,7 @@ Applies To:
 Purpose
 - Define the audit-event contract emitted by governed RAG execution.
 - Define required event fields for correlation and compliance.
-- Define policy-level behavior differences for `minimal`, `full`, and `forensic`.
+- Define policy-level behavior differences for `minimal` and `full`.
 
 Normative Terms
 - MUST: required.
@@ -71,7 +71,7 @@ Request Correlation
 
 Logging Policy Levels
 - Source policy:
-  - `Policy.logging.level` (`minimal | full | forensic`)
+  - `Policy.logging.level` (`minimal | full`)
 - `minimal`:
   - MUST emit only:
     - `request.received`
@@ -85,10 +85,6 @@ Logging Policy Levels
     - `enforcement.attached`
 - `full`:
   - MUST emit all audit events.
-- `forensic`:
-  - MUST emit all audit events.
-  - MAY include additional forensic fields in future versions.
-  - Current behavior is equivalent to `full` unless explicitly extended.
 
 Failure Semantics
 - Audit emission MUST NOT change business outcomes:
