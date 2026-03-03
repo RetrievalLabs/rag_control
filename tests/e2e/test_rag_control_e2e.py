@@ -541,3 +541,119 @@ def test_rag_control_stream_enforcement_blocks_non_strict_fallback_when_no_docs(
         match="response must use strict fallback when no documents are retrieved",
     ):
         _ = "".join(chunk.delta for chunk in response.stream)
+
+
+def test_rag_control_run_enforcement_blocks_external_knowledge_without_citations(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    config = fake_config.model_copy(deep=True)
+    config.policies[0].generation.require_citations = False
+
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    query_embedding.enqueue_response(
+        embedding=[0.91, 0.92, 0.93],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-010",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-050",
+                content="Trusted context exists.",
+                score=0.99,
+                metadata={"source": "policy-kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-010",
+    )
+    llm.enqueue_response(
+        content="uncited answer despite available context",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-010",
+        prompt_tokens=8,
+    )
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=config,
+    )
+    user_context = UserContext(
+        user_id="u-11",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+
+    with pytest.raises(
+        EnforcementPolicyViolationError,
+        match="response may rely on external knowledge: citations are required",
+    ):
+        engine.run("external knowledge check", user_context=user_context)
+
+
+def test_rag_control_stream_enforcement_blocks_external_knowledge_without_citations(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    config = fake_config.model_copy(deep=True)
+    config.policies[0].generation.require_citations = False
+
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    query_embedding.enqueue_response(
+        embedding=[0.94, 0.95, 0.96],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-011",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-060",
+                content="Trusted context exists for stream.",
+                score=0.99,
+                metadata={"source": "policy-kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-011",
+    )
+    llm.enqueue_response(
+        content="uncited streamed answer",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-011",
+        prompt_tokens=8,
+        stream_chunks=("uncited ", "streamed ", "answer"),
+    )
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=config,
+    )
+    user_context = UserContext(
+        user_id="u-12",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+    response = engine.stream("external knowledge stream check", user_context=user_context)
+
+    with pytest.raises(
+        EnforcementPolicyViolationError,
+        match="response may rely on external knowledge: citations are required",
+    ):
+        _ = "".join(chunk.delta for chunk in response.stream)

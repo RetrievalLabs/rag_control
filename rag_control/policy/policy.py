@@ -133,6 +133,17 @@ class PolicyRegistry:
                 violations.append(f"invalid citations out of retrieved range: {invalid_indexes}")
 
         stripped_content = content.strip()
+        if (
+            policy.enforcement.prevent_external_knowledge
+            and retrieved_docs
+            and stripped_content
+            and len(citation_indexes) == 0
+        ):
+            violations.append(
+                "response may rely on external knowledge: citations are required "
+                "when enforcement.prevent_external_knowledge=true"
+            )
+
         if not retrieved_docs:
             should_force_strict_fallback = (
                 policy.enforcement.enforce_strict_fallback
