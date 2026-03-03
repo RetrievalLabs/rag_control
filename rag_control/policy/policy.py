@@ -20,6 +20,7 @@ _STRICT_FALLBACK_TEXTS = {
     "I don't have enough information in the provided context.",
 }
 
+
 class PolicyRegistry:
     def __init__(self, config: ControlPlaneConfig) -> None:
         self.policy_map: dict[str, PolicyModel] = {
