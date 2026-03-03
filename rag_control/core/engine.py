@@ -21,7 +21,7 @@ from rag_control.exceptions import (
 from rag_control.filter.filter import FilterRegistry
 from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
-from rag_control.models.llm import LLMResponse, LLMStreamResponse
+from rag_control.models.run import RunResponse, StreamResponse
 from rag_control.models.user_context import UserContext
 from rag_control.policy.policy import PolicyRegistry
 
@@ -74,7 +74,7 @@ class RAGControl:
         self.filter_registry = FilterRegistry(self.config)
         self.prompt_builder: PromptBuilder = RAGPromptBuilder()
 
-    def run(self, query: str, user_context: UserContext) -> LLMResponse:
+    def run(self, query: str, user_context: UserContext) -> RunResponse:
         """
         Single public execution path.
 
@@ -124,9 +124,18 @@ class RAGControl:
             response=response,
             retrieved_docs=docs,
         )
-        return response
+        return RunResponse(
+            policy_name=policy_name,
+            org_id=org_id,
+            user_id=user_context.user_id,
+            filter_name=org.filter_name,
+            retrieval_top_k=org.document_policy.top_k,
+            retrieved_count=len(docs),
+            enforcement_passed=True,
+            response=response,
+        )
 
-    def stream(self, query: str, user_context: UserContext) -> LLMStreamResponse:
+    def stream(self, query: str, user_context: UserContext) -> StreamResponse:
         """
         Streaming public execution path.
 
@@ -168,10 +177,20 @@ class RAGControl:
             temperature=policy.generation.temperature if policy is not None else 0.0,
             user_context=user_context,
         )
-        return self.policy_registry.enforce_stream_response(
+        enforced_response = self.policy_registry.enforce_stream_response(
             policy_name=policy_name,
             response=response,
             retrieved_docs=docs,
+        )
+        return StreamResponse(
+            policy_name=policy_name,
+            org_id=org_id,
+            user_id=user_context.user_id,
+            filter_name=org.filter_name,
+            retrieval_top_k=org.document_policy.top_k,
+            retrieved_count=len(docs),
+            enforcement_passed=True,
+            response=enforced_response,
         )
 
     def _validate_embedding_model_compatibility(self) -> str:
