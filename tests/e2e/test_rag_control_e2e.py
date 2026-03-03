@@ -71,13 +71,20 @@ def test_rag_control_run_returns_llm_response_with_retrieval_context(
     )
     llm_response = engine.run("what is policy status?", user_context=user_context)
 
-    assert llm_response.content == "approved answer [DOC 1]"
-    assert llm_response.metadata.model == "fake-gpt"
-    assert llm_response.metadata.provider == "fake-provider"
-    assert llm_response.metadata.latency_ms == 10.0
-    assert llm_response.metadata.request_id == "req-001"
-    assert llm_response.usage.total_tokens >= llm_response.usage.prompt_tokens
-    assert llm_response.usage.total_tokens >= llm_response.usage.completion_tokens
+    assert llm_response.policy_name == "default_policy"
+    assert llm_response.org_id == "test_org"
+    assert llm_response.user_id == "u-1"
+    assert llm_response.filter_name == "default_filter"
+    assert llm_response.retrieval_top_k == 5
+    assert llm_response.retrieved_count == 1
+    assert llm_response.enforcement_passed is True
+    assert llm_response.response.content == "approved answer [DOC 1]"
+    assert llm_response.response.metadata.model == "fake-gpt"
+    assert llm_response.response.metadata.provider == "fake-provider"
+    assert llm_response.response.metadata.latency_ms == 10.0
+    assert llm_response.response.metadata.request_id == "req-001"
+    assert llm_response.response.usage.total_tokens >= llm_response.response.usage.prompt_tokens
+    assert llm_response.response.usage.total_tokens >= llm_response.response.usage.completion_tokens
 
     assert isinstance(llm.prompts[0], list)
     assert llm.prompts[0][-1]["role"] == "user"
@@ -151,17 +158,30 @@ def test_rag_control_stream_returns_llm_stream_response_with_retrieval_context(
     )
     llm_stream_response = engine.stream("who owns policy?", user_context=user_context)
 
-    streamed_text = "".join(chunk.delta for chunk in llm_stream_response.stream)
+    streamed_text = "".join(chunk.delta for chunk in llm_stream_response.response.stream)
 
+    assert llm_stream_response.policy_name == "default_policy"
+    assert llm_stream_response.org_id == "test_org"
+    assert llm_stream_response.user_id == "u-2"
+    assert llm_stream_response.filter_name == "default_filter"
+    assert llm_stream_response.retrieval_top_k == 5
+    assert llm_stream_response.retrieved_count == 1
+    assert llm_stream_response.enforcement_passed is True
     assert streamed_text == "streamed answer [DOC 1]"
-    assert llm_stream_response.metadata is not None
-    assert llm_stream_response.metadata.model == "fake-gpt"
-    assert llm_stream_response.metadata.provider == "fake-provider"
-    assert llm_stream_response.metadata.latency_ms == 10.0
-    assert llm_stream_response.metadata.request_id == "req-002"
-    assert llm_stream_response.usage is not None
-    assert llm_stream_response.usage.total_tokens >= llm_stream_response.usage.prompt_tokens
-    assert llm_stream_response.usage.total_tokens >= llm_stream_response.usage.completion_tokens
+    assert llm_stream_response.response.metadata is not None
+    assert llm_stream_response.response.metadata.model == "fake-gpt"
+    assert llm_stream_response.response.metadata.provider == "fake-provider"
+    assert llm_stream_response.response.metadata.latency_ms == 10.0
+    assert llm_stream_response.response.metadata.request_id == "req-002"
+    assert llm_stream_response.response.usage is not None
+    assert (
+        llm_stream_response.response.usage.total_tokens
+        >= llm_stream_response.response.usage.prompt_tokens
+    )
+    assert (
+        llm_stream_response.response.usage.total_tokens
+        >= llm_stream_response.response.usage.completion_tokens
+    )
 
     assert isinstance(llm.prompts[0], list)
     assert llm.prompts[0][-1]["role"] == "user"
@@ -326,7 +346,7 @@ def test_rag_control_stream_enforcement_blocks_missing_citations(
         EnforcementPolicyViolationError,
         match="missing citations while generation.require_citations",
     ):
-        _ = "".join(chunk.delta for chunk in response.stream)
+        _ = "".join(chunk.delta for chunk in response.response.stream)
 
 
 def test_rag_control_run_enforcement_blocks_max_output_tokens(
@@ -444,7 +464,7 @@ def test_rag_control_stream_enforcement_blocks_max_output_tokens(
         EnforcementPolicyViolationError,
         match="completion tokens exceed enforcement.max_output_tokens",
     ):
-        _ = "".join(chunk.delta for chunk in response.stream)
+        _ = "".join(chunk.delta for chunk in response.response.stream)
 
 
 def test_rag_control_run_enforcement_blocks_non_strict_fallback_when_no_docs(
@@ -540,7 +560,7 @@ def test_rag_control_stream_enforcement_blocks_non_strict_fallback_when_no_docs(
         EnforcementPolicyViolationError,
         match="response must use strict fallback when no documents are retrieved",
     ):
-        _ = "".join(chunk.delta for chunk in response.stream)
+        _ = "".join(chunk.delta for chunk in response.response.stream)
 
 
 def test_rag_control_run_enforcement_blocks_external_knowledge_without_citations(
@@ -656,4 +676,4 @@ def test_rag_control_stream_enforcement_blocks_external_knowledge_without_citati
         EnforcementPolicyViolationError,
         match="response may rely on external knowledge: citations are required",
     ):
-        _ = "".join(chunk.delta for chunk in response.stream)
+        _ = "".join(chunk.delta for chunk in response.response.stream)
