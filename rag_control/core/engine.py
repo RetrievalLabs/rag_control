@@ -4,6 +4,8 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
 from pathlib import Path
+from typing import Literal
+from uuid import uuid4
 
 from pydantic import ValidationError
 
@@ -23,11 +25,16 @@ from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.run import RunResponse, StreamResponse
 from rag_control.models.user_context import UserContext
+from rag_control.observability import AuditLogger, AuditLoggingContext, StructlogAuditLogger
 from rag_control.policy.policy import PolicyRegistry
 
 from ..prompt.base import PromptBuilder
 from ..prompt.prompt import RAGPromptBuilder
+from ..version import __version__
 from .config_loader import load_control_plane_config
+
+SDK_NAME = "rag_control"
+COMPANY_NAME = "RetrievalLabs"
 
 
 class RAGControl:
@@ -48,6 +55,7 @@ class RAGControl:
         vector_store: VectorStore,
         config: ControlPlaneConfig | None = None,
         config_path: str | Path | None = None,
+        audit_logger: AuditLogger | None = None,
     ) -> None:
         if config is not None and config_path is not None:
             raise ControlPlaneConfigValidationError(
@@ -69,6 +77,9 @@ class RAGControl:
                     f"invalid control plane config: {exc}"
                 ) from exc
         self._validate_embedding_model_compatibility()
+        self.audit_logger: AuditLogger = (
+            audit_logger if audit_logger is not None else StructlogAuditLogger()
+        )
         self.policy_registry = PolicyRegistry(self.config)
         self.governance_registry = GovernanceRegistry(self.config)
         self.filter_registry = FilterRegistry(self.config)
@@ -81,14 +92,42 @@ class RAGControl:
         :param query: User query to process through the RAG
         :type query: str
         """
-
+        request_id = str(uuid4())
         org_id = user_context.org_id
+        audit_context = self._build_audit_context(
+            mode="run",
+            request_id=request_id,
+            org_id=org_id,
+            user_id=user_context.user_id,
+        )
+
+        audit_context.log_event("request.received")
         if org_id is None:
-            raise GovernanceUserContextOrgIDRequiredError()
+            error = GovernanceUserContextOrgIDRequiredError()
+            audit_context.log_event(
+                "request.denied",
+                level="warning",
+                error_type=error.__class__.__name__,
+                error_message=str(error),
+            )
+            raise error
 
         org = self.governance_registry.get_org(org_id)
         if org is None:
-            raise GovernanceRegistryOrgNotFoundError(org_id)
+            error = GovernanceRegistryOrgNotFoundError(org_id)
+            audit_context.log_event(
+                "request.denied",
+                level="warning",
+                error_type=error.__class__.__name__,
+                error_message=str(error),
+            )
+            raise error
+
+        audit_context.log_event(
+            "org.resolved",
+            filter_name=org.filter_name,
+            retrieval_top_k=org.document_policy.top_k,
+        )
         retrieval_filter = (
             self.filter_registry.get(org.filter_name) if org.filter_name is not None else None
         )
@@ -101,13 +140,18 @@ class RAGControl:
             user_context=user_context,
             filter=retrieval_filter,
         )
-
         docs = retrieve_res.records
-        policy_name = self.governance_registry.resolve_policy(
-            user_context=user_context, source_documents=docs
-        )
 
+        policy_name = self.governance_registry.resolve_policy(
+            user_context=user_context,
+            source_documents=docs,
+            audit_context=audit_context,
+        )
         policy = self.policy_registry.get(policy_name)
+        if policy is not None:
+            audit_context.logging_level = policy.logging.level
+
+        audit_context.log_event("policy.resolved", policy_name=policy_name)
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
@@ -119,10 +163,19 @@ class RAGControl:
             temperature=policy.generation.temperature if policy is not None else 0.0,
             user_context=user_context,
         )
+
         self.policy_registry.enforce_response(
             policy_name=policy_name,
             response=response,
             retrieved_docs=docs,
+            audit_context=audit_context,
+        )
+        audit_context.log_event("enforcement.passed", policy_name=policy_name)
+        audit_context.log_event(
+            "request.completed",
+            policy_name=policy_name,
+            retrieved_count=len(docs),
+            enforcement_passed=True,
         )
         return RunResponse(
             policy_name=policy_name,
@@ -142,13 +195,42 @@ class RAGControl:
         :param query: User query to process through the RAG
         :type query: str
         """
+        request_id = str(uuid4())
         org_id = user_context.org_id
+        audit_context = self._build_audit_context(
+            mode="stream",
+            request_id=request_id,
+            org_id=org_id,
+            user_id=user_context.user_id,
+        )
+
+        audit_context.log_event("request.received")
         if org_id is None:
-            raise GovernanceUserContextOrgIDRequiredError()
+            error = GovernanceUserContextOrgIDRequiredError()
+            audit_context.log_event(
+                "request.denied",
+                level="warning",
+                error_type=error.__class__.__name__,
+                error_message=str(error),
+            )
+            raise error
 
         org = self.governance_registry.get_org(org_id)
         if org is None:
-            raise GovernanceRegistryOrgNotFoundError(org_id)
+            error = GovernanceRegistryOrgNotFoundError(org_id)
+            audit_context.log_event(
+                "request.denied",
+                level="warning",
+                error_type=error.__class__.__name__,
+                error_message=str(error),
+            )
+            raise error
+
+        audit_context.log_event(
+            "org.resolved",
+            filter_name=org.filter_name,
+            retrieval_top_k=org.document_policy.top_k,
+        )
 
         query_embedding_res = self.query_embedding.embed(query, user_context=user_context)
 
@@ -158,14 +240,18 @@ class RAGControl:
             user_context=user_context,
             filter=self.filter_registry.get(org.filter_name),
         )
-
         docs = retrieve_res.records
+
         policy_name = self.governance_registry.resolve_policy(
-            user_context=user_context, source_documents=docs
+            user_context=user_context,
+            source_documents=docs,
+            audit_context=audit_context,
         )
-
         policy = self.policy_registry.get(policy_name)
+        if policy is not None:
+            audit_context.logging_level = policy.logging.level
 
+        audit_context.log_event("policy.resolved", policy_name=policy_name)
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
@@ -181,6 +267,14 @@ class RAGControl:
             policy_name=policy_name,
             response=response,
             retrieved_docs=docs,
+            audit_context=audit_context,
+        )
+        audit_context.log_event("enforcement.attached", policy_name=policy_name)
+        audit_context.log_event(
+            "request.completed",
+            policy_name=policy_name,
+            retrieved_count=len(docs),
+            enforcement_attached=True,
         )
         return StreamResponse(
             policy_name=policy_name,
@@ -218,3 +312,22 @@ class RAGControl:
             raise EmbeddingModelValidationError(source)
 
         return normalized_model
+
+    def _build_audit_context(
+        self,
+        *,
+        mode: Literal["run", "stream"],
+        request_id: str,
+        org_id: str | None,
+        user_id: str | None,
+    ) -> AuditLoggingContext:
+        return AuditLoggingContext(
+            logger=self.audit_logger,
+            mode=mode,
+            request_id=request_id,
+            org_id=org_id,
+            user_id=user_id,
+            sdk_name=SDK_NAME,
+            sdk_version=__version__,
+            company_name=COMPANY_NAME,
+        )
