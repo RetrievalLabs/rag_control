@@ -327,3 +327,217 @@ def test_rag_control_stream_enforcement_blocks_missing_citations(
         match="missing citations while generation.require_citations",
     ):
         _ = "".join(chunk.delta for chunk in response.stream)
+
+
+def test_rag_control_run_enforcement_blocks_max_output_tokens(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    config = fake_config.model_copy(deep=True)
+    config.policies[0].enforcement.max_output_tokens = 3
+
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    query_embedding.enqueue_response(
+        embedding=[0.51, 0.52, 0.53],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-006",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-030",
+                content="Policy token check document.",
+                score=0.99,
+                metadata={"source": "policy-kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-006",
+    )
+    llm.enqueue_response(
+        content="this answer is too long [DOC 1]",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-006",
+        prompt_tokens=10,
+        completion_tokens=6,
+    )
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=config,
+    )
+    user_context = UserContext(
+        user_id="u-7",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+
+    with pytest.raises(
+        EnforcementPolicyViolationError,
+        match="completion tokens exceed enforcement.max_output_tokens",
+    ):
+        engine.run("policy token question", user_context=user_context)
+
+
+def test_rag_control_stream_enforcement_blocks_max_output_tokens(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    config = fake_config.model_copy(deep=True)
+    config.policies[0].enforcement.max_output_tokens = 3
+
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    query_embedding.enqueue_response(
+        embedding=[0.61, 0.62, 0.63],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-007",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-040",
+                content="Policy token stream document.",
+                score=0.99,
+                metadata={"source": "policy-kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-007",
+    )
+    llm.enqueue_response(
+        content="stream too long [DOC 1]",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-007",
+        prompt_tokens=10,
+        completion_tokens=6,
+        stream_chunks=("stream ", "too ", "long ", "[DOC 1]"),
+    )
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=config,
+    )
+    user_context = UserContext(
+        user_id="u-8",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+    response = engine.stream("policy token stream question", user_context=user_context)
+
+    with pytest.raises(
+        EnforcementPolicyViolationError,
+        match="completion tokens exceed enforcement.max_output_tokens",
+    ):
+        _ = "".join(chunk.delta for chunk in response.stream)
+
+
+def test_rag_control_run_enforcement_blocks_non_strict_fallback_when_no_docs(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    query_embedding.enqueue_response(
+        embedding=[0.71, 0.72, 0.73],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-008",
+    )
+    vector_store.enqueue_response(
+        records=[],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-008",
+    )
+    llm.enqueue_response(
+        content="best effort answer without strict fallback",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-008",
+        prompt_tokens=8,
+    )
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+    )
+    user_context = UserContext(
+        user_id="u-9",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+
+    with pytest.raises(
+        EnforcementPolicyViolationError,
+        match="response must use strict fallback when no documents are retrieved",
+    ):
+        engine.run("no docs question", user_context=user_context)
+
+
+def test_rag_control_stream_enforcement_blocks_non_strict_fallback_when_no_docs(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    query_embedding.enqueue_response(
+        embedding=[0.81, 0.82, 0.83],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-009",
+    )
+    vector_store.enqueue_response(
+        records=[],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-009",
+    )
+    llm.enqueue_response(
+        content="streamed best effort answer",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-009",
+        prompt_tokens=8,
+        stream_chunks=("streamed ", "best ", "effort ", "answer"),
+    )
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+    )
+    user_context = UserContext(
+        user_id="u-10",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+    response = engine.stream("no docs stream question", user_context=user_context)
+
+    with pytest.raises(
+        EnforcementPolicyViolationError,
+        match="response must use strict fallback when no documents are retrieved",
+    ):
+        _ = "".join(chunk.delta for chunk in response.stream)
