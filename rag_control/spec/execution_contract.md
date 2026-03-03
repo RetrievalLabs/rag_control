@@ -73,7 +73,7 @@ Stream Contract
 - Output:
   - MUST return `StreamResponse` on success.
   - `StreamResponse.response` MUST be a valid `LLMStreamResponse`.
-  - `StreamResponse.enforcement_passed` MUST be `true` when returned.
+  - `StreamResponse.enforcement_attached` MUST be `true` when returned.
   - `StreamResponse.policy_name` MUST reflect the resolved policy.
   - `StreamResponse.org_id` and `StreamResponse.user_id` MUST reflect request context.
   - `StreamResponse.retrieval_top_k` MUST reflect org-level retrieval configuration.
@@ -142,7 +142,7 @@ Reference Models
   - `filter_name: str | None`
   - `retrieval_top_k: int`
   - `retrieved_count: int`
-  - `enforcement_passed: bool`
+  - `enforcement_attached: bool`
   - `response: LLMStreamResponse`
 
 Reference Files

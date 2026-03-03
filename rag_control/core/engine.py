@@ -4,7 +4,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Callable, Literal, TypeVar, cast
 from uuid import uuid4
 
 from pydantic import ValidationError
@@ -43,6 +43,7 @@ from .config_loader import load_control_plane_config
 SDK_NAME = "rag_control"
 COMPANY_NAME = "RetrievalLabs"
 TRACE_SPAN_ROOT_PREFIX = "rag_control.request"
+T = TypeVar("T")
 
 
 class RAGControl:
@@ -96,12 +97,14 @@ class RAGControl:
         self.prompt_builder: PromptBuilder = RAGPromptBuilder()
 
     def run(self, query: str, user_context: UserContext) -> RunResponse:
-        return cast(RunResponse, self._execute(self, query, user_context, streaming=False))
+        return cast(RunResponse, RAGControl._execute(self, query, user_context, streaming=False))
 
     def stream(self, query: str, user_context: UserContext) -> StreamResponse:
-        return cast(StreamResponse, self._execute(self, query, user_context, streaming=True))
+        return cast(
+            StreamResponse,
+            RAGControl._execute(self, query, user_context, streaming=True),
+        )
 
-    @staticmethod
     def _execute(
         engine: "RAGControl",
         query: str,
@@ -132,12 +135,8 @@ class RAGControl:
             audit_context.log_event("request.received")
             trace_span.event("transition.request.received")
             trace_span.event("transition.org_lookup.started")
-            org_lookup_span = engine._start_child_span(
-                trace_span,
-                engine._trace_stage_span_name(mode, "org_lookup"),
-                org_id=org_id,
-            )
-            try:
+
+            def _resolve_org() -> Any:
                 if org_id is None:
                     error = GovernanceUserContextOrgIDRequiredError()
                     audit_context.log_event(
@@ -168,18 +167,14 @@ class RAGControl:
                         error_message=str(error),
                     )
                     raise error
-                org_lookup_span.finish(
-                    status="ok",
-                    filter_name=org.filter_name,
-                    retrieval_top_k=org.document_policy.top_k,
-                )
-            except Exception as exc:
-                org_lookup_span.finish(
-                    status="error",
-                    error_type=exc.__class__.__name__,
-                    error_message=str(exc),
-                )
-                raise
+                return org
+
+            org = engine._run_stage(
+                trace_span,
+                engine._trace_stage_span_name(mode, "org_lookup"),
+                _resolve_org,
+                org_id=org_id,
+            )
 
             audit_context.log_event(
                 "org.resolved",
@@ -197,57 +192,28 @@ class RAGControl:
                 if org.filter_name is not None
                 else None
             )
-            embedding_span = engine._start_child_span(
+
+            query_embedding_res = engine._run_stage(
                 trace_span,
                 engine._trace_stage_span_name(mode, "embedding"),
+                lambda: engine.query_embedding.embed(query, user_context=user_context),
             )
-            try:
-                query_embedding_res = engine.query_embedding.embed(query, user_context=user_context)
-                embedding_span.finish(
-                    status="ok",
-                    embedding_model=query_embedding_res.metadata.model,
-                    embedding_dimensions=query_embedding_res.metadata.dimensions,
-                )
-            except Exception as exc:
-                embedding_span.finish(
-                    status="error",
-                    error_type=exc.__class__.__name__,
-                    error_message=str(exc),
-                )
-                raise
 
-            retrieval_span = engine._start_child_span(
+            retrieve_res = engine._run_stage(
                 trace_span,
                 engine._trace_stage_span_name(mode, "retrieval"),
-                top_k=org.document_policy.top_k,
-            )
-            try:
-                retrieve_res = engine.vector_store.search(
+                lambda: engine.vector_store.search(
                     query_embedding_res.embedding,
                     top_k=org.document_policy.top_k,
                     user_context=user_context,
                     filter=retrieval_filter,
-                )
-                retrieval_span.finish(
-                    status="ok",
-                    vector_index=retrieve_res.metadata.index,
-                    returned=retrieve_res.metadata.returned,
-                )
-            except Exception as exc:
-                retrieval_span.finish(
-                    status="error",
-                    error_type=exc.__class__.__name__,
-                    error_message=str(exc),
-                )
-                raise
+                ),
+                top_k=org.document_policy.top_k,
+            )
             docs = retrieve_res.records
             retrieved_doc_ids = [doc.id for doc in docs]
 
-            policy_span = engine._start_child_span(
-                trace_span,
-                engine._trace_stage_span_name(mode, "policy.resolve"),
-            )
-            try:
+            def _resolve_policy() -> tuple[str, Any]:
                 policy_name = engine.governance_registry.resolve_policy(
                     user_context=user_context,
                     source_documents=docs,
@@ -256,14 +222,13 @@ class RAGControl:
                 policy = engine.policy_registry.get(policy_name)
                 if policy is not None:
                     audit_context.logging_level = policy.logging.level
-                policy_span.finish(status="ok", policy_name=policy_name)
-            except Exception as exc:
-                policy_span.finish(
-                    status="error",
-                    error_type=exc.__class__.__name__,
-                    error_message=str(exc),
-                )
-                raise
+                return policy_name, policy
+
+            policy_name, policy = engine._run_stage(
+                trace_span,
+                engine._trace_stage_span_name(mode, "policy.resolve"),
+                _resolve_policy,
+            )
 
             audit_context.log_event(
                 "retrieval.completed",
@@ -271,95 +236,62 @@ class RAGControl:
                 retrieved_doc_ids=retrieved_doc_ids,
             )
             audit_context.log_event("policy.resolved", policy_name=policy_name)
-            prompt_span = engine._start_child_span(
+
+            messages = engine._run_stage(
                 trace_span,
                 engine._trace_stage_span_name(mode, "prompt.build"),
-            )
-            try:
-                messages = engine.prompt_builder.build(
+                lambda: engine.prompt_builder.build(
                     query=query,
                     retrieved_docs=docs,
                     policy=policy,
-                )
-                prompt_span.finish(status="ok", message_count=len(messages))
-            except Exception as exc:
-                prompt_span.finish(
-                    status="error",
-                    error_type=exc.__class__.__name__,
-                    error_message=str(exc),
-                )
-                raise
+                ),
+            )
             llm_temperature = policy.generation.temperature if policy is not None else 0.0
 
             llm_stage = "llm.stream" if streaming else "llm.generate"
-            llm_span = engine._start_child_span(
+
+            def _invoke_llm() -> Any:
+                if streaming:
+                    return engine.llm.stream(
+                        messages,
+                        temperature=llm_temperature,
+                        user_context=user_context,
+                    )
+                return engine.llm.generate(
+                    messages,
+                    temperature=llm_temperature,
+                    user_context=user_context,
+                )
+
+            response = engine._run_stage(
                 trace_span,
                 engine._trace_stage_span_name(mode, llm_stage),
+                _invoke_llm,
                 temperature=llm_temperature,
             )
-            try:
-                if streaming:
-                    response = engine.llm.stream(
-                        messages,
-                        temperature=llm_temperature,
-                        user_context=user_context,
-                    )
-                else:
-                    response = engine.llm.generate(
-                        messages,
-                        temperature=llm_temperature,
-                        user_context=user_context,
-                    )
-                llm_span.finish(
-                    status="ok",
-                    llm_model=response.metadata.model if response.metadata is not None else None,
-                    prompt_tokens=(
-                        response.usage.prompt_tokens if response.usage is not None else None
-                    ),
-                    completion_tokens=(
-                        response.usage.completion_tokens if response.usage is not None else None
-                    ),
-                    total_tokens=(
-                        response.usage.total_tokens if response.usage is not None else None
-                    ),
-                )
-            except Exception as exc:
-                llm_span.finish(
-                    status="error",
-                    error_type=exc.__class__.__name__,
-                    error_message=str(exc),
-                )
-                raise
 
-            enforcement_span = engine._start_child_span(
+            def _enforce() -> Any:
+                if streaming:
+                    return engine.policy_registry.enforce_stream_response(
+                        policy_name=policy_name,
+                        response=response,
+                        retrieved_docs=docs,
+                        audit_context=audit_context,
+                    )
+                engine.policy_registry.enforce_response(
+                    policy_name=policy_name,
+                    response=response,
+                    retrieved_docs=docs,
+                    audit_context=audit_context,
+                )
+                return response
+
+            enforced_response = engine._run_stage(
                 trace_span,
                 engine._trace_stage_span_name(mode, "enforcement"),
+                _enforce,
                 policy_name=policy_name,
             )
-            try:
-                if streaming:
-                    enforced_response = engine.policy_registry.enforce_stream_response(
-                        policy_name=policy_name,
-                        response=response,
-                        retrieved_docs=docs,
-                        audit_context=audit_context,
-                    )
-                else:
-                    engine.policy_registry.enforce_response(
-                        policy_name=policy_name,
-                        response=response,
-                        retrieved_docs=docs,
-                        audit_context=audit_context,
-                    )
-                    enforced_response = response
-                enforcement_span.finish(status="ok")
-            except Exception as exc:
-                enforcement_span.finish(
-                    status="error",
-                    error_type=exc.__class__.__name__,
-                    error_message=str(exc),
-                )
-                raise
 
             if streaming:
                 audit_context.log_event("enforcement.attached", policy_name=policy_name)
@@ -395,20 +327,29 @@ class RAGControl:
                 llm_model=response.metadata.model if response.metadata is not None else None,
             )
 
-            response_kwargs: dict[str, Any] = {
-                "policy_name": policy_name,
-                "org_id": org_id,
-                "user_id": user_context.user_id,
-                "trace_id": trace_id,
-                "filter_name": org.filter_name,
-                "retrieval_top_k": org.document_policy.top_k,
-                "retrieved_count": len(docs),
-                "enforcement_passed": True,
-                "response": enforced_response,
-            }
             if streaming:
-                return StreamResponse(**response_kwargs)
-            return RunResponse(**response_kwargs)
+                return StreamResponse(
+                    policy_name=policy_name,
+                    org_id=org_id,
+                    user_id=user_context.user_id,
+                    trace_id=trace_id,
+                    filter_name=org.filter_name,
+                    retrieval_top_k=org.document_policy.top_k,
+                    retrieved_count=len(docs),
+                    enforcement_attached=True,
+                    response=enforced_response,
+                )
+            return RunResponse(
+                policy_name=policy_name,
+                org_id=org_id,
+                user_id=user_context.user_id,
+                trace_id=trace_id,
+                filter_name=org.filter_name,
+                retrieval_top_k=org.document_policy.top_k,
+                retrieved_count=len(docs),
+                enforcement_passed=True,
+                response=enforced_response,
+            )
         except Exception as exc:
             trace_span.event(
                 "error.request.failed",
@@ -423,7 +364,32 @@ class RAGControl:
             raise
 
     def _start_child_span(self, parent_span: TraceSpan, name: str, **fields: Any) -> TraceSpan:
-        return self.tracer.start_span(name, **fields)
+        return self.tracer.start_span(
+            name,
+            trace_id=parent_span.trace_id,
+            parent_span_id=parent_span.span_id,
+            **fields,
+        )
+
+    def _run_stage(
+        self,
+        parent_span: TraceSpan,
+        name: str,
+        func: Callable[[], T],
+        **fields: Any,
+    ) -> T:
+        span = self._start_child_span(parent_span, name, **fields)
+        try:
+            result = func()
+            span.finish(status="ok")
+            return result
+        except Exception as exc:
+            span.finish(
+                status="error",
+                error_type=exc.__class__.__name__,
+                error_message=str(exc),
+            )
+            raise
 
     @staticmethod
     def _trace_root_span_name(mode: Literal["run", "stream"]) -> str:
