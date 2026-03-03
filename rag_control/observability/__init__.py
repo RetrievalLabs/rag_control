@@ -16,9 +16,9 @@ from .tracing import (
     NoOpTracer,
     OpenTelemetryTracer,
     StructlogTracer,
+    Tracer,
     TraceSpan,
     TraceStatus,
-    Tracer,
     get_default_tracer,
 )
 

@@ -20,9 +20,7 @@ def _configure_otel_provider():
     trace = pytest.importorskip("opentelemetry.trace")
     sdk_trace = pytest.importorskip("opentelemetry.sdk.trace")
     sdk_export = pytest.importorskip("opentelemetry.sdk.trace.export")
-    in_memory_module = pytest.importorskip(
-        "opentelemetry.sdk.trace.export.in_memory_span_exporter"
-    )
+    in_memory_module = pytest.importorskip("opentelemetry.sdk.trace.export.in_memory_span_exporter")
 
     provider = trace.get_tracer_provider()
     if not isinstance(provider, sdk_trace.TracerProvider):

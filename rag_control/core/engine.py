@@ -29,8 +29,8 @@ from rag_control.observability import (
     AuditLogger,
     AuditLoggingContext,
     StructlogAuditLogger,
-    TraceSpan,
     Tracer,
+    TraceSpan,
     get_default_tracer,
 )
 from rag_control.policy.policy import PolicyRegistry
@@ -188,9 +188,7 @@ class RAGControl:
             )
 
             retrieval_filter = (
-                engine.filter_registry.get(org.filter_name)
-                if org.filter_name is not None
-                else None
+                engine.filter_registry.get(org.filter_name) if org.filter_name is not None else None
             )
 
             query_embedding_res = engine._run_stage(

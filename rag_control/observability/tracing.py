@@ -5,8 +5,8 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from __future__ import annotations
 
-from contextvars import ContextVar
 import time
+from contextvars import ContextVar
 from typing import Any, Literal, Protocol
 from uuid import uuid4
 
