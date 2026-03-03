@@ -83,7 +83,7 @@ def test_rag_control_run_emits_audit_lifecycle_events(
         attributes={"org_tier": "enterprise"},
     )
 
-    engine.run("what is policy status?", user_context=user_context)
+    run_response = engine.run("what is policy status?", user_context=user_context)
 
     event_names = [event["event"] for event in audit_logger.events]
     assert event_names == [
@@ -98,6 +98,9 @@ def test_rag_control_run_emits_audit_lifecycle_events(
     request_ids = {event["request_id"] for event in audit_logger.events}
     assert len(request_ids) == 1
     assert next(iter(request_ids))
+    trace_ids = {event["trace_id"] for event in audit_logger.events}
+    assert len(trace_ids) == 1
+    assert run_response.trace_id == next(iter(trace_ids))
     for event in audit_logger.events:
         assert event["sdk_name"] == "rag_control"
         assert event["sdk_version"] == __version__
@@ -277,6 +280,7 @@ def test_rag_control_stream_emits_llm_details_in_request_completed_audit_event(
     ]
     completed_event = audit_logger.events[-1]
     assert completed_event["event"] == "request.completed"
+    assert completed_event["trace_id"] == stream_response.trace_id
     assert completed_event["retrieved_doc_ids"] == ["doc-audit-stream-001"]
     assert completed_event["llm_model"] == "fake-stream-gpt"
     assert completed_event["llm_temperature"] == 0.0

@@ -11,6 +11,7 @@ Purpose
 - Define input/output contracts for `RAGControl.run` and `RAGControl.stream`.
 - Define execution-time policy/governance/enforcement behavior and failure semantics.
 - Define execution-time audit emission behavior and request correlation requirements.
+- Define execution-time trace emission behavior and response trace correlation.
 
 Normative Terms
 - MUST: required.
@@ -47,6 +48,7 @@ Initialization Contract
   - `filter_registry` MUST be initialized from config filters.
   - `prompt_builder` MUST be initialized for policy-aware prompt construction.
   - `audit_logger` MUST be initialized (default or injected implementation).
+  - `tracer` MUST be initialized (default or injected implementation).
 - Init failure behavior:
   - Constructor MUST fail fast and raise the corresponding exception when any init validation fails.
   - No partially-initialized instance state is part of this contract.
@@ -63,6 +65,7 @@ Run Contract
   - `RunResponse.org_id` and `RunResponse.user_id` MUST reflect request context.
   - `RunResponse.retrieval_top_k` MUST reflect org-level retrieval configuration.
   - `RunResponse.retrieved_count` MUST reflect number of retrieved records actually used.
+  - `RunResponse.trace_id` MUST carry a per-request trace identifier.
 
 Stream Contract
 - Input:
@@ -75,6 +78,7 @@ Stream Contract
   - `StreamResponse.org_id` and `StreamResponse.user_id` MUST reflect request context.
   - `StreamResponse.retrieval_top_k` MUST reflect org-level retrieval configuration.
   - `StreamResponse.retrieved_count` MUST reflect number of retrieved records actually used.
+  - `StreamResponse.trace_id` MUST carry a per-request trace identifier.
 
 Execution Order (Normative)
 - Implementations MUST execute the following stages:
@@ -86,9 +90,11 @@ Execution Order (Normative)
   6. Build prompt with policy context.
   7. Call LLM with policy temperature.
   8. Apply policy enforcement checks.
+  9. Finalize request trace with status and correlation fields.
 
 Audit Emission (Normative)
 - Implementations MUST generate a per-request `request_id` for both `run` and `stream`.
+- Implementations MUST derive a request-scoped `trace_id` from the active request span for both `run` and `stream`.
 - Implementations MUST emit audit events during normal execution:
   - `request.received`
   - `org.resolved`
@@ -122,6 +128,7 @@ Reference Models
   - `policy_name: str`
   - `org_id: str`
   - `user_id: str`
+  - `trace_id: str | None`
   - `filter_name: str | None`
   - `retrieval_top_k: int`
   - `retrieved_count: int`
@@ -131,6 +138,7 @@ Reference Models
   - `policy_name: str`
   - `org_id: str`
   - `user_id: str`
+  - `trace_id: str | None`
   - `filter_name: str | None`
   - `retrieval_top_k: int`
   - `retrieved_count: int`

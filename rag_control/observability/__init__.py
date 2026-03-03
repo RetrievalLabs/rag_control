@@ -12,6 +12,15 @@ from .audit_logger import (
     StructlogAuditLogger,
     should_emit_audit_event,
 )
+from .tracing import (
+    NoOpTracer,
+    OpenTelemetryTracer,
+    StructlogTracer,
+    TraceSpan,
+    TraceStatus,
+    Tracer,
+    get_default_tracer,
+)
 
 __all__ = [
     "AuditLogLevel",
@@ -21,4 +30,11 @@ __all__ = [
     "NoOpAuditLogger",
     "StructlogAuditLogger",
     "should_emit_audit_event",
+    "TraceStatus",
+    "TraceSpan",
+    "Tracer",
+    "NoOpTracer",
+    "OpenTelemetryTracer",
+    "StructlogTracer",
+    "get_default_tracer",
 ]

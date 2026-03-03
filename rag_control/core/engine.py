@@ -4,7 +4,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, cast
 from uuid import uuid4
 
 from pydantic import ValidationError
@@ -25,7 +25,14 @@ from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.run import RunResponse, StreamResponse
 from rag_control.models.user_context import UserContext
-from rag_control.observability import AuditLogger, AuditLoggingContext, StructlogAuditLogger
+from rag_control.observability import (
+    AuditLogger,
+    AuditLoggingContext,
+    StructlogAuditLogger,
+    TraceSpan,
+    Tracer,
+    get_default_tracer,
+)
 from rag_control.policy.policy import PolicyRegistry
 
 from ..prompt.base import PromptBuilder
@@ -35,6 +42,7 @@ from .config_loader import load_control_plane_config
 
 SDK_NAME = "rag_control"
 COMPANY_NAME = "RetrievalLabs"
+TRACE_SPAN_ROOT_PREFIX = "rag_control.request"
 
 
 class RAGControl:
@@ -56,6 +64,7 @@ class RAGControl:
         config: ControlPlaneConfig | None = None,
         config_path: str | Path | None = None,
         audit_logger: AuditLogger | None = None,
+        tracer: Tracer | None = None,
     ) -> None:
         if config is not None and config_path is not None:
             raise ControlPlaneConfigValidationError(
@@ -80,240 +89,349 @@ class RAGControl:
         self.audit_logger: AuditLogger = (
             audit_logger if audit_logger is not None else StructlogAuditLogger()
         )
+        self.tracer: Tracer = tracer if tracer is not None else get_default_tracer()
         self.policy_registry = PolicyRegistry(self.config)
         self.governance_registry = GovernanceRegistry(self.config)
         self.filter_registry = FilterRegistry(self.config)
         self.prompt_builder: PromptBuilder = RAGPromptBuilder()
 
     def run(self, query: str, user_context: UserContext) -> RunResponse:
-        """
-        Single public execution path.
-
-        :param query: User query to process through the RAG
-        :type query: str
-        """
-        request_id = str(uuid4())
-        org_id = user_context.org_id
-        audit_context = self._build_audit_context(
-            mode="run",
-            request_id=request_id,
-            org_id=org_id,
-            user_id=user_context.user_id,
-        )
-
-        audit_context.log_event("request.received")
-        if org_id is None:
-            error = GovernanceUserContextOrgIDRequiredError()
-            audit_context.log_event(
-                "request.denied",
-                level="warning",
-                error_type=error.__class__.__name__,
-                error_message=str(error),
-            )
-            raise error
-
-        org = self.governance_registry.get_org(org_id)
-        if org is None:
-            error = GovernanceRegistryOrgNotFoundError(org_id)
-            audit_context.log_event(
-                "request.denied",
-                level="warning",
-                error_type=error.__class__.__name__,
-                error_message=str(error),
-            )
-            raise error
-
-        audit_context.log_event(
-            "org.resolved",
-            filter_name=org.filter_name,
-            retrieval_top_k=org.document_policy.top_k,
-        )
-        retrieval_filter = (
-            self.filter_registry.get(org.filter_name) if org.filter_name is not None else None
-        )
-
-        query_embedding_res = self.query_embedding.embed(query, user_context=user_context)
-
-        retrieve_res = self.vector_store.search(
-            query_embedding_res.embedding,
-            top_k=org.document_policy.top_k,
-            user_context=user_context,
-            filter=retrieval_filter,
-        )
-        docs = retrieve_res.records
-        retrieved_doc_ids = [doc.id for doc in docs]
-
-        policy_name = self.governance_registry.resolve_policy(
-            user_context=user_context,
-            source_documents=docs,
-            audit_context=audit_context,
-        )
-        policy = self.policy_registry.get(policy_name)
-        if policy is not None:
-            audit_context.logging_level = policy.logging.level
-
-        audit_context.log_event(
-            "retrieval.completed",
-            retrieved_count=len(docs),
-            retrieved_doc_ids=retrieved_doc_ids,
-        )
-        audit_context.log_event("policy.resolved", policy_name=policy_name)
-        messages = self.prompt_builder.build(
-            query=query,
-            retrieved_docs=docs,
-            policy=policy,
-        )
-        llm_temperature = policy.generation.temperature if policy is not None else 0.0
-
-        response = self.llm.generate(
-            messages,
-            temperature=llm_temperature,
-            user_context=user_context,
-        )
-
-        self.policy_registry.enforce_response(
-            policy_name=policy_name,
-            response=response,
-            retrieved_docs=docs,
-            audit_context=audit_context,
-        )
-        audit_context.log_event("enforcement.passed", policy_name=policy_name)
-        audit_context.log_event(
-            "request.completed",
-            policy_name=policy_name,
-            retrieved_count=len(docs),
-            retrieved_doc_ids=retrieved_doc_ids,
-            llm_model=response.metadata.model,
-            llm_temperature=llm_temperature,
-            prompt_tokens=response.usage.prompt_tokens,
-            completion_tokens=response.usage.completion_tokens,
-            total_tokens=response.usage.total_tokens,
-            enforcement_passed=True,
-        )
-        return RunResponse(
-            policy_name=policy_name,
-            org_id=org_id,
-            user_id=user_context.user_id,
-            filter_name=org.filter_name,
-            retrieval_top_k=org.document_policy.top_k,
-            retrieved_count=len(docs),
-            enforcement_passed=True,
-            response=response,
-        )
+        return cast(RunResponse, self._execute(self, query, user_context, streaming=False))
 
     def stream(self, query: str, user_context: UserContext) -> StreamResponse:
-        """
-        Streaming public execution path.
+        return cast(StreamResponse, self._execute(self, query, user_context, streaming=True))
 
-        :param query: User query to process through the RAG
-        :type query: str
-        """
+    @staticmethod
+    def _execute(
+        engine: "RAGControl",
+        query: str,
+        user_context: UserContext,
+        *,
+        streaming: bool,
+    ) -> RunResponse | StreamResponse:
+        mode: Literal["run", "stream"] = "stream" if streaming else "run"
         request_id = str(uuid4())
         org_id = user_context.org_id
-        audit_context = self._build_audit_context(
-            mode="stream",
+        trace_span = engine.tracer.start_span(
+            engine._trace_root_span_name(mode),
             request_id=request_id,
+            mode=mode,
+            org_id=org_id,
+            user_id=user_context.user_id,
+        )
+        trace_id = trace_span.trace_id
+        audit_context = engine._build_audit_context(
+            mode=mode,
+            request_id=request_id,
+            trace_id=trace_id,
             org_id=org_id,
             user_id=user_context.user_id,
         )
 
-        audit_context.log_event("request.received")
-        if org_id is None:
-            error = GovernanceUserContextOrgIDRequiredError()
-            audit_context.log_event(
-                "request.denied",
-                level="warning",
-                error_type=error.__class__.__name__,
-                error_message=str(error),
+        try:
+            audit_context.log_event("request.received")
+            trace_span.event("transition.request.received")
+            trace_span.event("transition.org_lookup.started")
+            org_lookup_span = engine._start_child_span(
+                trace_span,
+                engine._trace_stage_span_name(mode, "org_lookup"),
+                org_id=org_id,
             )
-            raise error
+            try:
+                if org_id is None:
+                    error = GovernanceUserContextOrgIDRequiredError()
+                    audit_context.log_event(
+                        "request.denied",
+                        level="warning",
+                        error_type=error.__class__.__name__,
+                        error_message=str(error),
+                    )
+                    trace_span.event(
+                        "warning.request.denied",
+                        error_type=error.__class__.__name__,
+                        error_message=str(error),
+                    )
+                    raise error
 
-        org = self.governance_registry.get_org(org_id)
-        if org is None:
-            error = GovernanceRegistryOrgNotFoundError(org_id)
+                org = engine.governance_registry.get_org(org_id)
+                if org is None:
+                    error = GovernanceRegistryOrgNotFoundError(org_id)
+                    audit_context.log_event(
+                        "request.denied",
+                        level="warning",
+                        error_type=error.__class__.__name__,
+                        error_message=str(error),
+                    )
+                    trace_span.event(
+                        "warning.request.denied",
+                        error_type=error.__class__.__name__,
+                        error_message=str(error),
+                    )
+                    raise error
+                org_lookup_span.finish(
+                    status="ok",
+                    filter_name=org.filter_name,
+                    retrieval_top_k=org.document_policy.top_k,
+                )
+            except Exception as exc:
+                org_lookup_span.finish(
+                    status="error",
+                    error_type=exc.__class__.__name__,
+                    error_message=str(exc),
+                )
+                raise
+
             audit_context.log_event(
-                "request.denied",
-                level="warning",
-                error_type=error.__class__.__name__,
-                error_message=str(error),
+                "org.resolved",
+                filter_name=org.filter_name,
+                retrieval_top_k=org.document_policy.top_k,
             )
-            raise error
+            trace_span.event(
+                "transition.org_lookup.completed",
+                filter_name=org.filter_name,
+                retrieval_top_k=org.document_policy.top_k,
+            )
 
-        audit_context.log_event(
-            "org.resolved",
-            filter_name=org.filter_name,
-            retrieval_top_k=org.document_policy.top_k,
-        )
+            retrieval_filter = (
+                engine.filter_registry.get(org.filter_name)
+                if org.filter_name is not None
+                else None
+            )
+            embedding_span = engine._start_child_span(
+                trace_span,
+                engine._trace_stage_span_name(mode, "embedding"),
+            )
+            try:
+                query_embedding_res = engine.query_embedding.embed(query, user_context=user_context)
+                embedding_span.finish(
+                    status="ok",
+                    embedding_model=query_embedding_res.metadata.model,
+                    embedding_dimensions=query_embedding_res.metadata.dimensions,
+                )
+            except Exception as exc:
+                embedding_span.finish(
+                    status="error",
+                    error_type=exc.__class__.__name__,
+                    error_message=str(exc),
+                )
+                raise
 
-        query_embedding_res = self.query_embedding.embed(query, user_context=user_context)
+            retrieval_span = engine._start_child_span(
+                trace_span,
+                engine._trace_stage_span_name(mode, "retrieval"),
+                top_k=org.document_policy.top_k,
+            )
+            try:
+                retrieve_res = engine.vector_store.search(
+                    query_embedding_res.embedding,
+                    top_k=org.document_policy.top_k,
+                    user_context=user_context,
+                    filter=retrieval_filter,
+                )
+                retrieval_span.finish(
+                    status="ok",
+                    vector_index=retrieve_res.metadata.index,
+                    returned=retrieve_res.metadata.returned,
+                )
+            except Exception as exc:
+                retrieval_span.finish(
+                    status="error",
+                    error_type=exc.__class__.__name__,
+                    error_message=str(exc),
+                )
+                raise
+            docs = retrieve_res.records
+            retrieved_doc_ids = [doc.id for doc in docs]
 
-        retrieve_res = self.vector_store.search(
-            query_embedding_res.embedding,
-            top_k=org.document_policy.top_k,
-            user_context=user_context,
-            filter=self.filter_registry.get(org.filter_name),
-        )
-        docs = retrieve_res.records
-        retrieved_doc_ids = [doc.id for doc in docs]
+            policy_span = engine._start_child_span(
+                trace_span,
+                engine._trace_stage_span_name(mode, "policy.resolve"),
+            )
+            try:
+                policy_name = engine.governance_registry.resolve_policy(
+                    user_context=user_context,
+                    source_documents=docs,
+                    audit_context=audit_context,
+                )
+                policy = engine.policy_registry.get(policy_name)
+                if policy is not None:
+                    audit_context.logging_level = policy.logging.level
+                policy_span.finish(status="ok", policy_name=policy_name)
+            except Exception as exc:
+                policy_span.finish(
+                    status="error",
+                    error_type=exc.__class__.__name__,
+                    error_message=str(exc),
+                )
+                raise
 
-        policy_name = self.governance_registry.resolve_policy(
-            user_context=user_context,
-            source_documents=docs,
-            audit_context=audit_context,
-        )
-        policy = self.policy_registry.get(policy_name)
-        if policy is not None:
-            audit_context.logging_level = policy.logging.level
+            audit_context.log_event(
+                "retrieval.completed",
+                retrieved_count=len(docs),
+                retrieved_doc_ids=retrieved_doc_ids,
+            )
+            audit_context.log_event("policy.resolved", policy_name=policy_name)
+            prompt_span = engine._start_child_span(
+                trace_span,
+                engine._trace_stage_span_name(mode, "prompt.build"),
+            )
+            try:
+                messages = engine.prompt_builder.build(
+                    query=query,
+                    retrieved_docs=docs,
+                    policy=policy,
+                )
+                prompt_span.finish(status="ok", message_count=len(messages))
+            except Exception as exc:
+                prompt_span.finish(
+                    status="error",
+                    error_type=exc.__class__.__name__,
+                    error_message=str(exc),
+                )
+                raise
+            llm_temperature = policy.generation.temperature if policy is not None else 0.0
 
-        audit_context.log_event(
-            "retrieval.completed",
-            retrieved_count=len(docs),
-            retrieved_doc_ids=retrieved_doc_ids,
-        )
-        audit_context.log_event("policy.resolved", policy_name=policy_name)
-        messages = self.prompt_builder.build(
-            query=query,
-            retrieved_docs=docs,
-            policy=policy,
-        )
-        llm_temperature = policy.generation.temperature if policy is not None else 0.0
+            llm_stage = "llm.stream" if streaming else "llm.generate"
+            llm_span = engine._start_child_span(
+                trace_span,
+                engine._trace_stage_span_name(mode, llm_stage),
+                temperature=llm_temperature,
+            )
+            try:
+                if streaming:
+                    response = engine.llm.stream(
+                        messages,
+                        temperature=llm_temperature,
+                        user_context=user_context,
+                    )
+                else:
+                    response = engine.llm.generate(
+                        messages,
+                        temperature=llm_temperature,
+                        user_context=user_context,
+                    )
+                llm_span.finish(
+                    status="ok",
+                    llm_model=response.metadata.model if response.metadata is not None else None,
+                    prompt_tokens=(
+                        response.usage.prompt_tokens if response.usage is not None else None
+                    ),
+                    completion_tokens=(
+                        response.usage.completion_tokens if response.usage is not None else None
+                    ),
+                    total_tokens=(
+                        response.usage.total_tokens if response.usage is not None else None
+                    ),
+                )
+            except Exception as exc:
+                llm_span.finish(
+                    status="error",
+                    error_type=exc.__class__.__name__,
+                    error_message=str(exc),
+                )
+                raise
 
-        response = self.llm.stream(
-            messages,
-            temperature=llm_temperature,
-            user_context=user_context,
-        )
-        enforced_response = self.policy_registry.enforce_stream_response(
-            policy_name=policy_name,
-            response=response,
-            retrieved_docs=docs,
-            audit_context=audit_context,
-        )
-        audit_context.log_event("enforcement.attached", policy_name=policy_name)
-        audit_context.log_event(
-            "request.completed",
-            policy_name=policy_name,
-            retrieved_count=len(docs),
-            retrieved_doc_ids=retrieved_doc_ids,
-            llm_model=response.metadata.model if response.metadata is not None else None,
-            llm_temperature=llm_temperature,
-            prompt_tokens=response.usage.prompt_tokens if response.usage is not None else None,
-            completion_tokens=(
-                response.usage.completion_tokens if response.usage is not None else None
-            ),
-            total_tokens=response.usage.total_tokens if response.usage is not None else None,
-            enforcement_attached=True,
-        )
-        return StreamResponse(
-            policy_name=policy_name,
-            org_id=org_id,
-            user_id=user_context.user_id,
-            filter_name=org.filter_name,
-            retrieval_top_k=org.document_policy.top_k,
-            retrieved_count=len(docs),
-            enforcement_passed=True,
-            response=enforced_response,
-        )
+            enforcement_span = engine._start_child_span(
+                trace_span,
+                engine._trace_stage_span_name(mode, "enforcement"),
+                policy_name=policy_name,
+            )
+            try:
+                if streaming:
+                    enforced_response = engine.policy_registry.enforce_stream_response(
+                        policy_name=policy_name,
+                        response=response,
+                        retrieved_docs=docs,
+                        audit_context=audit_context,
+                    )
+                else:
+                    engine.policy_registry.enforce_response(
+                        policy_name=policy_name,
+                        response=response,
+                        retrieved_docs=docs,
+                        audit_context=audit_context,
+                    )
+                    enforced_response = response
+                enforcement_span.finish(status="ok")
+            except Exception as exc:
+                enforcement_span.finish(
+                    status="error",
+                    error_type=exc.__class__.__name__,
+                    error_message=str(exc),
+                )
+                raise
+
+            if streaming:
+                audit_context.log_event("enforcement.attached", policy_name=policy_name)
+            else:
+                audit_context.log_event("enforcement.passed", policy_name=policy_name)
+
+            completed_fields: dict[str, Any] = {
+                "policy_name": policy_name,
+                "retrieved_count": len(docs),
+                "retrieved_doc_ids": retrieved_doc_ids,
+                "llm_model": response.metadata.model if response.metadata is not None else None,
+                "llm_temperature": llm_temperature,
+                "prompt_tokens": (
+                    response.usage.prompt_tokens if response.usage is not None else None
+                ),
+                "completion_tokens": (
+                    response.usage.completion_tokens if response.usage is not None else None
+                ),
+                "total_tokens": response.usage.total_tokens if response.usage is not None else None,
+            }
+            completed_fields["enforcement_attached" if streaming else "enforcement_passed"] = True
+            audit_context.log_event("request.completed", **completed_fields)
+
+            trace_span.event(
+                "transition.request.completed",
+                policy_name=policy_name,
+                retrieved_count=len(docs),
+            )
+            trace_span.finish(
+                status="ok",
+                policy_name=policy_name,
+                retrieved_count=len(docs),
+                llm_model=response.metadata.model if response.metadata is not None else None,
+            )
+
+            response_kwargs: dict[str, Any] = {
+                "policy_name": policy_name,
+                "org_id": org_id,
+                "user_id": user_context.user_id,
+                "trace_id": trace_id,
+                "filter_name": org.filter_name,
+                "retrieval_top_k": org.document_policy.top_k,
+                "retrieved_count": len(docs),
+                "enforcement_passed": True,
+                "response": enforced_response,
+            }
+            if streaming:
+                return StreamResponse(**response_kwargs)
+            return RunResponse(**response_kwargs)
+        except Exception as exc:
+            trace_span.event(
+                "error.request.failed",
+                error_type=exc.__class__.__name__,
+                error_message=str(exc),
+            )
+            trace_span.finish(
+                status="error",
+                error_type=exc.__class__.__name__,
+                error_message=str(exc),
+            )
+            raise
+
+    def _start_child_span(self, parent_span: TraceSpan, name: str, **fields: Any) -> TraceSpan:
+        return self.tracer.start_span(name, **fields)
+
+    @staticmethod
+    def _trace_root_span_name(mode: Literal["run", "stream"]) -> str:
+        return f"{TRACE_SPAN_ROOT_PREFIX}.{mode}"
+
+    @staticmethod
+    def _trace_stage_span_name(mode: Literal["run", "stream"], stage: str) -> str:
+        return f"{TRACE_SPAN_ROOT_PREFIX}.{mode}.stage.{stage}"
 
     def _validate_embedding_model_compatibility(self) -> str:
         query_model = self._normalize_embedding_model(
@@ -346,6 +464,7 @@ class RAGControl:
         *,
         mode: Literal["run", "stream"],
         request_id: str,
+        trace_id: str,
         org_id: str | None,
         user_id: str | None,
     ) -> AuditLoggingContext:
@@ -353,6 +472,7 @@ class RAGControl:
             logger=self.audit_logger,
             mode=mode,
             request_id=request_id,
+            trace_id=trace_id,
             org_id=org_id,
             user_id=user_id,
             sdk_name=SDK_NAME,
