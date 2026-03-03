@@ -119,6 +119,11 @@ class RAGControl:
             temperature=policy.generation.temperature if policy is not None else 0.0,
             user_context=user_context,
         )
+        self.policy_registry.enforce_response(
+            policy_name=policy_name,
+            response=response,
+            retrieved_docs=docs,
+        )
         return response
 
     def stream(self, query: str, user_context: UserContext) -> LLMStreamResponse:
@@ -163,7 +168,11 @@ class RAGControl:
             temperature=policy.generation.temperature if policy is not None else 0.0,
             user_context=user_context,
         )
-        return response
+        return self.policy_registry.enforce_stream_response(
+            policy_name=policy_name,
+            response=response,
+            retrieved_docs=docs,
+        )
 
     def _validate_embedding_model_compatibility(self) -> str:
         query_model = self._normalize_embedding_model(

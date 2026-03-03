@@ -16,6 +16,7 @@ from .embedding_model import (
     EmbeddingModelTypeError,
     EmbeddingModelValidationError,
 )
+from .enforcement import EnforcementPolicyViolationError
 from .governance import (
     GovernanceOrgNotFoundError,
     GovernancePolicyDeniedError,
@@ -33,6 +34,7 @@ __all__ = [
     "EmbeddingModelTypeError",
     "EmbeddingModelValidationError",
     "EmbeddingModelMismatchError",
+    "EnforcementPolicyViolationError",
     "GovernanceOrgNotFoundError",
     "GovernancePolicyDeniedError",
     "GovernanceUserContextOrgIDRequiredError",
