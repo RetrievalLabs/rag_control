@@ -10,6 +10,10 @@ from contextvars import ContextVar
 from typing import Any, Literal, Protocol
 from uuid import uuid4
 
+from opentelemetry import context as otel_context
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider as SDKTracerProvider
+from opentelemetry.trace import Status, StatusCode
 import structlog
 
 from .audit_logger import configure_structlog_json
@@ -19,16 +23,6 @@ _STRUCTLOG_ACTIVE_SPAN: ContextVar[tuple[str, str] | None] = ContextVar(
     "rag_control_structlog_active_span",
     default=None,
 )
-
-try:
-    from opentelemetry import context as otel_context
-    from opentelemetry import trace as otel_trace
-    from opentelemetry.trace import Status, StatusCode
-except ImportError:  # pragma: no cover - optional dependency.
-    otel_context = None
-    otel_trace = None
-    Status = None
-    StatusCode = None
 
 
 class TraceSpan(Protocol):
@@ -207,19 +201,17 @@ class _OpenTelemetryTraceSpan:
                     self._span.set_attribute("error.type", error_type)
                 if error_message is not None:
                     self._span.set_attribute("error.message", error_message)
-                if Status is not None and StatusCode is not None:
-                    self._span.set_status(Status(StatusCode.ERROR, description=error_message))
-            elif Status is not None and StatusCode is not None:
+                self._span.set_status(Status(StatusCode.ERROR, description=error_message))
+            else:
                 self._span.set_status(Status(StatusCode.OK))
             self._span.end()
         except Exception:
             return
         finally:
-            if otel_context is not None:
-                try:
-                    otel_context.detach(self._detach_token)
-                except Exception:
-                    pass
+            try:
+                otel_context.detach(self._detach_token)
+            except Exception:
+                pass
 
 
 class OpenTelemetryTracer:
@@ -228,8 +220,6 @@ class OpenTelemetryTracer:
         instrumentation_name: str = "rag_control",
         instrumentation_version: str | None = None,
     ) -> None:
-        if otel_trace is None or otel_context is None:
-            raise RuntimeError("OpenTelemetry is not installed")
         self._tracer = otel_trace.get_tracer(
             instrumentation_name,
             instrumentation_version=instrumentation_version,
@@ -245,12 +235,6 @@ class OpenTelemetryTracer:
 
 
 def _is_otel_configured() -> bool:
-    if otel_trace is None:
-        return False
-    try:
-        from opentelemetry.sdk.trace import TracerProvider as SDKTracerProvider
-    except ImportError:
-        return False
     return isinstance(otel_trace.get_tracer_provider(), SDKTracerProvider)
 
 
