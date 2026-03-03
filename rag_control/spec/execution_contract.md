@@ -92,6 +92,7 @@ Audit Emission (Normative)
 - Implementations MUST emit audit events during normal execution:
   - `request.received`
   - `org.resolved`
+  - `retrieval.completed` (subject to logging policy level)
   - `policy.resolved` (subject to logging policy level)
   - `enforcement.passed` (run) / `enforcement.attached` (stream; subject to logging policy level)
   - `request.completed`
@@ -102,7 +103,6 @@ Audit Emission (Normative)
 - Audit level gating MUST follow `Policy.logging.level` semantics:
   - `minimal` emits only core lifecycle/deny/fail events.
   - `full` emits all audit events.
-  - `forensic` currently emits all audit events (same as `full`) and MAY include additional fields in future versions.
 
 Failure Semantics
 - Governance failures (for example missing/invalid org) MUST raise governance exceptions.

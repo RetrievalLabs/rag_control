@@ -25,7 +25,7 @@ policies:
       fallback: soft
       temperature: 0.1
     logging:
-      level: forensic
+      level: full
     enforcement:
       validate_citations: true
       block_on_missing_citations: false

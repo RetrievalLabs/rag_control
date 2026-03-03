@@ -65,7 +65,7 @@ Generation Policy: `GenerationPolicy`
 - `temperature: float` (default `0.0`)
 
 Logging Policy: `LoggingPolicy`
-- `level`: one of `minimal | full | forensic` (default `full`)
+- `level`: one of `minimal | full` (default `full`)
 
 Enforcement Policy: `EnforcementPolicy`
 - `validate_citations: bool` (default `true`)

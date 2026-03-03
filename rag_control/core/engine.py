@@ -141,6 +141,7 @@ class RAGControl:
             filter=retrieval_filter,
         )
         docs = retrieve_res.records
+        retrieved_doc_ids = [doc.id for doc in docs]
 
         policy_name = self.governance_registry.resolve_policy(
             user_context=user_context,
@@ -151,16 +152,22 @@ class RAGControl:
         if policy is not None:
             audit_context.logging_level = policy.logging.level
 
+        audit_context.log_event(
+            "retrieval.completed",
+            retrieved_count=len(docs),
+            retrieved_doc_ids=retrieved_doc_ids,
+        )
         audit_context.log_event("policy.resolved", policy_name=policy_name)
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
             policy=policy,
         )
+        llm_temperature = policy.generation.temperature if policy is not None else 0.0
 
         response = self.llm.generate(
             messages,
-            temperature=policy.generation.temperature if policy is not None else 0.0,
+            temperature=llm_temperature,
             user_context=user_context,
         )
 
@@ -175,6 +182,12 @@ class RAGControl:
             "request.completed",
             policy_name=policy_name,
             retrieved_count=len(docs),
+            retrieved_doc_ids=retrieved_doc_ids,
+            llm_model=response.metadata.model,
+            llm_temperature=llm_temperature,
+            prompt_tokens=response.usage.prompt_tokens,
+            completion_tokens=response.usage.completion_tokens,
+            total_tokens=response.usage.total_tokens,
             enforcement_passed=True,
         )
         return RunResponse(
@@ -241,6 +254,7 @@ class RAGControl:
             filter=self.filter_registry.get(org.filter_name),
         )
         docs = retrieve_res.records
+        retrieved_doc_ids = [doc.id for doc in docs]
 
         policy_name = self.governance_registry.resolve_policy(
             user_context=user_context,
@@ -251,16 +265,22 @@ class RAGControl:
         if policy is not None:
             audit_context.logging_level = policy.logging.level
 
+        audit_context.log_event(
+            "retrieval.completed",
+            retrieved_count=len(docs),
+            retrieved_doc_ids=retrieved_doc_ids,
+        )
         audit_context.log_event("policy.resolved", policy_name=policy_name)
         messages = self.prompt_builder.build(
             query=query,
             retrieved_docs=docs,
             policy=policy,
         )
+        llm_temperature = policy.generation.temperature if policy is not None else 0.0
 
         response = self.llm.stream(
             messages,
-            temperature=policy.generation.temperature if policy is not None else 0.0,
+            temperature=llm_temperature,
             user_context=user_context,
         )
         enforced_response = self.policy_registry.enforce_stream_response(
@@ -274,6 +294,14 @@ class RAGControl:
             "request.completed",
             policy_name=policy_name,
             retrieved_count=len(docs),
+            retrieved_doc_ids=retrieved_doc_ids,
+            llm_model=response.metadata.model if response.metadata is not None else None,
+            llm_temperature=llm_temperature,
+            prompt_tokens=response.usage.prompt_tokens if response.usage is not None else None,
+            completion_tokens=(
+                response.usage.completion_tokens if response.usage is not None else None
+            ),
+            total_tokens=response.usage.total_tokens if response.usage is not None else None,
             enforcement_attached=True,
         )
         return StreamResponse(

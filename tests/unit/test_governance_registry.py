@@ -46,7 +46,7 @@ def _build_governance_config() -> ControlPlaneConfig:
             Policy(
                 name="research_policy",
                 generation=GenerationPolicy(reasoning_level="full", fallback="soft"),
-                logging=LoggingPolicy(level="forensic"),
+                logging=LoggingPolicy(level="full"),
                 enforcement=EnforcementPolicy(block_on_missing_citations=False),
             ),
             Policy(

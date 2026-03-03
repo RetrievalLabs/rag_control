@@ -29,7 +29,7 @@ def test_policy_get_with_multiple_conditions(fake_config: ControlPlaneConfig) ->
         name="research_policy",
         description="Research policy for exploratory use cases.",
         generation=GenerationPolicy(reasoning_level="full", fallback="soft"),
-        logging=LoggingPolicy(level="forensic"),
+        logging=LoggingPolicy(level="full"),
         enforcement=EnforcementPolicy(block_on_missing_citations=False),
     )
 

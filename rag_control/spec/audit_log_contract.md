@@ -12,7 +12,7 @@ Applies To:
 Purpose
 - Define the audit-event contract emitted by governed RAG execution.
 - Define required event fields for correlation and compliance.
-- Define policy-level behavior differences for `minimal`, `full`, and `forensic`.
+- Define policy-level behavior differences for `minimal` and `full`.
 
 Normative Terms
 - MUST: required.
@@ -41,6 +41,7 @@ Core Event Set
 - Implementations SHOULD use these event names:
   - `request.received`
   - `org.resolved`
+  - `retrieval.completed`
   - `policy.resolved`
   - `enforcement.passed`
   - `enforcement.attached` (stream flow)
@@ -52,10 +53,21 @@ Audit Emission Points
 - `RAGControl` MUST emit:
   - `request.received` at request start.
   - `org.resolved` after org lookup succeeds.
+  - `retrieval.completed` after retrieval succeeds.
+    - Event SHOULD include:
+      - `retrieved_count: int`
+      - `retrieved_doc_ids: list[str]`
   - `policy.resolved` after policy resolution succeeds.
   - `enforcement.passed` for successful non-stream enforcement.
   - `enforcement.attached` when stream enforcement wrapper is attached.
   - `request.completed` after successful execution response assembly.
+    - Event SHOULD include `retrieved_doc_ids: list[str]`.
+    - Event SHOULD include LLM execution details:
+      - `llm_model: str | None`
+      - `llm_temperature: float`
+      - `prompt_tokens: int | None`
+      - `completion_tokens: int | None`
+      - `total_tokens: int | None`
 - `GovernanceRegistry` MUST emit `request.denied` when a deny rule matches, before raising `GovernancePolicyDeniedError`.
   - Event SHOULD include `rule_name`.
 - `PolicyRegistry` MUST emit `request.denied` when enforcement violations are detected, before raising `EnforcementPolicyViolationError`.
@@ -71,7 +83,7 @@ Request Correlation
 
 Logging Policy Levels
 - Source policy:
-  - `Policy.logging.level` (`minimal | full | forensic`)
+  - `Policy.logging.level` (`minimal | full`)
 - `minimal`:
   - MUST emit only:
     - `request.received`
@@ -80,15 +92,12 @@ Logging Policy Levels
     - `request.denied`
     - `request.failed`
   - MUST suppress:
+    - `retrieval.completed`
     - `policy.resolved`
     - `enforcement.passed`
     - `enforcement.attached`
 - `full`:
   - MUST emit all audit events.
-- `forensic`:
-  - MUST emit all audit events.
-  - MAY include additional forensic fields in future versions.
-  - Current behavior is equivalent to `full` unless explicitly extended.
 
 Failure Semantics
 - Audit emission MUST NOT change business outcomes:

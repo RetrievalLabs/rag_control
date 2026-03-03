@@ -13,7 +13,7 @@ from typing import Any, Literal, Protocol
 import structlog
 
 AuditLogLevel = Literal["debug", "info", "warning", "error", "critical"]
-AuditLogPolicyLevel = Literal["minimal", "full", "forensic"]
+AuditLogPolicyLevel = Literal["minimal", "full"]
 
 _STRUCTLOG_CONFIGURED = False
 
@@ -53,7 +53,7 @@ def should_emit_audit_event(
     event: str,
     logging_level: AuditLogPolicyLevel | None,
 ) -> bool:
-    if logging_level is None or logging_level in ("full", "forensic"):
+    if logging_level is None or logging_level == "full":
         return True
     if logging_level == "minimal":
         return event in {

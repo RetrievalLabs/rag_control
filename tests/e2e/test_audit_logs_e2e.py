@@ -89,6 +89,7 @@ def test_rag_control_run_emits_audit_lifecycle_events(
     assert event_names == [
         "request.received",
         "org.resolved",
+        "retrieval.completed",
         "policy.resolved",
         "enforcement.passed",
         "request.completed",
@@ -101,6 +102,16 @@ def test_rag_control_run_emits_audit_lifecycle_events(
         assert event["sdk_name"] == "rag_control"
         assert event["sdk_version"] == __version__
         assert event["company_name"] == "RetrievalLabs"
+    retrieval_event = audit_logger.events[2]
+    assert retrieval_event["retrieved_doc_ids"] == ["doc-audit-001"]
+    assert retrieval_event["retrieved_count"] == 1
+    completed_event = audit_logger.events[-1]
+    assert completed_event["retrieved_doc_ids"] == ["doc-audit-001"]
+    assert completed_event["llm_model"] == "fake-gpt"
+    assert completed_event["llm_temperature"] == 0.0
+    assert completed_event["prompt_tokens"] == 12
+    assert completed_event["completion_tokens"] == 4
+    assert completed_event["total_tokens"] == 16
 
 
 def test_rag_control_run_emits_audit_denied_event_for_missing_org_id(
@@ -192,6 +203,86 @@ def test_rag_control_run_minimal_audit_policy_emits_only_minimal_audit_events(
         "org.resolved",
         "request.completed",
     ]
+    completed_event = audit_logger.events[-1]
+    assert completed_event["retrieved_doc_ids"] == ["doc-audit-minimal-001"]
+    assert completed_event["llm_model"] == "fake-gpt"
+    assert completed_event["llm_temperature"] == 0.0
+    assert completed_event["prompt_tokens"] == 12
+    assert completed_event["completion_tokens"] == 4
+    assert completed_event["total_tokens"] == 16
+
+
+def test_rag_control_stream_emits_llm_details_in_request_completed_audit_event(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    audit_logger = _CapturedAuditLogger()
+
+    query_embedding.enqueue_response(
+        embedding=[0.21, 0.31, 0.41],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-audit-stream-001",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-audit-stream-001",
+                content="Stream policy status is approved.",
+                score=0.96,
+                metadata={"source": "policy-kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-audit-stream-001",
+    )
+    llm.enqueue_response(
+        content="approved stream answer [DOC 1]",
+        model="fake-stream-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-audit-stream-001",
+        prompt_tokens=9,
+        completion_tokens=5,
+    )
+
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+        audit_logger=audit_logger,
+    )
+    user_context = UserContext(
+        user_id="u-audit-stream-1",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+
+    stream_response = engine.stream("what is policy status?", user_context=user_context)
+    list(stream_response.response.stream)
+
+    assert [event["event"] for event in audit_logger.events] == [
+        "request.received",
+        "org.resolved",
+        "retrieval.completed",
+        "policy.resolved",
+        "enforcement.attached",
+        "request.completed",
+    ]
+    completed_event = audit_logger.events[-1]
+    assert completed_event["event"] == "request.completed"
+    assert completed_event["retrieved_doc_ids"] == ["doc-audit-stream-001"]
+    assert completed_event["llm_model"] == "fake-stream-gpt"
+    assert completed_event["llm_temperature"] == 0.0
+    assert completed_event["prompt_tokens"] == 9
+    assert completed_event["completion_tokens"] == 5
+    assert completed_event["total_tokens"] == 14
 
 
 def test_rag_control_run_emits_audit_denied_event_from_governance_registry(
