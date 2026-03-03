@@ -11,6 +11,7 @@ from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.llm import LLMResponse, LLMStreamChunk, LLMStreamResponse
 from rag_control.models.policy import Policy as PolicyModel
 from rag_control.models.vector_store import VectorStoreRecord
+from rag_control.observability import AuditLoggingContext
 
 # Extract citation indices from answer text, e.g. "[DOC 2]".
 _CITATION_PATTERN = re.compile(r"\[DOC\s+(\d+)\]")
@@ -19,9 +20,8 @@ _STRICT_FALLBACK_TEXTS = {
     "I don't have enough information in the provided context.",
 }
 
-
 class PolicyRegistry:
-    def __init__(self, config: ControlPlaneConfig):
+    def __init__(self, config: ControlPlaneConfig) -> None:
         self.policy_map: dict[str, PolicyModel] = {
             policy.name: policy for policy in config.policies
         }
@@ -36,6 +36,7 @@ class PolicyRegistry:
         policy_name: str,
         response: LLMResponse,
         retrieved_docs: list[VectorStoreRecord],
+        audit_context: AuditLoggingContext | None = None,
     ) -> None:
         policy = self.get(policy_name)
         if policy is None:
@@ -57,7 +58,17 @@ class PolicyRegistry:
             )
         )
         if violations:
-            raise EnforcementPolicyViolationError(policy_name, violations)
+            error = EnforcementPolicyViolationError(policy_name, violations)
+            if audit_context is not None:
+                audit_context.log_event(
+                    "request.denied",
+                    level="warning",
+                    policy_name=policy_name,
+                    error_type=error.__class__.__name__,
+                    error_message=str(error),
+                    violations=violations,
+                )
+            raise error
 
     def enforce_stream_response(
         self,
@@ -65,6 +76,7 @@ class PolicyRegistry:
         policy_name: str,
         response: LLMStreamResponse,
         retrieved_docs: list[VectorStoreRecord],
+        audit_context: AuditLoggingContext | None = None,
     ) -> LLMStreamResponse:
         policy = self.get(policy_name)
         if policy is None:
@@ -94,7 +106,17 @@ class PolicyRegistry:
                 )
             )
             if violations:
-                raise EnforcementPolicyViolationError(policy_name, violations)
+                error = EnforcementPolicyViolationError(policy_name, violations)
+                if audit_context is not None:
+                    audit_context.log_event(
+                        "request.denied",
+                        level="warning",
+                        policy_name=policy_name,
+                        error_type=error.__class__.__name__,
+                        error_message=str(error),
+                        violations=violations,
+                    )
+                raise error
 
         return LLMStreamResponse(
             stream=_validated_stream(),

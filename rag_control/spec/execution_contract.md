@@ -10,6 +10,7 @@ Applies To:
 Purpose
 - Define input/output contracts for `RAGControl.run` and `RAGControl.stream`.
 - Define execution-time policy/governance/enforcement behavior and failure semantics.
+- Define execution-time audit emission behavior and request correlation requirements.
 
 Normative Terms
 - MUST: required.
@@ -45,6 +46,7 @@ Initialization Contract
   - `governance_registry` MUST be initialized from org/rule configuration.
   - `filter_registry` MUST be initialized from config filters.
   - `prompt_builder` MUST be initialized for policy-aware prompt construction.
+  - `audit_logger` MUST be initialized (default or injected implementation).
 - Init failure behavior:
   - Constructor MUST fail fast and raise the corresponding exception when any init validation fails.
   - No partially-initialized instance state is part of this contract.
@@ -85,12 +87,30 @@ Execution Order (Normative)
   7. Call LLM with policy temperature.
   8. Apply policy enforcement checks.
 
+Audit Emission (Normative)
+- Implementations MUST generate a per-request `request_id` for both `run` and `stream`.
+- Implementations MUST emit audit events during normal execution:
+  - `request.received`
+  - `org.resolved`
+  - `policy.resolved` (subject to logging policy level)
+  - `enforcement.passed` (run) / `enforcement.attached` (stream; subject to logging policy level)
+  - `request.completed`
+- Deny events MUST be emitted where exceptions are produced:
+  - Governance deny (`GovernancePolicyDeniedError`) in `GovernanceRegistry`.
+  - Enforcement deny (`EnforcementPolicyViolationError`) in `PolicyRegistry`.
+- `request_id` MUST be propagated from engine into governance/policy registry calls so deny events are correlated.
+- Audit level gating MUST follow `Policy.logging.level` semantics:
+  - `minimal` emits only core lifecycle/deny/fail events.
+  - `full` emits all audit events.
+  - `forensic` currently emits all audit events (same as `full`) and MAY include additional fields in future versions.
+
 Failure Semantics
 - Governance failures (for example missing/invalid org) MUST raise governance exceptions.
 - Policy deny decisions MUST raise governance deny exceptions.
 - Enforcement failures MUST raise `EnforcementPolicyViolationError`.
 - Initialization failures MUST raise init/config/embedding exceptions defined in this contract.
 - On failure, implementations MUST NOT return `RunResponse`/`StreamResponse`.
+- Audit emission MUST NOT alter failure semantics.
 
 Streaming Enforcement Semantics
 - Implementations MAY stream chunks before final enforcement decision.
@@ -121,3 +141,4 @@ Reference Files
 - `rag_control/core/engine.py`
 - `rag_control/models/run.py`
 - `rag_control/models/llm.py`
+- `rag_control/spec/audit_log_contract.md`

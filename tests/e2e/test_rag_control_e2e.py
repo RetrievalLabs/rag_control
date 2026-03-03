@@ -677,3 +677,4 @@ def test_rag_control_stream_enforcement_blocks_external_knowledge_without_citati
         match="response may rely on external knowledge: citations are required",
     ):
         _ = "".join(chunk.delta for chunk in response.response.stream)
+

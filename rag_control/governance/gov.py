@@ -25,10 +25,11 @@ from rag_control.models.rule import (
 )
 from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import VectorStoreRecord
+from rag_control.observability import AuditLoggingContext
 
 
 class GovernanceRegistry:
-    def __init__(self, config: ControlPlaneConfig):
+    def __init__(self, config: ControlPlaneConfig) -> None:
         self.org_map: dict[str, OrgConfig] = {
             org.org_id: org.model_copy(
                 update={
@@ -49,6 +50,7 @@ class GovernanceRegistry:
         self,
         user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
+        audit_context: AuditLoggingContext | None = None,
     ) -> str:
         org = self.org_map[user_context.org_id]
 
@@ -57,6 +59,17 @@ class GovernanceRegistry:
             if not self._matches_logical_condition(rule.when, user_context, source_documents):
                 continue
             if rule.effect == RULE_EFFECT_DENY:
+                if audit_context is not None:
+                    audit_context.log_event(
+                        "request.denied",
+                        level="warning",
+                        rule_name=rule.name,
+                        error_type=GovernancePolicyDeniedError.__name__,
+                        error_message=(
+                            f"governance policy denied for org '{user_context.org_id}' "
+                            f"by rule '{rule.name}'"
+                        ),
+                    )
                 raise GovernancePolicyDeniedError(user_context, rule.name)
             if rule.apply_policy is not None:
                 return rule.apply_policy
