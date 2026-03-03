@@ -12,6 +12,7 @@ from rag_control.models.llm import LLMResponse, LLMStreamChunk, LLMStreamRespons
 from rag_control.models.policy import Policy as PolicyModel
 from rag_control.models.vector_store import VectorStoreRecord
 
+# Extract citation indices from answer text, e.g. "[DOC 2]".
 _CITATION_PATTERN = re.compile(r"\[DOC\s+(\d+)\]")
 _STRICT_FALLBACK_TEXTS = {
     "I don’t have enough information in the provided context.",
@@ -40,6 +41,7 @@ class PolicyRegistry:
         if policy is None:
             return
 
+        # Aggregate all enforcement failures so callers get a single actionable error.
         violations: list[str] = []
         violations.extend(
             self._check_max_output_tokens(
@@ -69,6 +71,7 @@ class PolicyRegistry:
             return response
 
         def _validated_stream() -> Iterator[LLMStreamChunk]:
+            # Stream chunks through immediately, then validate once we have full content.
             collected_deltas: list[str] = []
             for chunk in response.stream:
                 collected_deltas.append(chunk.delta)
@@ -85,6 +88,7 @@ class PolicyRegistry:
             violations.extend(
                 self._check_response_content(
                     policy=policy,
+                    # Apply content checks against the final assembled stream output.
                     content="".join(collected_deltas),
                     retrieved_docs=retrieved_docs,
                 )
@@ -127,6 +131,7 @@ class PolicyRegistry:
                 violations.append("missing citations while generation.require_citations=true")
 
         if policy.enforcement.validate_citations and citation_indexes:
+            # "[DOC 1]" maps to retrieved_docs[0], so valid range is 1..len(retrieved_docs).
             max_doc_index = len(retrieved_docs)
             invalid_indexes = [idx for idx in citation_indexes if idx < 1 or idx > max_doc_index]
             if invalid_indexes:
@@ -145,6 +150,7 @@ class PolicyRegistry:
             )
 
         if not retrieved_docs:
+            # With no grounded context, strict mode must return the exact fallback response.
             should_force_strict_fallback = (
                 policy.enforcement.enforce_strict_fallback
                 and policy.generation.fallback == "strict"
