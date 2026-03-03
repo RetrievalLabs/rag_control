@@ -83,14 +83,8 @@ def test_rag_control_run_returns_llm_response_with_retrieval_context(
     assert llm_response.response.metadata.provider == "fake-provider"
     assert llm_response.response.metadata.latency_ms == 10.0
     assert llm_response.response.metadata.request_id == "req-001"
-    assert (
-        llm_response.response.usage.total_tokens
-        >= llm_response.response.usage.prompt_tokens
-    )
-    assert (
-        llm_response.response.usage.total_tokens
-        >= llm_response.response.usage.completion_tokens
-    )
+    assert llm_response.response.usage.total_tokens >= llm_response.response.usage.prompt_tokens
+    assert llm_response.response.usage.total_tokens >= llm_response.response.usage.completion_tokens
 
     assert isinstance(llm.prompts[0], list)
     assert llm.prompts[0][-1]["role"] == "user"
