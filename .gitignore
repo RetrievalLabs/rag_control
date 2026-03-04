@@ -18,6 +18,8 @@ htmlcov/
 .DS_Store
 .idea/
 .vscode/
+.claude/
+.cursor/
 
 rag_control.egg-info/
 
