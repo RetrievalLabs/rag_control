@@ -29,9 +29,11 @@ from rag_control.models.user_context import UserContext
 from rag_control.observability import (
     AuditLogger,
     AuditLoggingContext,
+    MetricsRecorder,
     StructlogAuditLogger,
     Tracer,
     TraceSpan,
+    get_default_metrics_recorder,
     get_default_tracer,
 )
 from rag_control.policy.policy import PolicyRegistry
@@ -67,6 +69,7 @@ class RAGControl:
         config_path: str | Path | None = None,
         audit_logger: AuditLogger | None = None,
         tracer: Tracer | None = None,
+        metrics_recorder: MetricsRecorder | None = None,
     ) -> None:
         if config is not None and config_path is not None:
             raise ControlPlaneConfigValidationError(
@@ -92,7 +95,10 @@ class RAGControl:
             audit_logger if audit_logger is not None else StructlogAuditLogger()
         )
         self.tracer: Tracer = tracer if tracer is not None else get_default_tracer()
-        self.policy_registry = PolicyRegistry(self.config)
+        self.metrics_recorder: MetricsRecorder = (
+            metrics_recorder if metrics_recorder is not None else get_default_metrics_recorder()
+        )
+        self.policy_registry = PolicyRegistry(self.config, self.metrics_recorder)
         self.governance_registry = GovernanceRegistry(self.config)
         self.filter_registry = FilterRegistry(self.config)
         self.prompt_builder: PromptBuilder = RAGPromptBuilder()
@@ -116,6 +122,7 @@ class RAGControl:
         mode: Literal["run", "stream"] = "stream" if streaming else "run"
         request_id = str(uuid4())
         org_id = user_context.org_id
+        request_started_at = time.perf_counter()
         trace_span = engine.tracer.start_span(
             engine._trace_root_span_name(mode),
             request_id=request_id,
@@ -179,6 +186,7 @@ class RAGControl:
                     "filter_name": resolved_org.filter_name,
                     "retrieval_top_k": resolved_org.document_policy.top_k,
                 },
+                metrics_labels={"mode": mode, "stage": "org_lookup", "org_id": org_id or ""},
                 org_id=org_id,
             )
 
@@ -205,6 +213,26 @@ class RAGControl:
                     "embedding_model": embedding_res.metadata.model,
                     "embedding_dimensions": embedding_res.metadata.dimensions,
                 },
+                metrics_labels={"mode": mode, "stage": "embedding", "org_id": org_id or ""},
+            )
+            # Record embedding model-specific metrics
+            embedding_model = (
+                query_embedding_res.metadata.model
+                if query_embedding_res.metadata is not None
+                else "unknown"
+            )
+            embedding_dims = (
+                query_embedding_res.metadata.dimensions
+                if query_embedding_res.metadata is not None
+                else 0
+            )
+            engine.metrics_recorder.record(
+                "rag_control.embedding.dimensions",
+                float(embedding_dims),
+                kind="histogram",
+                mode=mode,
+                org_id=org_id or "",
+                model=embedding_model,
             )
 
             retrieve_res = engine._run_stage(
@@ -220,6 +248,7 @@ class RAGControl:
                     "vector_index": search_res.metadata.index,
                     "returned": search_res.metadata.returned,
                 },
+                metrics_labels={"mode": mode, "stage": "retrieval", "org_id": org_id or ""},
                 top_k=org.document_policy.top_k,
             )
             docs = retrieve_res.records
@@ -241,6 +270,7 @@ class RAGControl:
                 engine._trace_stage_span_name(mode, "policy.resolve"),
                 _resolve_policy,
                 success_fields=lambda policy_res: {"policy_name": policy_res[0]},
+                metrics_labels={"mode": mode, "stage": "policy.resolve", "org_id": org_id or ""},
             )
 
             audit_context.log_event(
@@ -259,6 +289,7 @@ class RAGControl:
                     policy=policy,
                 ),
                 success_fields=lambda prompt_messages: {"message_count": len(prompt_messages)},
+                metrics_labels={"mode": mode, "stage": "prompt.build", "org_id": org_id or ""},
             )
             llm_temperature = policy.generation.temperature if policy is not None else 0.0
 
@@ -293,6 +324,7 @@ class RAGControl:
                         llm_res.usage.total_tokens if llm_res.usage is not None else None
                     ),
                 },
+                metrics_labels={"mode": mode, "stage": llm_stage, "org_id": org_id or ""},
                 temperature=llm_temperature,
             )
 
@@ -316,6 +348,7 @@ class RAGControl:
                 trace_span,
                 engine._trace_stage_span_name(mode, "enforcement"),
                 _enforce,
+                metrics_labels={"mode": mode, "stage": "enforcement", "org_id": org_id or ""},
                 policy_name=policy_name,
             )
 
@@ -353,6 +386,112 @@ class RAGControl:
                 llm_model=response.metadata.model if response.metadata is not None else None,
             )
 
+            # Record request metrics on success
+            request_duration_ms = (time.perf_counter() - request_started_at) * 1000
+            engine.metrics_recorder.record(
+                "rag_control.requests",
+                1.0,
+                kind="counter",
+                mode=mode,
+                org_id=org_id or "",
+                status="ok",
+            )
+            engine.metrics_recorder.record(
+                "rag_control.request.duration_ms",
+                request_duration_ms,
+                kind="histogram",
+                unit="ms",
+                mode=mode,
+                org_id=org_id or "",
+                status="ok",
+            )
+            # Record retrieval metrics
+            engine.metrics_recorder.record(
+                "rag_control.retrieval.document_count",
+                float(len(docs)),
+                kind="histogram",
+                mode=mode,
+                org_id=org_id or "",
+            )
+            # Record document quality metrics (relevance scores)
+            if docs:
+                avg_score = sum(doc.score for doc in docs) / len(docs)
+                top_score = docs[0].score if docs else 0.0
+                engine.metrics_recorder.record(
+                    "rag_control.retrieval.document_score",
+                    avg_score,
+                    kind="histogram",
+                    mode=mode,
+                    org_id=org_id or "",
+                )
+                engine.metrics_recorder.record(
+                    "rag_control.retrieval.top_document_score",
+                    top_score,
+                    kind="histogram",
+                    mode=mode,
+                    org_id=org_id or "",
+                )
+            # Record query complexity metric
+            engine.metrics_recorder.record(
+                "rag_control.query.length_chars",
+                float(len(query)),
+                kind="histogram",
+                mode=mode,
+                org_id=org_id or "",
+            )
+            # Record policy resolution metric
+            engine.metrics_recorder.record(
+                "rag_control.policy.resolved_by_name",
+                1.0,
+                kind="counter",
+                mode=mode,
+                org_id=org_id or "",
+                policy_name=policy_name,
+            )
+            # Record LLM token metrics if available
+            if response.usage is not None:
+                model_name = response.metadata.model if response.metadata is not None else "unknown"
+                prompt_tokens = float(response.usage.prompt_tokens)
+                completion_tokens = float(response.usage.completion_tokens)
+
+                engine.metrics_recorder.record(
+                    "rag_control.llm.prompt_tokens",
+                    prompt_tokens,
+                    kind="counter",
+                    mode=mode,
+                    org_id=org_id or "",
+                    model=model_name,
+                )
+                engine.metrics_recorder.record(
+                    "rag_control.llm.completion_tokens",
+                    completion_tokens,
+                    kind="counter",
+                    mode=mode,
+                    org_id=org_id or "",
+                    model=model_name,
+                )
+                # Record token efficiency metric
+                if prompt_tokens > 0:
+                    efficiency_ratio = completion_tokens / prompt_tokens
+                    engine.metrics_recorder.record(
+                        "rag_control.llm.token_efficiency",
+                        efficiency_ratio,
+                        kind="histogram",
+                        mode=mode,
+                        org_id=org_id or "",
+                        model=model_name,
+                    )
+                # Record total tokens
+                total_tokens = prompt_tokens + completion_tokens
+                engine.metrics_recorder.record(
+                    "rag_control.llm.total_tokens",
+                    total_tokens,
+                    kind="counter",
+                    mode=mode,
+                    org_id=org_id or "",
+                    model=model_name,
+                )
+
             if streaming:
                 return StreamResponse(
                     policy_name=policy_name,
@@ -377,6 +516,56 @@ class RAGControl:
                 response=enforced_response,
             )
         except Exception as exc:
+            # Record request metrics on error
+            request_duration_ms = (time.perf_counter() - request_started_at) * 1000
+            engine.metrics_recorder.record(
+                "rag_control.requests",
+                1.0,
+                kind="counter",
+                mode=mode,
+                org_id=org_id or "",
+                status="error",
+            )
+            engine.metrics_recorder.record(
+                "rag_control.request.duration_ms",
+                request_duration_ms,
+                kind="histogram",
+                unit="ms",
+                mode=mode,
+                org_id=org_id or "",
+                status="error",
+            )
+            # Record error categorization metrics
+            error_type = exc.__class__.__name__
+            engine.metrics_recorder.record(
+                "rag_control.errors_by_type",
+                1.0,
+                kind="counter",
+                mode=mode,
+                org_id=org_id or "",
+                error_type=error_type,
+            )
+            # Categorize error by source (governance, enforcement, etc.)
+            error_category = _categorize_error(error_type)
+            engine.metrics_recorder.record(
+                "rag_control.errors_by_category",
+                1.0,
+                kind="counter",
+                mode=mode,
+                org_id=org_id or "",
+                error_category=error_category,
+            )
+            # Record denied request metrics separately from system errors
+            if _is_denied_request(error_type):
+                engine.metrics_recorder.record(
+                    "rag_control.requests.denied",
+                    1.0,
+                    kind="counter",
+                    mode=mode,
+                    org_id=org_id or "",
+                    denial_reason=error_category,
+                )
+
             trace_span.event(
                 "error.request.failed",
                 error_type=exc.__class__.__name__,
@@ -404,26 +593,45 @@ class RAGControl:
         name: str,
         func: Callable[[], T],
         success_fields: Callable[[T], dict[str, Any]] | None = None,
+        metrics_labels: dict[str, str] | None = None,
         **fields: Any,
     ) -> T:
         span = self._start_child_span(parent_span, name, **fields)
         started_at = time.perf_counter()
         try:
             result = func()
+            stage_latency_ms = (time.perf_counter() - started_at) * 1000
             success_payload = success_fields(result) if success_fields is not None else {}
             span.finish(
                 status="ok",
-                stage_latency_ms=(time.perf_counter() - started_at) * 1000,
+                stage_latency_ms=stage_latency_ms,
                 **success_payload,
             )
+            if metrics_labels is not None:
+                self.metrics_recorder.record(
+                    "rag_control.stage.duration_ms",
+                    stage_latency_ms,
+                    kind="histogram",
+                    unit="ms",
+                    **{**metrics_labels, "status": "ok"},
+                )
             return result
         except Exception as exc:
+            stage_latency_ms = (time.perf_counter() - started_at) * 1000
             span.finish(
                 status="error",
                 error_type=exc.__class__.__name__,
                 error_message=str(exc),
-                stage_latency_ms=(time.perf_counter() - started_at) * 1000,
+                stage_latency_ms=stage_latency_ms,
             )
+            if metrics_labels is not None:
+                self.metrics_recorder.record(
+                    "rag_control.stage.duration_ms",
+                    stage_latency_ms,
+                    kind="histogram",
+                    unit="ms",
+                    **{**metrics_labels, "status": "error"},
+                )
             raise
 
     @staticmethod
@@ -480,3 +688,26 @@ class RAGControl:
             sdk_version=__version__,
             company_name=COMPANY_NAME,
         )
+
+
+def _categorize_error(error_type: str) -> str:
+    """Categorize error types for metrics tracking."""
+    if "Governance" in error_type:
+        return "governance"
+    if "Enforcement" in error_type:
+        return "enforcement"
+    if "Embedding" in error_type:
+        return "embedding"
+    if "VectorStore" in error_type or "Retrieval" in error_type:
+        return "retrieval"
+    if "LLM" in error_type:
+        return "llm"
+    if "Policy" in error_type:
+        return "policy"
+    return "other"
+
+
+def _is_denied_request(error_type: str) -> bool:
+    """Check if error represents a denied (rejected) request vs system error."""
+    # Denied requests are business rule rejections, not system failures
+    return any(keyword in error_type for keyword in {"Governance", "Enforcement", "Policy"})

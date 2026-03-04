@@ -11,7 +11,11 @@ from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.llm import LLMResponse, LLMStreamChunk, LLMStreamResponse
 from rag_control.models.policy import Policy as PolicyModel
 from rag_control.models.vector_store import VectorStoreRecord
-from rag_control.observability import AuditLoggingContext
+from rag_control.observability import (
+    AuditLoggingContext,
+    MetricsRecorder,
+    NoOpMetricsRecorder,
+)
 
 # Extract citation indices from answer text, e.g. "[DOC 2]".
 _CITATION_PATTERN = re.compile(r"\[DOC\s+(\d+)\]")
@@ -22,10 +26,13 @@ _STRICT_FALLBACK_TEXTS = {
 
 
 class PolicyRegistry:
-    def __init__(self, config: ControlPlaneConfig) -> None:
+    def __init__(
+        self, config: ControlPlaneConfig, metrics_recorder: MetricsRecorder | None = None
+    ) -> None:
         self.policy_map: dict[str, PolicyModel] = {
             policy.name: policy for policy in config.policies
         }
+        self.metrics_recorder = metrics_recorder or NoOpMetricsRecorder()
 
     # Returns the PolicyModel for the given name, or None if not found.
     def get(self, name: str) -> PolicyModel | None:
@@ -59,6 +66,16 @@ class PolicyRegistry:
             )
         )
         if violations:
+            # Record metrics for each violation type
+            for violation_msg in violations:
+                violation_type = self._categorize_violation(violation_msg)
+                self.metrics_recorder.record(
+                    "rag_control.enforcement.violation_count",
+                    1.0,
+                    kind="counter",
+                    policy_name=policy_name,
+                    violation_type=violation_type,
+                )
             error = EnforcementPolicyViolationError(policy_name, violations)
             if audit_context is not None:
                 audit_context.log_event(
@@ -107,6 +124,16 @@ class PolicyRegistry:
                 )
             )
             if violations:
+                # Record metrics for each violation type
+                for violation_msg in violations:
+                    violation_type = self._categorize_violation(violation_msg)
+                    self.metrics_recorder.record(
+                        "rag_control.enforcement.violation_count",
+                        1.0,
+                        kind="counter",
+                        policy_name=policy_name,
+                        violation_type=violation_type,
+                    )
                 error = EnforcementPolicyViolationError(policy_name, violations)
                 if audit_context is not None:
                     audit_context.log_event(
@@ -184,3 +211,22 @@ class PolicyRegistry:
                 )
 
         return violations
+
+    @staticmethod
+    def _categorize_violation(violation_msg: str) -> str:
+        """Categorize violation message into one of five violation types."""
+        violation_lower = violation_msg.lower()
+
+        if "completion tokens exceed" in violation_lower or "max_output_tokens" in violation_lower:
+            return "max_output_tokens"
+        if "missing citations" in violation_lower:
+            return "missing_citations"
+        if "invalid citations" in violation_lower:
+            return "invalid_citations"
+        if "external knowledge" in violation_lower:
+            return "external_knowledge"
+        if "strict fallback" in violation_lower:
+            return "strict_fallback"
+
+        # Default fallback for unknown violation types
+        return "unknown"
