@@ -13,16 +13,29 @@ from uuid import uuid4
 from opentelemetry import context as otel_context
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider as SDKTracerProvider
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import SpanKind, Status, StatusCode
 import structlog
 
 from .audit_logger import configure_structlog_json
 
 TraceStatus = Literal["ok", "error"]
+TraceSpanKind = Literal["internal", "server", "client", "producer", "consumer"]
 _STRUCTLOG_ACTIVE_SPAN: ContextVar[tuple[str, str] | None] = ContextVar(
     "rag_control_structlog_active_span",
     default=None,
 )
+_OTEL_SEMCONV_ALIASES: dict[str, str] = {
+    # GenAI semantic conventions.
+    "llm_model": "gen_ai.request.model",
+    "llm_temperature": "gen_ai.request.temperature",
+    "prompt_tokens": "gen_ai.usage.input_tokens",
+    "completion_tokens": "gen_ai.usage.output_tokens",
+    "total_tokens": "gen_ai.usage.total_tokens",
+    # Common semantic conventions.
+    "user_id": "enduser.id",
+    "error_type": "exception.type",
+    "error_message": "exception.message",
+}
 
 
 class TraceSpan(Protocol):
@@ -78,10 +91,12 @@ class _StructlogTraceSpan:
         trace_id: str | None = None,
         parent_span_id: str | None = None,
         span_id: str | None = None,
+        span_kind: TraceSpanKind = "internal",
         **fields: Any,
     ) -> None:
         self._logger = logger
         self._name = name
+        self._span_kind = span_kind
         self.trace_id = trace_id if trace_id is not None else str(uuid4())
         self._parent_span_id = parent_span_id
         self.span_id = span_id if span_id is not None else str(uuid4())
@@ -128,6 +143,7 @@ class _StructlogTraceSpan:
                 trace_id=self.trace_id,
                 span_id=self.span_id,
                 parent_span_id=self._parent_span_id,
+                span_kind=self._span_kind,
                 **fields,
             )
         except Exception:
@@ -143,6 +159,7 @@ class StructlogTracer:
     def start_span(self, name: str, **fields: Any) -> TraceSpan:
         trace_id = fields.pop("trace_id", None)
         parent_span_id = fields.pop("parent_span_id", None)
+        span_kind = fields.pop("span_kind", "internal")
         if trace_id is None and parent_span_id is None:
             active_span = _STRUCTLOG_ACTIVE_SPAN.get()
             if active_span is not None:
@@ -153,6 +170,7 @@ class StructlogTracer:
             name=name,
             trace_id=trace_id,
             parent_span_id=parent_span_id,
+            span_kind=span_kind,
             **fields,
         )
         span._context_token = _STRUCTLOG_ACTIVE_SPAN.set((span.trace_id, span.span_id))
@@ -198,8 +216,10 @@ class _OpenTelemetryTraceSpan:
                 self._span.set_attributes(_to_otel_attributes(fields))
             if status == "error":
                 if error_type is not None:
+                    self._span.set_attribute("exception.type", error_type)
                     self._span.set_attribute("error.type", error_type)
                 if error_message is not None:
+                    self._span.set_attribute("exception.message", error_message)
                     self._span.set_attribute("error.message", error_message)
                 self._span.set_status(Status(StatusCode.ERROR, description=error_message))
             else:
@@ -228,7 +248,10 @@ class OpenTelemetryTracer:
     def start_span(self, name: str, **fields: Any) -> TraceSpan:
         fields.pop("trace_id", None)
         fields.pop("parent_span_id", None)
-        span = self._tracer.start_span(name)
+        span_kind = fields.pop("span_kind", "internal")
+        otel_span_kind = _to_otel_span_kind(span_kind)
+        span = self._tracer.start_span(name, kind=otel_span_kind)
+        fields["span.kind"] = span_kind
         detach_token = otel_context.attach(otel_trace.set_span_in_context(span))
         span.set_attributes(_to_otel_attributes(fields))
         return _OpenTelemetryTraceSpan(span, detach_token=detach_token)
@@ -253,7 +276,21 @@ def _to_otel_attributes(fields: dict[str, Any]) -> dict[str, Any]:
             attributes[key] = str(value)
             continue
         attributes[key] = str(value)
+    for source_key, semconv_key in _OTEL_SEMCONV_ALIASES.items():
+        if source_key in attributes and semconv_key not in attributes:
+            attributes[semconv_key] = attributes[source_key]
     return attributes
+
+
+def _to_otel_span_kind(span_kind: str) -> SpanKind:
+    mapping = {
+        "internal": SpanKind.INTERNAL,
+        "server": SpanKind.SERVER,
+        "client": SpanKind.CLIENT,
+        "producer": SpanKind.PRODUCER,
+        "consumer": SpanKind.CONSUMER,
+    }
+    return mapping.get(span_kind, SpanKind.INTERNAL)
 
 
 def get_default_tracer() -> Tracer:

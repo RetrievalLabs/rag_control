@@ -4,6 +4,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
 from pathlib import Path
+import time
 from typing import Any, Callable, Literal, TypeVar, cast
 from uuid import uuid4
 
@@ -119,6 +120,7 @@ class RAGControl:
             engine._trace_root_span_name(mode),
             request_id=request_id,
             mode=mode,
+            span_kind="internal",
             org_id=org_id,
             user_id=user_context.user_id,
         )
@@ -173,6 +175,10 @@ class RAGControl:
                 trace_span,
                 engine._trace_stage_span_name(mode, "org_lookup"),
                 _resolve_org,
+                success_fields=lambda resolved_org: {
+                    "filter_name": resolved_org.filter_name,
+                    "retrieval_top_k": resolved_org.document_policy.top_k,
+                },
                 org_id=org_id,
             )
 
@@ -195,6 +201,10 @@ class RAGControl:
                 trace_span,
                 engine._trace_stage_span_name(mode, "embedding"),
                 lambda: engine.query_embedding.embed(query, user_context=user_context),
+                success_fields=lambda embedding_res: {
+                    "embedding_model": embedding_res.metadata.model,
+                    "embedding_dimensions": embedding_res.metadata.dimensions,
+                },
             )
 
             retrieve_res = engine._run_stage(
@@ -206,6 +216,10 @@ class RAGControl:
                     user_context=user_context,
                     filter=retrieval_filter,
                 ),
+                success_fields=lambda search_res: {
+                    "vector_index": search_res.metadata.index,
+                    "returned": search_res.metadata.returned,
+                },
                 top_k=org.document_policy.top_k,
             )
             docs = retrieve_res.records
@@ -226,6 +240,7 @@ class RAGControl:
                 trace_span,
                 engine._trace_stage_span_name(mode, "policy.resolve"),
                 _resolve_policy,
+                success_fields=lambda policy_res: {"policy_name": policy_res[0]},
             )
 
             audit_context.log_event(
@@ -243,6 +258,7 @@ class RAGControl:
                     retrieved_docs=docs,
                     policy=policy,
                 ),
+                success_fields=lambda prompt_messages: {"message_count": len(prompt_messages)},
             )
             llm_temperature = policy.generation.temperature if policy is not None else 0.0
 
@@ -265,6 +281,14 @@ class RAGControl:
                 trace_span,
                 engine._trace_stage_span_name(mode, llm_stage),
                 _invoke_llm,
+                success_fields=lambda llm_res: {
+                    "llm_model": llm_res.metadata.model if llm_res.metadata is not None else None,
+                    "prompt_tokens": llm_res.usage.prompt_tokens if llm_res.usage is not None else None,
+                    "completion_tokens": (
+                        llm_res.usage.completion_tokens if llm_res.usage is not None else None
+                    ),
+                    "total_tokens": llm_res.usage.total_tokens if llm_res.usage is not None else None,
+                },
                 temperature=llm_temperature,
             )
 
@@ -366,6 +390,7 @@ class RAGControl:
             name,
             trace_id=parent_span.trace_id,
             parent_span_id=parent_span.span_id,
+            span_kind="internal",
             **fields,
         )
 
@@ -374,18 +399,26 @@ class RAGControl:
         parent_span: TraceSpan,
         name: str,
         func: Callable[[], T],
+        success_fields: Callable[[T], dict[str, Any]] | None = None,
         **fields: Any,
     ) -> T:
         span = self._start_child_span(parent_span, name, **fields)
+        started_at = time.perf_counter()
         try:
             result = func()
-            span.finish(status="ok")
+            success_payload = success_fields(result) if success_fields is not None else {}
+            span.finish(
+                status="ok",
+                stage_latency_ms=(time.perf_counter() - started_at) * 1000,
+                **success_payload,
+            )
             return result
         except Exception as exc:
             span.finish(
                 status="error",
                 error_type=exc.__class__.__name__,
                 error_message=str(exc),
+                stage_latency_ms=(time.perf_counter() - started_at) * 1000,
             )
             raise
 

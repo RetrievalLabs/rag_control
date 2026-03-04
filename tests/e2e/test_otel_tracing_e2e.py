@@ -119,3 +119,14 @@ def test_rag_control_default_tracer_uses_root_span_when_no_parent_exists(
     request_span = next(span for span in spans if span.name == "rag_control.request.run")
     assert request_span.parent is None
     assert run_response.trace_id == f"{request_span.context.trace_id:032x}"
+    assert request_span.attributes["enduser.id"] == "u-otel-2"
+
+    llm_span = next(
+        span
+        for span in spans
+        if span.name == "rag_control.request.run.stage.llm.generate"
+    )
+    assert llm_span.attributes["gen_ai.request.model"] == "fake-gpt"
+    assert llm_span.attributes["gen_ai.usage.input_tokens"] == 12
+    assert llm_span.attributes["gen_ai.usage.output_tokens"] == 4
+    assert llm_span.attributes["gen_ai.usage.total_tokens"] == 16
