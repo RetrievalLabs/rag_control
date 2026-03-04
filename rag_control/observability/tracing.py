@@ -222,7 +222,7 @@ class OpenTelemetryTracer:
     ) -> None:
         self._tracer = otel_trace.get_tracer(
             instrumentation_name,
-            instrumentation_version=instrumentation_version,
+            instrumentation_version,
         )
 
     def start_span(self, name: str, **fields: Any) -> TraceSpan:
