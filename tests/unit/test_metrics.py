@@ -244,3 +244,35 @@ def test_is_otel_metrics_configured_checks_meter_provider() -> None:
     # Result depends on whether OTel SDK MeterProvider is configured
     # We just verify it returns a boolean without error
     assert isinstance(result, bool)
+
+
+def test_policy_registry_violation_categorization() -> None:
+    from rag_control.policy.policy import PolicyRegistry
+
+    categorize = PolicyRegistry._categorize_violation
+
+    # Test max_output_tokens violation
+    assert (
+        categorize("completion tokens exceed enforcement.max_output_tokens (750 > 500)")
+        == "max_output_tokens"
+    )
+    # Test missing_citations violation
+    assert (
+        categorize("missing citations while generation.require_citations=true")
+        == "missing_citations"
+    )
+    # Test invalid_citations violation
+    assert categorize("invalid citations out of retrieved range: [5, 6]") == "invalid_citations"
+    # Test external_knowledge violation
+    ext_knowledge_msg = (
+        "response may rely on external knowledge: citations are required "
+        "when enforcement.prevent_external_knowledge=true"
+    )
+    assert categorize(ext_knowledge_msg) == "external_knowledge"
+    # Test strict_fallback violation
+    assert (
+        categorize("response must use strict fallback when no documents are retrieved")
+        == "strict_fallback"
+    )
+    # Test unknown violation
+    assert categorize("unknown violation type") == "unknown"

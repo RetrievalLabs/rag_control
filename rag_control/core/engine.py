@@ -98,7 +98,7 @@ class RAGControl:
         self.metrics_recorder: MetricsRecorder = (
             metrics_recorder if metrics_recorder is not None else get_default_metrics_recorder()
         )
-        self.policy_registry = PolicyRegistry(self.config)
+        self.policy_registry = PolicyRegistry(self.config, self.metrics_recorder)
         self.governance_registry = GovernanceRegistry(self.config)
         self.filter_registry = FilterRegistry(self.config)
         self.prompt_builder: PromptBuilder = RAGPromptBuilder()

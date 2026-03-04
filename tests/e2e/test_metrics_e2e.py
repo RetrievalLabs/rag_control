@@ -840,3 +840,153 @@ def test_metrics_e2e_records_denied_requests_on_enforcement_failure(
     assert denied_calls[0]["mode"] == "run"
     assert denied_calls[0]["org_id"] == "test_org"
     assert "status" not in denied_calls[0]  # denied_calls don't have status label
+
+
+def test_metrics_e2e_records_enforcement_violation_metrics(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    metrics_recorder = _CapturedMetricsRecorder()
+
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+        metrics_recorder=metrics_recorder,
+    )
+
+    user_context = UserContext(
+        user_id="u-enforcement-violation-1",
+        org_id="test_org",
+        attributes={},
+    )
+
+    # LLM response without citations will trigger missing_citations violation
+    # (policy has require_citations=true)
+    llm.enqueue_response(
+        content="This is a response without any citations. [context from LLM training]"
+    )
+
+    with pytest.raises(Exception):  # EnforcementPolicyViolationError
+        engine.run("test query", user_context=user_context)
+
+    # Find enforcement violation metric
+    violation_calls = [
+        c for c in metrics_recorder.calls if c["name"] == "rag_control.enforcement.violation_count"
+    ]
+    # Response without citations triggers both missing_citations and external_knowledge
+    assert len(violation_calls) == 2
+    violation_types = {v["violation_type"] for v in violation_calls}
+    assert "missing_citations" in violation_types
+    assert "external_knowledge" in violation_types
+    assert violation_calls[0]["policy_name"] == "default_policy"
+
+
+def test_metrics_e2e_records_invalid_citations_violation(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    """Test enforcement violation metrics for invalid citation references."""
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    metrics_recorder = _CapturedMetricsRecorder()
+
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+        metrics_recorder=metrics_recorder,
+    )
+
+    user_context = UserContext(
+        user_id="u-invalid-citations-1",
+        org_id="test_org",
+        attributes={},
+    )
+
+    # Response with invalid citation reference [DOC 99] (out of range)
+    llm.enqueue_response(content="The answer is [DOC 99] which is invalid")
+
+    with pytest.raises(Exception):  # EnforcementPolicyViolationError
+        engine.run("test query", user_context=user_context)
+
+    # Find enforcement violation metrics
+    violation_calls = [
+        c for c in metrics_recorder.calls if c["name"] == "rag_control.enforcement.violation_count"
+    ]
+    # Should have invalid_citations violation
+    assert len(violation_calls) == 1
+    assert violation_calls[0]["violation_type"] == "invalid_citations"
+
+
+def test_metrics_e2e_enforcement_violations_in_stream(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    """Test enforcement violation metrics are recorded in streaming mode."""
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    metrics_recorder = _CapturedMetricsRecorder()
+
+    # Set up proper embeddings and vector store responses
+    query_embedding.enqueue_response(
+        embedding=[0.11, 0.22, 0.33],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-stream-violation-001",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-stream-violation-001",
+                content="Sample document for stream violation test.",
+                score=0.97,
+                metadata={"source": "kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="test-index",
+        latency_ms=4.0,
+        request_id="search-stream-violation-001",
+    )
+
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+        metrics_recorder=metrics_recorder,
+    )
+
+    user_context = UserContext(
+        user_id="u-stream-violations-1",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},  # Match filter condition
+    )
+
+    # Stream response without citations should trigger violations
+    llm.enqueue_response(
+        content="No citations in this stream.",
+        stream_chunks=("No citations ", "in this ", "stream."),
+    )
+
+    with pytest.raises(Exception):  # EnforcementPolicyViolationError
+        stream_response = engine.stream("test query", user_context=user_context)
+        # Consume all chunks to trigger violation check
+        for _chunk in stream_response.response.stream:
+            pass
+
+    # Find violation metrics
+    violation_calls = [
+        c for c in metrics_recorder.calls if c["name"] == "rag_control.enforcement.violation_count"
+    ]
+    # Should have both missing_citations and external_knowledge violations
+    assert len(violation_calls) >= 2
+    violation_types = {v["violation_type"] for v in violation_calls}
+    assert "missing_citations" in violation_types
+    assert "external_knowledge" in violation_types
