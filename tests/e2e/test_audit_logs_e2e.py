@@ -112,6 +112,7 @@ def test_rag_control_run_emits_audit_lifecycle_events(
     assert completed_event["retrieved_doc_ids"] == ["doc-audit-001"]
     assert completed_event["llm_model"] == "fake-gpt"
     assert completed_event["llm_temperature"] == 0.0
+    assert completed_event["llm_max_output_tokens"] is None
     assert completed_event["prompt_tokens"] == 12
     assert completed_event["completion_tokens"] == 4
     assert completed_event["total_tokens"] == 16
@@ -210,6 +211,7 @@ def test_rag_control_run_minimal_audit_policy_emits_only_minimal_audit_events(
     assert completed_event["retrieved_doc_ids"] == ["doc-audit-minimal-001"]
     assert completed_event["llm_model"] == "fake-gpt"
     assert completed_event["llm_temperature"] == 0.0
+    assert completed_event["llm_max_output_tokens"] is None
     assert completed_event["prompt_tokens"] == 12
     assert completed_event["completion_tokens"] == 4
     assert completed_event["total_tokens"] == 16
@@ -284,6 +286,7 @@ def test_rag_control_stream_emits_llm_details_in_request_completed_audit_event(
     assert completed_event["retrieved_doc_ids"] == ["doc-audit-stream-001"]
     assert completed_event["llm_model"] == "fake-stream-gpt"
     assert completed_event["llm_temperature"] == 0.0
+    assert completed_event["llm_max_output_tokens"] is None
     assert completed_event["prompt_tokens"] == 9
     assert completed_event["completion_tokens"] == 5
     assert completed_event["total_tokens"] == 14
@@ -347,3 +350,67 @@ def test_rag_control_run_emits_audit_denied_event_from_policy_registry(
     assert audit_logger.events[-1]["event"] == "request.denied"
     assert audit_logger.events[-1]["error_type"] == "EnforcementPolicyViolationError"
     assert audit_logger.events[-1]["request_id"] == audit_logger.events[0]["request_id"]
+
+
+def test_rag_control_run_emits_max_output_tokens_in_audit_event(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    config = fake_config.model_copy(deep=True)
+    config.policies[0].enforcement.max_output_tokens = 256
+
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    audit_logger = _CapturedAuditLogger()
+
+    query_embedding.enqueue_response(
+        embedding=[0.11, 0.22, 0.33],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-audit-max-tokens-001",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-audit-max-tokens-001",
+                content="Max tokens configuration test.",
+                score=0.97,
+                metadata={"source": "policy-kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-audit-max-tokens-001",
+    )
+    llm.enqueue_response(
+        content="response with max tokens [DOC 1]",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-audit-max-tokens-001",
+        prompt_tokens=15,
+        completion_tokens=3,
+    )
+
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=config,
+        audit_logger=audit_logger,
+    )
+    user_context = UserContext(
+        user_id="u-audit-max-tokens-1",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+
+    engine.run("max tokens test", user_context=user_context)
+
+    completed_event = audit_logger.events[-1]
+    assert completed_event["event"] == "request.completed"
+    assert completed_event["llm_max_output_tokens"] == 256
+    assert completed_event["prompt_tokens"] == 15
+    assert completed_event["completion_tokens"] == 3

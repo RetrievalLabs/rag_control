@@ -88,7 +88,7 @@ Execution Order (Normative)
   4. Retrieve documents with org `document_policy.top_k`.
   5. Resolve final policy via governance (using retrieved docs when applicable).
   6. Build prompt with policy context.
-  7. Call LLM with policy temperature.
+  7. Call LLM with policy temperature and policy max_output_tokens (when provided).
   8. Apply policy enforcement checks.
   9. Finalize request trace with status and correlation fields.
 

@@ -292,6 +292,9 @@ class RAGControl:
                 metrics_labels={"mode": mode, "stage": "prompt.build", "org_id": org_id or ""},
             )
             llm_temperature = policy.generation.temperature if policy is not None else 0.0
+            llm_max_output_tokens = (
+                policy.enforcement.max_output_tokens if policy is not None else None
+            )
 
             llm_stage = "llm.stream" if streaming else "llm.generate"
 
@@ -300,11 +303,13 @@ class RAGControl:
                     return engine.llm.stream(
                         messages,
                         temperature=llm_temperature,
+                        max_output_tokens=llm_max_output_tokens,
                         user_context=user_context,
                     )
                 return engine.llm.generate(
                     messages,
                     temperature=llm_temperature,
+                    max_output_tokens=llm_max_output_tokens,
                     user_context=user_context,
                 )
 
@@ -326,6 +331,7 @@ class RAGControl:
                 },
                 metrics_labels={"mode": mode, "stage": llm_stage, "org_id": org_id or ""},
                 temperature=llm_temperature,
+                max_output_tokens=llm_max_output_tokens,
             )
 
             def _enforce() -> Any:
@@ -363,6 +369,7 @@ class RAGControl:
                 "retrieved_doc_ids": retrieved_doc_ids,
                 "llm_model": response.metadata.model if response.metadata is not None else None,
                 "llm_temperature": llm_temperature,
+                "llm_max_output_tokens": llm_max_output_tokens,
                 "prompt_tokens": (
                     response.usage.prompt_tokens if response.usage is not None else None
                 ),
