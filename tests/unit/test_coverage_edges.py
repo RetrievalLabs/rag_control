@@ -22,7 +22,13 @@ from rag_control.exceptions.governance import GovernanceOrgNotFoundError
 from rag_control.governance import gov as gov_module
 from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
-from rag_control.models.llm import LLMMetadata, LLMResponse, LLMStreamChunk, LLMStreamResponse, LLMUsage
+from rag_control.models.llm import (
+    LLMMetadata,
+    LLMResponse,
+    LLMStreamChunk,
+    LLMStreamResponse,
+    LLMUsage,
+)
 from rag_control.models.policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
 from rag_control.models.rule import Condition, LogicalCondition
 from rag_control.models.user_context import UserContext
@@ -175,11 +181,14 @@ def test_policy_registry_missing_policy_branches_and_helpers() -> None:
 
     # policy-not-found branches
     registry.enforce_response(policy_name="missing", response=response, retrieved_docs=[])
-    assert registry.enforce_stream_response(
-        policy_name="missing",
-        response=stream_response,
-        retrieved_docs=[],
-    ) is stream_response
+    assert (
+        registry.enforce_stream_response(
+            policy_name="missing",
+            response=stream_response,
+            retrieved_docs=[],
+        )
+        is stream_response
+    )
 
     # helper branches
     assert registry._check_max_output_tokens(max_output_tokens=10, completion_tokens=5) == []
