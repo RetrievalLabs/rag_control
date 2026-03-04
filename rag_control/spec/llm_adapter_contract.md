@@ -10,8 +10,8 @@ Purpose
 
 Scope
 - Applies to:
-  - `LLM.generate(prompt, temperature: float | None = None, user_context: UserContext | None = None) -> LLMResponse`
-  - `LLM.stream(prompt, temperature: float | None = None, user_context: UserContext | None = None) -> LLMStreamResponse`
+  - `LLM.generate(prompt, temperature: float | None = None, max_output_tokens: int | None = None, user_context: UserContext | None = None) -> LLMResponse`
+  - `LLM.stream(prompt, temperature: float | None = None, max_output_tokens: int | None = None, user_context: UserContext | None = None) -> LLMStreamResponse`
 - Output models are defined in `rag_control/models/llm.py`.
 
 Normative Terms
@@ -25,6 +25,7 @@ Generate Contract
     - a `str`, or
     - a chat message list shaped as `list[dict[str, str]]` containing at least `role` and `content`.
   - `temperature` MAY be provided to control decoding behavior.
+  - `max_output_tokens` MAY be provided to limit output token count. When provided, adapter SHOULD respect this constraint during generation.
   - `user_context` MAY be provided to support user-aware generation behavior.
   - Engine integrations SHOULD support chat message list prompts because `RAGControl` sends structured messages.
   - Empty prompt handling is provider-defined, but adapter SHOULD fail fast with a clear exception when invalid.
@@ -49,6 +50,7 @@ Stream Contract
 - Input:
   - `prompt` MUST follow the same type contract as `generate`.
   - `temperature` MAY be provided to control decoding behavior.
+  - `max_output_tokens` MAY be provided to limit output token count. When provided, adapter SHOULD respect this constraint during streaming.
   - `user_context` MAY be provided to support user-aware generation behavior.
 - Output:
   - MUST return `LLMStreamResponse`.

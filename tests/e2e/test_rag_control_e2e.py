@@ -677,3 +677,179 @@ def test_rag_control_stream_enforcement_blocks_external_knowledge_without_citati
         match="response may rely on external knowledge: citations are required",
     ):
         _ = "".join(chunk.delta for chunk in response.response.stream)
+
+
+def test_rag_control_run_passes_max_output_tokens_to_llm(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    config = fake_config.model_copy(deep=True)
+    config.policies[0].enforcement.max_output_tokens = 512
+
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+
+    query_embedding.enqueue_response(
+        embedding=[0.61, 0.62, 0.63],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-012",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-061",
+                content="Max tokens constraint document.",
+                score=0.98,
+                metadata={"source": "policy-kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-012",
+    )
+    llm.enqueue_response(
+        content="[DOC 1] Compliant response.",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-012",
+        prompt_tokens=10,
+        completion_tokens=4,
+    )
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=config,
+    )
+    user_context = UserContext(
+        user_id="u-13",
+        org_id="test_org",
+        attributes={},
+    )
+    response = engine.run("max tokens test", user_context=user_context)
+
+    assert response.enforcement_passed is True
+    assert llm.generate_calls == 1
+    assert llm.generate_max_output_tokens[0] == 512
+
+
+def test_rag_control_stream_passes_max_output_tokens_to_llm(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    config = fake_config.model_copy(deep=True)
+    config.policies[0].enforcement.max_output_tokens = 1024
+
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+
+    query_embedding.enqueue_response(
+        embedding=[0.71, 0.72, 0.73],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-013",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-062",
+                content="Stream max tokens document.",
+                score=0.99,
+                metadata={"source": "policy-kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-013",
+    )
+    llm.enqueue_response(
+        content="[DOC 1] Streamed response with tokens.",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-013",
+        prompt_tokens=10,
+        completion_tokens=6,
+        stream_chunks=("[DOC 1] ", "Streamed ", "response ", "with ", "tokens."),
+    )
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=config,
+    )
+    user_context = UserContext(
+        user_id="u-14",
+        org_id="test_org",
+        attributes={},
+    )
+    response = engine.stream("stream max tokens test", user_context=user_context)
+    result = "".join(chunk.delta for chunk in response.response.stream)
+
+    assert result == "[DOC 1] Streamed response with tokens."
+    assert llm.stream_calls == 1
+    assert llm.stream_max_output_tokens[0] == 1024
+
+
+def test_rag_control_run_passes_none_when_no_max_output_tokens(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    config = fake_config.model_copy(deep=True)
+    config.policies[0].enforcement.max_output_tokens = None
+
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+
+    query_embedding.enqueue_response(
+        embedding=[0.81, 0.82, 0.83],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-014",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-063",
+                content="No max tokens constraint.",
+                score=0.97,
+                metadata={"source": "policy-kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-014",
+    )
+    llm.enqueue_response(
+        content="[DOC 1] Response without token limit.",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-014",
+        prompt_tokens=10,
+        completion_tokens=5,
+    )
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=config,
+    )
+    user_context = UserContext(
+        user_id="u-15",
+        org_id="test_org",
+        attributes={},
+    )
+    response = engine.run("no token limit test", user_context=user_context)
+
+    assert response.enforcement_passed is True
+    assert llm.generate_calls == 1
+    assert llm.generate_max_output_tokens[0] is None
