@@ -136,3 +136,54 @@ def test_open_telemetry_trace_span_tolerates_internal_exceptions() -> None:
     wrapped.event("test.event", x=1)
     wrapped.finish(status="error", error_type="Err", error_message="boom", key="value")
     wrapped.finish(status="ok")
+
+
+def test_structlog_trace_span_tolerates_logger_emit_and_context_reset_failures() -> None:
+    class _BrokenLogger:
+        def info(self, event: str, **fields: Any) -> None:
+            raise RuntimeError("logger failure")
+
+    span = tracing_module._StructlogTraceSpan(_BrokenLogger(), name="broken")
+    span.event("step")
+
+    # Force reset failure branch; tracing must still remain safe.
+    span._context_token = object()  # type: ignore[assignment]
+    span.finish(status="ok")
+
+
+def test_open_telemetry_trace_span_event_returns_early_after_finish() -> None:
+    @dataclass
+    class _SpanContext:
+        trace_id: int = 11
+        span_id: int = 22
+
+    class _Span:
+        def __init__(self) -> None:
+            self.event_calls = 0
+            self.ended = False
+
+        def get_span_context(self) -> _SpanContext:
+            return _SpanContext()
+
+        def add_event(self, name: str, attributes: dict[str, Any]) -> None:
+            self.event_calls += 1
+
+        def set_attributes(self, attributes: dict[str, Any]) -> None:
+            return None
+
+        def set_attribute(self, key: str, value: Any) -> None:
+            return None
+
+        def set_status(self, status: Any) -> None:
+            return None
+
+        def end(self) -> None:
+            self.ended = True
+
+    raw_span = _Span()
+    wrapped = tracing_module._OpenTelemetryTraceSpan(raw_span, detach_token=object())
+    wrapped.finish(status="ok")
+    wrapped.event("after.finish")
+
+    assert raw_span.ended is True
+    assert raw_span.event_calls == 0

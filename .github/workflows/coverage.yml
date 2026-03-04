@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      COVERAGE_THRESHOLD: "90.00"
+      COVERAGE_THRESHOLD: "100.00"
 
     steps:
       - name: Checkout repository
