@@ -286,7 +286,9 @@ def test_rag_control_run_marks_failing_stage_with_error_and_latency(
         engine.run("policy question", user_context=user_context)
 
     embedding_span_start = next(
-        span for span in tracer.started_spans if span["span_name"] == "rag_control.request.run.stage.embedding"
+        span
+        for span in tracer.started_spans
+        if span["span_name"] == "rag_control.request.run.stage.embedding"
     )
     embedding_span_finish = next(
         span for span in tracer.finished_spans if span["span_id"] == embedding_span_start["span_id"]
