@@ -102,6 +102,36 @@ filters:
       operator: equals
       value: enterprise
       source: user
+orgs:
+  - org_id: acme_corp
+    description: Acme Corporation with strict citation requirements
+    default_policy: strict_citations
+    document_policy:
+      top_k: 8
+    policy_rules:
+      - name: deny_untrusted_document_source
+        description: Deny if any retrieved document comes from untrusted source
+        priority: 60
+        effect: deny
+        when:
+          any:
+            - field: metadata.source
+              operator: equals
+              value: public-web
+              source: documents
+              document_match: any
+      - name: enforce_strict_citations
+        description: Enforce strict citations for enterprise queries
+        priority: 50
+        effect: enforce
+        when:
+          all:
+            - field: org_tier
+              operator: equals
+              value: enterprise
+              source: user
+        policy: strict_citations
+
 ```
 
 ### 2. Initialize the Engine
@@ -234,7 +264,7 @@ request_span
 ## Examples
 
 See the `examples/` directory for:
-- `policy_config.yaml`: Complete policy configuration example
+- `controller-config.yaml`: Complete policy configuration example
 
 ## Security
 
@@ -268,4 +298,4 @@ See [LICENSE](LICENSE) for full terms.
 
 ---
 
-**Built by [RetrievalLabs](https://retrievallabs.com)** — Enterprise RAG Governance and Security
+**Built by [RetrievalLabs](https://retrievallabs.ai)** — Enterprise RAG Governance and Security
