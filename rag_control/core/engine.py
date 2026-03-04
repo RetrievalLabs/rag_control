@@ -710,7 +710,4 @@ def _categorize_error(error_type: str) -> str:
 def _is_denied_request(error_type: str) -> bool:
     """Check if error represents a denied (rejected) request vs system error."""
     # Denied requests are business rule rejections, not system failures
-    return any(
-        keyword in error_type
-        for keyword in {"Governance", "Enforcement", "Policy"}
-    )
+    return any(keyword in error_type for keyword in {"Governance", "Enforcement", "Policy"})
