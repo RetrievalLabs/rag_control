@@ -1,0 +1,72 @@
+name: Coverage
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Run tests with coverage
+        run: make venv coverage
+
+      - name: Extract coverage percent
+        id: coverage
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          coverage_xml = Path("coverage.xml")
+          if not coverage_xml.exists():
+              raise SystemExit("coverage.xml was not generated")
+
+          root = ET.parse(coverage_xml).getroot()
+          line_rate = float(root.attrib.get("line-rate", "0"))
+          coverage_pct = line_rate * 100
+
+          github_output = Path(__import__("os").environ["GITHUB_OUTPUT"])
+          with github_output.open("a", encoding="utf-8") as fh:
+              fh.write(f"percent={coverage_pct:.2f}\n")
+          PY
+
+      - name: Add coverage summary
+        run: |
+          {
+            echo "## Coverage Report"
+            echo ""
+            echo "- Line coverage: **${{ steps.coverage.outputs.percent }}%**"
+            echo "- Artifacts: \`coverage.xml\`, \`htmlcov/\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            htmlcov/
+          if-no-files-found: error

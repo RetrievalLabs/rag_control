@@ -1,7 +1,7 @@
 VENV_DIR := .venv
 PYTHON := python3
 
-.PHONY: venv activate install install-dev sync sync-dev test tests unit-test lint format typecheck clean
+.PHONY: venv activate install install-dev sync sync-dev test tests unit-test coverage lint format typecheck clean
 
 venv:
 	uv venv $(VENV_DIR) --python $(PYTHON)
@@ -28,6 +28,9 @@ tests: test
 
 unit-test: install-dev
 	uv run --python $(VENV_DIR)/bin/python pytest -v tests/unit
+
+coverage: install-dev
+	uv run --python $(VENV_DIR)/bin/python pytest -v --cov=rag_control --cov-report=term-missing --cov-report=xml --cov-report=html
 
 lint: install-dev
 	uv run --python $(VENV_DIR)/bin/python ruff check .
