@@ -34,6 +34,7 @@ Global Audit Fields
   - `company_name: "RetrievalLabs"`
 - Request-scoped events SHOULD include:
   - `request_id: str`
+  - `trace_id: str | None`
   - `org_id: str | None`
   - `user_id: str | None`
 

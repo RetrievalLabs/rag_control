@@ -12,6 +12,7 @@ class RunResponse(BaseModel):
     policy_name: str
     org_id: str
     user_id: str
+    trace_id: str | None = None
     filter_name: str | None = None
     retrieval_top_k: int
     retrieved_count: int
@@ -23,8 +24,9 @@ class StreamResponse(BaseModel):
     policy_name: str
     org_id: str
     user_id: str
+    trace_id: str | None = None
     filter_name: str | None = None
     retrieval_top_k: int
     retrieved_count: int
-    enforcement_passed: bool
+    enforcement_attached: bool
     response: LLMStreamResponse

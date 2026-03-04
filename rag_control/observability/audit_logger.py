@@ -73,6 +73,7 @@ class AuditLoggingContext:
     request_id: str
     org_id: str | None
     user_id: str | None
+    trace_id: str | None = None
     logging_level: AuditLogPolicyLevel | None = None
     component: str = "rag_control.engine"
     sdk_name: str = "rag_control"
@@ -91,6 +92,7 @@ class AuditLoggingContext:
             company_name=self.company_name,
             mode=self.mode,
             request_id=self.request_id,
+            trace_id=self.trace_id,
             org_id=self.org_id,
             user_id=self.user_id,
             **fields,

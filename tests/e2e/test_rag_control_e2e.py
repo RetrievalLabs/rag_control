@@ -166,7 +166,7 @@ def test_rag_control_stream_returns_llm_stream_response_with_retrieval_context(
     assert llm_stream_response.filter_name == "default_filter"
     assert llm_stream_response.retrieval_top_k == 5
     assert llm_stream_response.retrieved_count == 1
-    assert llm_stream_response.enforcement_passed is True
+    assert llm_stream_response.enforcement_attached is True
     assert streamed_text == "streamed answer [DOC 1]"
     assert llm_stream_response.response.metadata is not None
     assert llm_stream_response.response.metadata.model == "fake-gpt"
