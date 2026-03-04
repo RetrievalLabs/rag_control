@@ -215,6 +215,25 @@ class RAGControl:
                 },
                 metrics_labels={"mode": mode, "stage": "embedding", "org_id": org_id or ""},
             )
+            # Record embedding model-specific metrics
+            embedding_model = (
+                query_embedding_res.metadata.model
+                if query_embedding_res.metadata is not None
+                else "unknown"
+            )
+            embedding_dims = (
+                query_embedding_res.metadata.dimensions
+                if query_embedding_res.metadata is not None
+                else 0
+            )
+            engine.metrics_recorder.record(
+                "rag_control.embedding.dimensions",
+                float(embedding_dims),
+                kind="histogram",
+                mode=mode,
+                org_id=org_id or "",
+                model=embedding_model,
+            )
 
             retrieve_res = engine._run_stage(
                 trace_span,
@@ -394,12 +413,50 @@ class RAGControl:
                 mode=mode,
                 org_id=org_id or "",
             )
+            # Record document quality metrics (relevance scores)
+            if docs:
+                avg_score = sum(doc.score for doc in docs) / len(docs)
+                top_score = docs[0].score if docs else 0.0
+                engine.metrics_recorder.record(
+                    "rag_control.retrieval.document_score",
+                    avg_score,
+                    kind="histogram",
+                    mode=mode,
+                    org_id=org_id or "",
+                )
+                engine.metrics_recorder.record(
+                    "rag_control.retrieval.top_document_score",
+                    top_score,
+                    kind="histogram",
+                    mode=mode,
+                    org_id=org_id or "",
+                )
+            # Record query complexity metric
+            engine.metrics_recorder.record(
+                "rag_control.query.length_chars",
+                float(len(query)),
+                kind="histogram",
+                mode=mode,
+                org_id=org_id or "",
+            )
+            # Record policy resolution metric
+            engine.metrics_recorder.record(
+                "rag_control.policy.resolved_by_name",
+                1.0,
+                kind="counter",
+                mode=mode,
+                org_id=org_id or "",
+                policy_name=policy_name,
+            )
             # Record LLM token metrics if available
             if response.usage is not None:
                 model_name = response.metadata.model if response.metadata is not None else "unknown"
+                prompt_tokens = float(response.usage.prompt_tokens)
+                completion_tokens = float(response.usage.completion_tokens)
+
                 engine.metrics_recorder.record(
                     "rag_control.llm.prompt_tokens",
-                    float(response.usage.prompt_tokens),
+                    prompt_tokens,
                     kind="counter",
                     mode=mode,
                     org_id=org_id or "",
@@ -407,7 +464,28 @@ class RAGControl:
                 )
                 engine.metrics_recorder.record(
                     "rag_control.llm.completion_tokens",
-                    float(response.usage.completion_tokens),
+                    completion_tokens,
+                    kind="counter",
+                    mode=mode,
+                    org_id=org_id or "",
+                    model=model_name,
+                )
+                # Record token efficiency metric
+                if prompt_tokens > 0:
+                    efficiency_ratio = completion_tokens / prompt_tokens
+                    engine.metrics_recorder.record(
+                        "rag_control.llm.token_efficiency",
+                        efficiency_ratio,
+                        kind="histogram",
+                        mode=mode,
+                        org_id=org_id or "",
+                        model=model_name,
+                    )
+                # Record total tokens
+                total_tokens = prompt_tokens + completion_tokens
+                engine.metrics_recorder.record(
+                    "rag_control.llm.total_tokens",
+                    total_tokens,
                     kind="counter",
                     mode=mode,
                     org_id=org_id or "",
@@ -457,6 +535,36 @@ class RAGControl:
                 org_id=org_id or "",
                 status="error",
             )
+            # Record error categorization metrics
+            error_type = exc.__class__.__name__
+            engine.metrics_recorder.record(
+                "rag_control.errors_by_type",
+                1.0,
+                kind="counter",
+                mode=mode,
+                org_id=org_id or "",
+                error_type=error_type,
+            )
+            # Categorize error by source (governance, enforcement, etc.)
+            error_category = _categorize_error(error_type)
+            engine.metrics_recorder.record(
+                "rag_control.errors_by_category",
+                1.0,
+                kind="counter",
+                mode=mode,
+                org_id=org_id or "",
+                error_category=error_category,
+            )
+            # Record denied request metrics separately from system errors
+            if _is_denied_request(error_type):
+                engine.metrics_recorder.record(
+                    "rag_control.requests.denied",
+                    1.0,
+                    kind="counter",
+                    mode=mode,
+                    org_id=org_id or "",
+                    denial_reason=error_category,
+                )
 
             trace_span.event(
                 "error.request.failed",
@@ -580,3 +688,29 @@ class RAGControl:
             sdk_version=__version__,
             company_name=COMPANY_NAME,
         )
+
+
+def _categorize_error(error_type: str) -> str:
+    """Categorize error types for metrics tracking."""
+    if "Governance" in error_type:
+        return "governance"
+    if "Enforcement" in error_type:
+        return "enforcement"
+    if "Embedding" in error_type:
+        return "embedding"
+    if "VectorStore" in error_type or "Retrieval" in error_type:
+        return "retrieval"
+    if "LLM" in error_type:
+        return "llm"
+    if "Policy" in error_type:
+        return "policy"
+    return "other"
+
+
+def _is_denied_request(error_type: str) -> bool:
+    """Check if error represents a denied (rejected) request vs system error."""
+    # Denied requests are business rule rejections, not system failures
+    return any(
+        keyword in error_type
+        for keyword in {"Governance", "Enforcement", "Policy"}
+    )

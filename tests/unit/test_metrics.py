@@ -185,6 +185,28 @@ def test_otel_metrics_recorder_accepts_instrumentation_version() -> None:
     assert recorder._meter is not None
 
 
+def test_error_categorization_branches() -> None:
+    # Test all error categorization branches for full coverage
+    from rag_control.core.engine import _categorize_error, _is_denied_request
+
+    # Test all categorization branches
+    assert _categorize_error("GovernanceError") == "governance"
+    assert _categorize_error("EnforcementError") == "enforcement"
+    assert _categorize_error("EmbeddingError") == "embedding"
+    assert _categorize_error("VectorStoreError") == "retrieval"
+    assert _categorize_error("RetrievalError") == "retrieval"
+    assert _categorize_error("LLMError") == "llm"
+    assert _categorize_error("PolicyError") == "policy"
+    assert _categorize_error("RuntimeError") == "other"
+
+    # Test denied request categorization
+    assert _is_denied_request("GovernanceError") is True
+    assert _is_denied_request("EnforcementError") is True
+    assert _is_denied_request("PolicyError") is True
+    assert _is_denied_request("RuntimeError") is False
+    assert _is_denied_request("LLMError") is False
+
+
 def test_get_default_metrics_recorder_returns_otel_when_configured(monkeypatch: Any) -> None:
     monkeypatch.setattr(metrics_module, "_is_otel_metrics_configured", lambda: True)
 
@@ -214,3 +236,11 @@ def test_get_default_metrics_recorder_falls_back_on_otel_init_error(
 
     recorder = metrics_module.get_default_metrics_recorder()
     assert isinstance(recorder, metrics_module.StructlogMetricsRecorder)
+
+
+def test_is_otel_metrics_configured_checks_meter_provider() -> None:
+    # Test the actual _is_otel_metrics_configured function
+    result = metrics_module._is_otel_metrics_configured()
+    # Result depends on whether OTel SDK MeterProvider is configured
+    # We just verify it returns a boolean without error
+    assert isinstance(result, bool)
