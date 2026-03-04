@@ -55,6 +55,8 @@ class FakeLLM(LLM):
         self.prompts: list[Any] = []
         self.generate_temperatures: list[float | None] = []
         self.stream_temperatures: list[float | None] = []
+        self.generate_max_output_tokens: list[int | None] = []
+        self.stream_max_output_tokens: list[int | None] = []
         self.generate_user_contexts: list[UserContext | None] = []
         self.stream_user_contexts: list[UserContext | None] = []
         self.generate_calls = 0
@@ -101,6 +103,7 @@ class FakeLLM(LLM):
         self,
         prompt: Any,
         temperature: float | None = None,
+        max_output_tokens: int | None = None,
         user_context: UserContext | None = None,
     ) -> LLMResponse:
         if self._next_error is not None:
@@ -111,6 +114,7 @@ class FakeLLM(LLM):
         self._validate_prompt(prompt)
         self.prompts.append(prompt)
         self.generate_temperatures.append(temperature)
+        self.generate_max_output_tokens.append(max_output_tokens)
         self.generate_user_contexts.append(user_context)
         self.generate_calls += 1
 
@@ -123,6 +127,7 @@ class FakeLLM(LLM):
         self,
         prompt: Any,
         temperature: float | None = None,
+        max_output_tokens: int | None = None,
         user_context: UserContext | None = None,
     ) -> LLMStreamResponse:
         if self._next_error is not None:
@@ -133,6 +138,7 @@ class FakeLLM(LLM):
         self._validate_prompt(prompt)
         self.prompts.append(prompt)
         self.stream_temperatures.append(temperature)
+        self.stream_max_output_tokens.append(max_output_tokens)
         self.stream_user_contexts.append(user_context)
         self.stream_calls += 1
 

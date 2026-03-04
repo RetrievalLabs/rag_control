@@ -18,6 +18,7 @@ class LLM(ABC):
         self,
         prompt: PromptInput,
         temperature: float | None = None,
+        max_output_tokens: int | None = None,
         user_context: UserContext | None = None,
     ) -> LLMResponse:
         """
@@ -31,6 +32,7 @@ class LLM(ABC):
         self,
         prompt: PromptInput,
         temperature: float | None = None,
+        max_output_tokens: int | None = None,
         user_context: UserContext | None = None,
     ) -> LLMStreamResponse:
         """
