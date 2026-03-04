@@ -6,7 +6,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from opentelemetry.trace import SpanKind
 
@@ -143,7 +143,7 @@ def test_structlog_trace_span_tolerates_logger_emit_and_context_reset_failures()
         def info(self, event: str, **fields: Any) -> None:
             raise RuntimeError("logger failure")
 
-    span = tracing_module._StructlogTraceSpan(_BrokenLogger(), name="broken")
+    span = tracing_module._StructlogTraceSpan(cast(Any, _BrokenLogger()), name="broken")
     span.event("step")
 
     # Force reset failure branch; tracing must still remain safe.

@@ -5,7 +5,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -22,11 +22,11 @@ from rag_control.exceptions.governance import GovernanceOrgNotFoundError
 from rag_control.governance import gov as gov_module
 from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
-from rag_control.models.llm import LLMResponse, LLMStreamChunk, LLMStreamResponse, LLMUsage
+from rag_control.models.llm import LLMMetadata, LLMResponse, LLMStreamChunk, LLMStreamResponse, LLMUsage
 from rag_control.models.policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
 from rag_control.models.rule import Condition, LogicalCondition
 from rag_control.models.user_context import UserContext
-from rag_control.models.vector_store import VectorStoreRecord, VectorStoreSearchResponse
+from rag_control.models.vector_store import VectorStoreRecord
 from rag_control.observability import audit_logger as audit_logger_module
 from rag_control.observability import tracing as tracing_module
 from rag_control.policy.policy import PolicyRegistry
@@ -37,26 +37,44 @@ from tests.utils.fake_vector_store import FakeVectorStore
 
 
 class _LLMSuperCalls(LLM):
-    def generate(self, prompt: Any, temperature: float | None = None, user_context: Any = None) -> Any:
-        return super().generate(prompt, temperature=temperature, user_context=user_context)
+    def generate(
+        self,
+        prompt: Any,
+        temperature: float | None = None,
+        user_context: Any = None,
+    ) -> Any:
+        return super().generate(  # type: ignore[safe-super]
+            prompt,
+            temperature=temperature,
+            user_context=user_context,
+        )
 
-    def stream(self, prompt: Any, temperature: float | None = None, user_context: Any = None) -> Any:
-        return super().stream(prompt, temperature=temperature, user_context=user_context)
+    def stream(
+        self,
+        prompt: Any,
+        temperature: float | None = None,
+        user_context: Any = None,
+    ) -> Any:
+        return super().stream(  # type: ignore[safe-super]
+            prompt,
+            temperature=temperature,
+            user_context=user_context,
+        )
 
 
 class _QueryEmbeddingSuperCalls(QueryEmbedding):
     @property
     def embedding_model(self) -> str:
-        return super().embedding_model
+        return super().embedding_model  # type: ignore[safe-super]
 
     def embed(self, query: str, user_context: Any = None) -> Any:
-        return super().embed(query, user_context=user_context)
+        return super().embed(query, user_context=user_context)  # type: ignore[safe-super]
 
 
 class _VectorStoreSuperCalls(VectorStore):
     @property
     def embedding_model(self) -> str:
-        return super().embedding_model
+        return super().embedding_model  # type: ignore[safe-super]
 
     def search(
         self,
@@ -65,7 +83,12 @@ class _VectorStoreSuperCalls(VectorStore):
         user_context: Any = None,
         filter: Any = None,
     ) -> Any:
-        return super().search(embedding, top_k=top_k, user_context=user_context, filter=filter)
+        return super().search(  # type: ignore[safe-super]
+            embedding,
+            top_k=top_k,
+            user_context=user_context,
+            filter=filter,
+        )
 
 
 class _PromptBuilderSuperCalls(PromptBuilder):
@@ -75,7 +98,7 @@ class _PromptBuilderSuperCalls(PromptBuilder):
         retrieved_docs: list[VectorStoreRecord],
         policy: Policy | None,
     ) -> list[dict[str, str]]:
-        return super().build(query, retrieved_docs, policy)
+        return super().build(query, retrieved_docs, policy)  # type: ignore[safe-super]
 
 
 def _build_policy_registry_with_default_only() -> PolicyRegistry:
@@ -142,12 +165,12 @@ def test_policy_registry_missing_policy_branches_and_helpers() -> None:
     response = LLMResponse(
         content="answer",
         usage=LLMUsage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
-        metadata={"model": "x", "provider": "p", "latency_ms": 1.0},
+        metadata=LLMMetadata(model="x", provider="p", latency_ms=1.0),
     )
     stream_response = LLMStreamResponse(
         stream=iter([LLMStreamChunk(delta="chunk")]),
         usage=LLMUsage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
-        metadata={"model": "x", "provider": "p", "latency_ms": 1.0},
+        metadata=LLMMetadata(model="x", provider="p", latency_ms=1.0),
     )
 
     # policy-not-found branches
@@ -198,7 +221,12 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition(
-            Condition.model_construct(field="region", operator="intersects", value="eu", source="user"),
+            Condition.model_construct(
+                field="region",
+                operator="intersects",
+                value="eu",
+                source="user",
+            ),
             user_context,
         )
         is True
@@ -219,7 +247,12 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition(
-            Condition.model_construct(field="word", operator="intersects", value="eu", source="user"),
+            Condition.model_construct(
+                field="word",
+                operator="intersects",
+                value="eu",
+                source="user",
+            ),
             user_context,
         )
         is True
@@ -243,35 +276,60 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
 
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(field="metadata.score", operator="gt", value=None, source="documents"),
+            Condition.model_construct(
+                field="metadata.score",
+                operator="gt",
+                value=None,
+                source="documents",
+            ),
             doc,
         )
         is False
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(field="metadata.score", operator="lt", value=10, source="documents"),
+            Condition.model_construct(
+                field="metadata.score",
+                operator="lt",
+                value=10,
+                source="documents",
+            ),
             doc,
         )
         is True
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(field="metadata.score", operator="lte", value=9, source="documents"),
+            Condition.model_construct(
+                field="metadata.score",
+                operator="lte",
+                value=9,
+                source="documents",
+            ),
             doc,
         )
         is True
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(field="metadata.score", operator="gt", value=1, source="documents"),
+            Condition.model_construct(
+                field="metadata.score",
+                operator="gt",
+                value=1,
+                source="documents",
+            ),
             doc,
         )
         is True
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(field="metadata.score", operator="gte", value=9, source="documents"),
+            Condition.model_construct(
+                field="metadata.score",
+                operator="gte",
+                value=9,
+                source="documents",
+            ),
             doc,
         )
         is True
@@ -320,14 +378,24 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(field="metadata.score", operator="unknown", value=1, source="documents"),
+            Condition.model_construct(
+                field="metadata.score",
+                operator="unknown",
+                value=1,
+                source="documents",
+            ),
             doc,
         )
         is False
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(field="metadata.score", operator="mystery", value=5, source="documents"),
+            Condition.model_construct(
+                field="metadata.score",
+                operator="mystery",
+                value=5,
+                source="documents",
+            ),
             doc,
         )
         is True
@@ -341,7 +409,7 @@ def test_audit_and_tracing_remaining_uncovered_branches(monkeypatch: Any) -> Non
         def info(self, event: str, **fields: Any) -> None:
             return None
 
-    span = tracing_module._StructlogTraceSpan(_Logger(), name="s")
+    span = tracing_module._StructlogTraceSpan(cast(Any, _Logger()), name="s")
     span.finish(status="ok")
     span.finish(status="ok")  # already-finished branch
 
@@ -371,6 +439,11 @@ def test_audit_and_tracing_remaining_uncovered_branches(monkeypatch: Any) -> Non
         def end(self) -> None:
             return None
 
-    monkeypatch.setattr(tracing_module.otel_context, "detach", lambda _: (_ for _ in ()).throw(RuntimeError("detach fail")))
+    otel_context_module = getattr(tracing_module, "otel_context")
+    monkeypatch.setattr(
+        otel_context_module,
+        "detach",
+        lambda _: (_ for _ in ()).throw(RuntimeError("detach fail")),
+    )
     wrapped = tracing_module._OpenTelemetryTraceSpan(_Span(), detach_token=object())
     wrapped.finish(status="ok")

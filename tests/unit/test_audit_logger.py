@@ -92,7 +92,7 @@ def test_audit_logging_context_adds_common_fields_and_filters_events() -> None:
 def test_structlog_audit_logger_routes_level_methods(monkeypatch: Any) -> None:
     captured = _CapturedStructlogLogger()
     monkeypatch.setattr(audit_logger_module, "configure_structlog_json", lambda: None)
-    monkeypatch.setattr(audit_logger_module.structlog, "get_logger", lambda _: captured)
+    monkeypatch.setattr("structlog.get_logger", lambda _: captured)
 
     logger = audit_logger_module.StructlogAuditLogger("tests.audit")
     logger.log_event("ev.debug", level="debug", a=1)
@@ -117,13 +117,11 @@ def test_configure_structlog_json_is_idempotent(monkeypatch: Any) -> None:
     configure_calls: list[dict[str, Any]] = []
 
     monkeypatch.setattr(
-        audit_logger_module.logging,
-        "basicConfig",
+        "logging.basicConfig",
         lambda **kwargs: basic_config_calls.append(kwargs),
     )
     monkeypatch.setattr(
-        audit_logger_module.structlog,
-        "configure",
+        "structlog.configure",
         lambda **kwargs: configure_calls.append(kwargs),
     )
     monkeypatch.setattr(audit_logger_module, "_STRUCTLOG_CONFIGURED", False)

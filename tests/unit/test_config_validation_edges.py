@@ -5,6 +5,9 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 import pytest
 from pydantic import ValidationError
 
@@ -14,9 +17,11 @@ from rag_control.models.filter import Condition as FilterCondition
 from rag_control.models.filter import Filter
 
 
-def test_control_plane_config_validate_reference_error_branches(fake_config: ControlPlaneConfig) -> None:
+def test_control_plane_config_validate_reference_error_branches(
+    fake_config: ControlPlaneConfig,
+) -> None:
     base = fake_config.model_dump()
-    cases = [
+    cases: list[tuple[str, Callable[[dict[str, Any]], None], str]] = [
         (
             "duplicate_policy_names",
             lambda payload: payload["policies"].append(payload["policies"][0].copy()),
@@ -78,7 +83,9 @@ def test_control_plane_config_validate_reference_error_branches(fake_config: Con
         ),
         (
             "apply_policy_missing",
-            lambda payload: payload["orgs"][0]["policy_rules"][0].update({"apply_policy": "missing"}),
+            lambda payload: payload["orgs"][0]["policy_rules"][0].update(
+                {"apply_policy": "missing"}
+            ),
             "apply_policy 'missing' does not exist",
         ),
     ]
@@ -105,23 +112,27 @@ def test_validate_filter_branches_and_filter_condition_branches() -> None:
     )
 
     with pytest.raises(ControlPlaneConfigValidationError, match="must not be empty"):
-        ControlPlaneConfig._validate_filter("f", Filter(name="f", and_=[]))
+        ControlPlaneConfig._validate_filter("f", Filter.model_validate({"name": "f", "and": []}))
 
     with pytest.raises(ControlPlaneConfigValidationError, match="must not be empty"):
-        ControlPlaneConfig._validate_filter("f", Filter(name="f", or_=[]))
+        ControlPlaneConfig._validate_filter("f", Filter.model_validate({"name": "f", "or": []}))
 
     ControlPlaneConfig._validate_filter(
         "f",
-        Filter(
-            name="f",
-            and_=[Filter(name="c1", condition=valid_condition)],
+        Filter.model_validate(
+            {
+                "name": "f",
+                "and": [{"name": "c1", "condition": valid_condition.model_dump()}],
+            }
         ),
     )
     ControlPlaneConfig._validate_filter(
         "f",
-        Filter(
-            name="f",
-            or_=[Filter(name="c2", condition=valid_condition)],
+        Filter.model_validate(
+            {
+                "name": "f",
+                "or": [{"name": "c2", "condition": valid_condition.model_dump()}],
+            }
         ),
     )
 
@@ -131,7 +142,10 @@ def test_validate_filter_branches_and_filter_condition_branches() -> None:
         FilterCondition(field="x", operator="exists", source="user"),
     )
 
-    with pytest.raises(ControlPlaneConfigValidationError, match="must not be empty for 'in' operator"):
+    with pytest.raises(
+        ControlPlaneConfigValidationError,
+        match="must not be empty for 'in' operator",
+    ):
         ControlPlaneConfig._validate_filter_condition(
             "f",
             "root",
@@ -143,7 +157,10 @@ def test_validate_filter_branches_and_filter_condition_branches() -> None:
         FilterCondition(field="x", operator="in", value=["a"], source="user"),
     )
 
-    with pytest.raises(ControlPlaneConfigValidationError, match="value is required for 'equals' operator"):
+    with pytest.raises(
+        ControlPlaneConfigValidationError,
+        match="value is required for 'equals' operator",
+    ):
         ControlPlaneConfig._validate_filter_condition(
             "f",
             "root",
@@ -165,7 +182,10 @@ def test_validate_filter_branches_and_filter_condition_branches() -> None:
         FilterCondition(field="x", operator="gte", value=2, source="user"),
     )
 
-    with pytest.raises(ControlPlaneConfigValidationError, match="value is required for 'intersects' operator"):
+    with pytest.raises(
+        ControlPlaneConfigValidationError,
+        match="value is required for 'intersects' operator",
+    ):
         ControlPlaneConfig._validate_filter_condition(
             "f",
             "root",
