@@ -12,6 +12,14 @@ from .audit_logger import (
     StructlogAuditLogger,
     should_emit_audit_event,
 )
+from .metrics import (
+    MetricKind,
+    MetricsRecorder,
+    NoOpMetricsRecorder,
+    OpenTelemetryMetricsRecorder,
+    StructlogMetricsRecorder,
+    get_default_metrics_recorder,
+)
 from .tracing import (
     NoOpTracer,
     OpenTelemetryTracer,
@@ -30,6 +38,12 @@ __all__ = [
     "NoOpAuditLogger",
     "StructlogAuditLogger",
     "should_emit_audit_event",
+    "MetricKind",
+    "MetricsRecorder",
+    "NoOpMetricsRecorder",
+    "StructlogMetricsRecorder",
+    "OpenTelemetryMetricsRecorder",
+    "get_default_metrics_recorder",
     "TraceStatus",
     "TraceSpan",
     "Tracer",
