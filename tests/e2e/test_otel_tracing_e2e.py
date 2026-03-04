@@ -8,8 +8,10 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from opentelemetry.trace import StatusCode
 
 from rag_control.core.engine import RAGControl
+from rag_control.exceptions import GovernanceUserContextOrgIDRequiredError
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import VectorStoreRecord
@@ -130,3 +132,68 @@ def test_rag_control_default_tracer_uses_root_span_when_no_parent_exists(
     assert llm_span.attributes["gen_ai.usage.input_tokens"] == 12
     assert llm_span.attributes["gen_ai.usage.output_tokens"] == 4
     assert llm_span.attributes["gen_ai.usage.total_tokens"] == 16
+
+
+def test_rag_control_stream_records_internal_stage_span_kind_and_latency(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    _, _, exporter = _configure_otel_provider()
+    exporter.clear()
+
+    engine = _build_engine(fake_config)
+    user_context = UserContext(
+        user_id="u-otel-stream-1",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+
+    stream_response = engine.stream("what is policy status?", user_context=user_context)
+
+    spans = exporter.get_finished_spans()
+    request_span = next(span for span in spans if span.name == "rag_control.request.stream")
+    assert stream_response.trace_id == f"{request_span.context.trace_id:032x}"
+    assert stream_response.enforcement_attached is True
+    assert request_span.attributes["span.kind"] == "internal"
+
+    for stage in (
+        "org_lookup",
+        "embedding",
+        "retrieval",
+        "policy.resolve",
+        "prompt.build",
+        "llm.stream",
+        "enforcement",
+    ):
+        stage_span = next(
+            span for span in spans if span.name == f"rag_control.request.stream.stage.{stage}"
+        )
+        assert stage_span.parent is not None
+        assert stage_span.parent.span_id == request_span.context.span_id
+        assert stage_span.attributes["span.kind"] == "internal"
+        assert isinstance(stage_span.attributes["stage_latency_ms"], float)
+        assert stage_span.attributes["stage_latency_ms"] >= 0
+
+
+def test_rag_control_default_tracer_sets_error_semantic_attributes(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    _, _, exporter = _configure_otel_provider()
+    exporter.clear()
+
+    engine = _build_engine(fake_config)
+    invalid_user_context = UserContext.model_construct(
+        user_id="u-otel-error-1",
+        org_id=None,
+        attributes={},
+    )
+
+    with pytest.raises(GovernanceUserContextOrgIDRequiredError):
+        engine.run("policy question", user_context=invalid_user_context)
+
+    spans = exporter.get_finished_spans()
+    request_span = next(span for span in spans if span.name == "rag_control.request.run")
+    assert request_span.status.status_code == StatusCode.ERROR
+    for key in ("exception.type", "error.type"):
+        assert request_span.attributes[key] == "GovernanceUserContextOrgIDRequiredError"
+    for key in ("exception.message", "error.message"):
+        assert "org_id" in request_span.attributes[key]

@@ -157,19 +157,25 @@ def test_rag_control_run_emits_trace_lifecycle_events(
 
     span_names = [span["span_name"] for span in tracer.started_spans]
     assert span_names[0] == "rag_control.request.run"
-    assert "rag_control.request.run.stage.org_lookup" in span_names
-    assert "rag_control.request.run.stage.embedding" in span_names
-    assert "rag_control.request.run.stage.retrieval" in span_names
-    assert "rag_control.request.run.stage.policy.resolve" in span_names
-    assert "rag_control.request.run.stage.prompt.build" in span_names
-    assert "rag_control.request.run.stage.llm.generate" in span_names
-    assert "rag_control.request.run.stage.enforcement" in span_names
+    for stage in (
+        "org_lookup",
+        "embedding",
+        "retrieval",
+        "policy.resolve",
+        "prompt.build",
+        "llm.generate",
+        "enforcement",
+    ):
+        assert f"rag_control.request.run.stage.{stage}" in span_names
 
     event_names = [event["event"] for event in tracer.events]
-    assert "transition.request.received" in event_names
-    assert "transition.org_lookup.started" in event_names
-    assert "transition.org_lookup.completed" in event_names
-    assert "transition.request.completed" in event_names
+    for event in (
+        "transition.request.received",
+        "transition.org_lookup.started",
+        "transition.org_lookup.completed",
+        "transition.request.completed",
+    ):
+        assert event in event_names
 
     root_finished = next(
         span
@@ -179,6 +185,125 @@ def test_rag_control_run_emits_trace_lifecycle_events(
     assert root_finished["status"] == "ok"
     assert root_finished["trace_id"] == run_response.trace_id
     assert root_finished["policy_name"] == "default_policy"
+
+
+def test_rag_control_stream_stage_spans_have_parent_kind_and_latency(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    tracer = _CapturedTracer()
+
+    query_embedding.enqueue_response(
+        embedding=[0.11, 0.22, 0.33],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-trace-stream-001",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-trace-stream-001",
+                content="Policy status is approved.",
+                score=0.97,
+                metadata={"source": "policy-kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-trace-stream-001",
+    )
+    llm.enqueue_response(
+        content="approved answer [DOC 1]",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-trace-stream-001",
+        prompt_tokens=12,
+    )
+
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+        tracer=tracer,
+    )
+    user_context = UserContext(
+        user_id="u-trace-stream-1",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+
+    stream_response = engine.stream("what is policy status?", user_context=user_context)
+    root_span_id = tracer.started_spans[0]["span_id"]
+
+    span_started_events = [event for event in tracer.events if event["event"] == "span.started"]
+    root_started = next(event for event in span_started_events if event["span_id"] == root_span_id)
+    assert root_started["span_kind"] == "internal"
+
+    for started_span in tracer.started_spans[1:]:
+        assert started_span["parent_span_id"] == root_span_id
+        started_event = next(
+            event for event in span_started_events if event["span_id"] == started_span["span_id"]
+        )
+        assert started_event["span_kind"] == "internal"
+        finished_span = next(
+            span for span in tracer.finished_spans if span["span_id"] == started_span["span_id"]
+        )
+        assert finished_span["status"] == "ok"
+        assert isinstance(finished_span["stage_latency_ms"], float)
+        assert finished_span["stage_latency_ms"] >= 0
+
+    assert stream_response.enforcement_attached is True
+
+
+def test_rag_control_run_marks_failing_stage_with_error_and_latency(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    tracer = _CapturedTracer()
+    query_embedding.fail_next(RuntimeError("embed failed"))
+
+    engine = RAGControl(
+        llm=FakeLLM(),
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+        tracer=tracer,
+    )
+    user_context = UserContext(
+        user_id="u-trace-error-1",
+        org_id="test_org",
+        attributes={"org_tier": "enterprise"},
+    )
+
+    with pytest.raises(RuntimeError, match="embed failed"):
+        engine.run("policy question", user_context=user_context)
+
+    embedding_span_start = next(
+        span for span in tracer.started_spans if span["span_name"] == "rag_control.request.run.stage.embedding"
+    )
+    embedding_span_finish = next(
+        span for span in tracer.finished_spans if span["span_id"] == embedding_span_start["span_id"]
+    )
+    assert embedding_span_finish["status"] == "error"
+    assert embedding_span_finish["error_type"] == "RuntimeError"
+    assert embedding_span_finish["error_message"] == "embed failed"
+    assert isinstance(embedding_span_finish["stage_latency_ms"], float)
+    assert embedding_span_finish["stage_latency_ms"] >= 0
+
+    root_finished = next(
+        span
+        for span in tracer.finished_spans
+        if span["span_id"] == tracer.started_spans[0]["span_id"]
+    )
+    assert root_finished["status"] == "error"
+    assert root_finished["error_type"] == "RuntimeError"
 
 
 def test_rag_control_run_finishes_error_trace_when_org_id_missing(
