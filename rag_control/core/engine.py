@@ -369,6 +369,7 @@ class RAGControl:
                 "retrieved_doc_ids": retrieved_doc_ids,
                 "llm_model": response.metadata.model if response.metadata is not None else None,
                 "llm_temperature": llm_temperature,
+                "llm_max_output_tokens": llm_max_output_tokens,
                 "prompt_tokens": (
                     response.usage.prompt_tokens if response.usage is not None else None
                 ),

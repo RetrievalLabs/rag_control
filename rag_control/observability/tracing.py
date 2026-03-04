@@ -28,6 +28,7 @@ _OTEL_SEMCONV_ALIASES: dict[str, str] = {
     # GenAI semantic conventions.
     "llm_model": "gen_ai.request.model",
     "llm_temperature": "gen_ai.request.temperature",
+    "llm_max_output_tokens": "gen_ai.request.max_completion_tokens",
     "prompt_tokens": "gen_ai.usage.input_tokens",
     "completion_tokens": "gen_ai.usage.output_tokens",
     "total_tokens": "gen_ai.usage.total_tokens",
