@@ -15,6 +15,8 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      COVERAGE_THRESHOLD: "90.00"
 
     steps:
       - name: Checkout repository
@@ -59,8 +61,27 @@ jobs:
             echo "## Coverage Report"
             echo ""
             echo "- Line coverage: **${{ steps.coverage.outputs.percent }}%**"
+            echo "- Required minimum: **${{ env.COVERAGE_THRESHOLD }}%**"
             echo "- Artifacts: \`coverage.xml\`, \`htmlcov/\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce minimum coverage
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          coverage = float("${{ steps.coverage.outputs.percent }}")
+          threshold = float(os.environ["COVERAGE_THRESHOLD"])
+
+          if coverage < threshold:
+              print(
+                  f"Coverage gate failed: {coverage:.2f}% is below required {threshold:.2f}%."
+              )
+              sys.exit(1)
+
+          print(f"Coverage gate passed: {coverage:.2f}% >= {threshold:.2f}%.")
+          PY
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
