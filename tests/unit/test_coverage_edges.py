@@ -47,11 +47,13 @@ class _LLMSuperCalls(LLM):
         self,
         prompt: Any,
         temperature: float | None = None,
+        max_output_tokens: int | None = None,
         user_context: Any = None,
     ) -> Any:
         return super().generate(  # type: ignore[safe-super]
             prompt,
             temperature=temperature,
+            max_output_tokens=max_output_tokens,
             user_context=user_context,
         )
 
@@ -59,11 +61,13 @@ class _LLMSuperCalls(LLM):
         self,
         prompt: Any,
         temperature: float | None = None,
+        max_output_tokens: int | None = None,
         user_context: Any = None,
     ) -> Any:
         return super().stream(  # type: ignore[safe-super]
             prompt,
             temperature=temperature,
+            max_output_tokens=max_output_tokens,
             user_context=user_context,
         )
 

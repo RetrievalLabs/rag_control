@@ -407,7 +407,7 @@ def test_rag_control_run_emits_max_output_tokens_in_audit_event(
         attributes={"org_tier": "enterprise"},
     )
 
-    run_response = engine.run("max tokens test", user_context=user_context)
+    engine.run("max tokens test", user_context=user_context)
 
     completed_event = audit_logger.events[-1]
     assert completed_event["event"] == "request.completed"
