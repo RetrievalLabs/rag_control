@@ -1,0 +1,28 @@
+# Build output
+/build
+/dist
+/.docusaurus
+/node_modules
+
+# Dependencies
+yarn.lock
+package-lock.json
+
+# Development
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode
+.idea
+*.iml
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
