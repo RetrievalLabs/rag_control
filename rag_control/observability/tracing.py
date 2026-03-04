@@ -6,15 +6,15 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from __future__ import annotations
 
 import time
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from typing import Any, Literal, Protocol
 from uuid import uuid4
 
+import structlog
 from opentelemetry import context as otel_context
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider as SDKTracerProvider
 from opentelemetry.trace import SpanKind, Status, StatusCode
-import structlog
 
 from .audit_logger import configure_structlog_json
 
@@ -102,7 +102,7 @@ class _StructlogTraceSpan:
         self.span_id = span_id if span_id is not None else str(uuid4())
         self._start_time = time.perf_counter()
         self._finished = False
-        self._context_token: object | None = None
+        self._context_token: Token[tuple[str, str] | None] | None = None
         self._emit("span.started", span_name=name, **fields)
 
     def event(self, event: str, **fields: Any) -> None:
@@ -182,7 +182,7 @@ class _OpenTelemetryTraceSpan:
         self,
         span: Any,
         *,
-        detach_token: object,
+        detach_token: Any,
     ) -> None:
         self._span = span
         self._detach_token = detach_token

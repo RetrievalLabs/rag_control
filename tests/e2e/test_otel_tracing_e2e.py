@@ -5,6 +5,8 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from rag_control.core.engine import RAGControl
@@ -16,7 +18,7 @@ from tests.utils.fake_query_embedding import FakeQueryEmbedding
 from tests.utils.fake_vector_store import FakeVectorStore
 
 
-def _configure_otel_provider():
+def _configure_otel_provider() -> tuple[Any, Any, Any]:
     trace = pytest.importorskip("opentelemetry.trace")
     sdk_trace = pytest.importorskip("opentelemetry.sdk.trace")
     sdk_export = pytest.importorskip("opentelemetry.sdk.trace.export")
@@ -122,9 +124,7 @@ def test_rag_control_default_tracer_uses_root_span_when_no_parent_exists(
     assert request_span.attributes["enduser.id"] == "u-otel-2"
 
     llm_span = next(
-        span
-        for span in spans
-        if span.name == "rag_control.request.run.stage.llm.generate"
+        span for span in spans if span.name == "rag_control.request.run.stage.llm.generate"
     )
     assert llm_span.attributes["gen_ai.request.model"] == "fake-gpt"
     assert llm_span.attributes["gen_ai.usage.input_tokens"] == 12

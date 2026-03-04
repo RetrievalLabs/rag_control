@@ -3,8 +3,8 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
-from pathlib import Path
 import time
+from pathlib import Path
 from typing import Any, Callable, Literal, TypeVar, cast
 from uuid import uuid4
 
@@ -283,11 +283,15 @@ class RAGControl:
                 _invoke_llm,
                 success_fields=lambda llm_res: {
                     "llm_model": llm_res.metadata.model if llm_res.metadata is not None else None,
-                    "prompt_tokens": llm_res.usage.prompt_tokens if llm_res.usage is not None else None,
+                    "prompt_tokens": (
+                        llm_res.usage.prompt_tokens if llm_res.usage is not None else None
+                    ),
                     "completion_tokens": (
                         llm_res.usage.completion_tokens if llm_res.usage is not None else None
                     ),
-                    "total_tokens": llm_res.usage.total_tokens if llm_res.usage is not None else None,
+                    "total_tokens": (
+                        llm_res.usage.total_tokens if llm_res.usage is not None else None
+                    ),
                 },
                 temperature=llm_temperature,
             )
