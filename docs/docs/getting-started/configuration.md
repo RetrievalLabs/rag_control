@@ -43,13 +43,13 @@ policies:
       allow_external_knowledge: false
       require_citations: true
       temperature: 0.0          # 0.0 to 2.0
-      max_output_tokens: 512
 
     enforcement:
       # Runtime enforcement checks
       validate_citations: true
       block_on_missing_citations: true
       prevent_external_knowledge: true
+      max_output_tokens: 512
 
     logging:
       # Audit logging level
@@ -179,11 +179,11 @@ policies:
       allow_external_knowledge: true
       require_citations: false
       temperature: 0.7
-      max_output_tokens: 2048
     enforcement:
       validate_citations: false
       block_on_missing_citations: false
       prevent_external_knowledge: false
+      max_output_tokens: 2048
 
 orgs:
   - org_id: dev
