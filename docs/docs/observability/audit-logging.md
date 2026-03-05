@@ -254,8 +254,8 @@ logging:
 
 Events logged:
 - request.received
+- org.resolved
 - request.completed
-- policy.resolved
 - request.denied
 - error.occurred
 

@@ -91,7 +91,7 @@ Logging Policy Levels
     - `org.resolved`
     - `request.completed`
     - `request.denied`
-    - `request.failed`
+    - `error.occurred`
   - MUST suppress:
     - `retrieval.completed`
     - `policy.resolved`
