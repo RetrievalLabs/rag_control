@@ -5,17 +5,7 @@ description: Understanding the fundamental concepts of rag_control
 
 # Core Concepts Overview
 
-rag_control is built around several core concepts that work together to provide governance and security for RAG systems.
-
-## The Problem
-
-RAG systems combine retrieval and generation in powerful ways, but introduce new risks:
-
-- **Hallucinations**: LLMs may fabricate information not grounded in documents
-- **Data Leakage**: Sensitive information could be retrieved or exposed
-- **Compliance**: Regulations require audit trails and enforcement
-- **Cost**: Token usage can spiral without controls
-- **Quality**: Responses may not cite sources or match required standards
+rag_control is built around several core concepts that work together to provide governance, security and observability for RAG systems.
 
 ## rag_control's Solution
 
@@ -101,20 +91,6 @@ rag_control provides comprehensive observability:
 6. **LLM Generation**: Generate response with policy constraints
 7. **Enforcement**: Validate response against policy
 8. **Audit**: Log request and decision
-
-## Key Features
-
-### 🛡️ Policy Enforcement
-Multiple policies with different strictness levels for different use cases.
-
-### 🔐 Governance & Security
-Organization-level rules applied consistently across requests.
-
-### 📊 Observability
-Complete visibility into what's happening and why.
-
-### 🚀 Production Ready
-Exception-swallowing pattern prevents governance failures from breaking request flow.
 
 ## Learning Path
 

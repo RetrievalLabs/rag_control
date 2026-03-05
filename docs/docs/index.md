@@ -14,13 +14,7 @@ You are viewing **v0.1.0** documentation. This is the current stable release.
 
 ## What is rag_control?
 
-RAG systems are powerful but can be risky in production:
-- **Hallucinations**: LLMs may generate content not grounded in retrieved documents
-- **Data Leakage**: Sensitive information might be retrieved or exposed
-- **Compliance**: Regulations require audit trails and enforcement controls
-- **Cost**: Token usage and retrieval operations need optimization
-
-rag_control addresses these challenges with:
+RAG systems combine powerful retrieval and generation capabilities but introduce governance, security, and compliance challenges. rag_control addresses these with:
 
 - **Policy-Based Generation**: Define and enforce generation policies (temperature, output length, citation requirements, external knowledge restrictions)
 - **Runtime Enforcement**: Validate responses against policies before returning them to users
