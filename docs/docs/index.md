@@ -8,9 +8,9 @@ description: Runtime Governance, Security, and Execution Control for RAG Systems
 You are viewing **v0.1.0** documentation. This is the current stable release.
 :::
 
-# Welcome to rag_control
+# Welcome to RAG Control 
 
-**rag_control** is an enterprise-grade governance, security, and execution control layer for Retrieval-Augmented Generation (RAG) systems.
+**rag_control** is an enterprise-grade governance, security, execution control, and observability layer for Retrieval-Augmented Generation (RAG) systems.
 
 ## What is rag_control?
 
