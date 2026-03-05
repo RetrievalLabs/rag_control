@@ -53,8 +53,9 @@ const sidebars = {
       label: 'API Reference',
       items: [
         'api/engine',
-        'api/policies',
-        'api/governance',
+        'api/policy-gov-config',
+        'api/exceptions',
+        'api/models',
         'api/adapters',
       ],
     },

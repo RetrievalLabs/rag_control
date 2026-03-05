@@ -23,7 +23,11 @@ const config = {
   projectName: 'rag_control',
 
   onBrokenLinks: 'warn',
-  onBrokenMarkdownLinks: 'warn',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
+  },
 
   // Favicon - same as logo
   favicon: 'img/favicon.svg',

@@ -96,6 +96,61 @@ make format
 
 This runs both `ruff format` and `black` to ensure consistent formatting.
 
+## Documentation
+
+The project maintains comprehensive documentation for users and contributors.
+
+### Documentation Structure
+
+```
+docs/
+├── index.md               # Main documentation entry point
+├── guides/                # User guides and tutorials
+│   ├── quickstart.md
+│   ├── policy-definition.md
+│   └── ...
+├── api/                   # API reference documentation
+│   ├── core.md           # Core engine API
+│   ├── adapters.md       # Adapter interfaces
+│   ├── models.md         # Data models
+│   ├── governance.md     # Governance and policy APIs
+│   ├── exceptions.md     # Exception types
+│   └── ...
+├── concepts/             # Conceptual documentation
+│   ├── architecture.md
+│   ├── execution-flow.md
+│   └── ...
+└── README.md            # Documentation overview
+```
+
+### Building Documentation
+
+Documentation is built using standard markdown. To view locally:
+
+```bash
+# Serve documentation locally (requires a doc server like mdbook or similar)
+# Check project's doc tools configuration for specific build commands
+```
+
+### Documentation Standards
+
+When contributing, ensure:
+
+1. **API Documentation**: All public modules, classes, and functions have docstrings
+2. **Examples**: Include usage examples for new features in appropriate guide
+3. **Updates**: When code changes affect user-facing behavior, update relevant docs
+4. **Clarity**: Write for both new users and experienced developers
+5. **Format**: Use markdown with clear headers and code blocks
+
+### Contributing Documentation
+
+1. **API Changes**: Update relevant files in `docs/api/`
+2. **New Features**: Add guide in `docs/guides/` if user-facing
+3. **Concepts**: Update `docs/concepts/` if architectural changes
+4. **Examples**: Include code examples in docstrings and guides
+
+Documentation PRs follow the same branch strategy as code (based on `main`).
+
 ## Project Structure
 
 ```
