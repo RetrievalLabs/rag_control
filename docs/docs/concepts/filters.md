@@ -17,31 +17,6 @@ A filter is a rule that determines whether a document should be included in retr
 
 Filters operate **after vector search** to narrow down results to only those the user is authorized to access. This protects sensitive data while maintaining semantic relevance.
 
-## Core Concepts
-
-### Filter vs. Governance vs. Policy
-
-These systems work together but at different levels:
-
-| System | Level | Purpose | Example |
-|--------|-------|---------|---------|
-| **Filter** | Retrieval | What documents can be retrieved | "Only internal documents" |
-| **Governance** | Organization | Who can access what | "Enterprise users get strict policy" |
-| **Policy** | Generation | How LLM generates responses | "Require citations" |
-
-**Example flow:**
-```
-Request arrives
-  ↓
-Governance evaluates: Is this user allowed? → Selects policy
-  ↓
-Filters applied: Which documents can this user see? → Narrows results
-  ↓
-Policy enforced: How should LLM generate? → Constrains generation
-  ↓
-Response returned
-```
-
 ## Filter Structure
 
 A complete filter includes:
