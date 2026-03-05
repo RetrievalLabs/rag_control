@@ -5,133 +5,66 @@ description: Adapter interfaces and implementation guide
 
 # Adapters API Reference
 
-Adapters are pluggable interfaces for integrating rag_control with external services.
+Adapters are pluggable interfaces for integrating rag_control with external services. Import from `rag_control.adapters`.
 
-## LLM Adapter
+## LLM
 
-```python
-from rag_control.core.adapters.llm import LLMAdapter
-from rag_control.models.response import GeneratedResponse
+Handles text generation from prompts. Types: `ChatMessage = dict[str, str]`, `PromptInput = str | list[ChatMessage]`
 
-class LLMAdapter:
-    def generate(
-        self,
-        prompt: str,
-        temperature: float,
-        max_tokens: int,
-    ) -> GeneratedResponse:
-        """
-        Generate a response from a prompt.
+**Methods:**
+- `generate(prompt: PromptInput, temperature: float | None = None, max_output_tokens: int | None = None, user_context: UserContext | None = None) -> LLMResponse`
+- `stream(prompt: PromptInput, temperature: float | None = None, max_output_tokens: int | None = None, user_context: UserContext | None = None) -> LLMStreamResponse`
 
-        Args:
-            prompt: The formatted prompt
-            temperature: Generation temperature (0.0-2.0)
-            max_tokens: Maximum output tokens
+## QueryEmbedding
 
-        Returns:
-            GeneratedResponse with content and token counts
-        """
+Converts query text to embedding vectors.
 
-    def stream(
-        self,
-        prompt: str,
-        temperature: float,
-        max_tokens: int,
-    ) -> Generator[GeneratedResponse, None, None]:
-        """
-        Stream a response from a prompt.
+**Properties:**
+- `embedding_model: str` - Canonical embedding model identifier
 
-        Args:
-            prompt: The formatted prompt
-            temperature: Generation temperature (0.0-2.0)
-            max_tokens: Maximum output tokens
+**Methods:**
+- `embed(query: str, user_context: UserContext | None = None) -> QueryEmbeddingResponse`
 
-        Yields:
-            GeneratedResponse chunks as they arrive
-        """
-```
+## VectorStore
 
-## Query Embedding Adapter
+Searches for documents similar to a query embedding.
 
-```python
-from rag_control.core.adapters.query_embedding import QueryEmbeddingAdapter
+**Properties:**
+- `embedding_model: str` - Canonical embedding model identifier expected by this index
 
-class QueryEmbeddingAdapter:
-    def embed(self, query: str) -> list[float]:
-        """
-        Convert query to embedding vector.
-
-        Args:
-            query: The query text
-
-        Returns:
-            List of floats representing the embedding vector
-        """
-```
-
-## Vector Store Adapter
-
-```python
-from rag_control.core.adapters.vector_store import VectorStoreAdapter
-from rag_control.models.document import RetrievedDocument
-
-class VectorStoreAdapter:
-    def search(
-        self,
-        embedding: list[float],
-        top_k: int,
-        org_id: str | None = None,
-    ) -> list[RetrievedDocument]:
-        """
-        Search for documents similar to embedding.
-
-        Args:
-            embedding: Query embedding vector
-            top_k: Number of documents to retrieve
-            org_id: Optional organization ID for filtering
-
-        Returns:
-            List of retrieved documents with scores
-        """
-```
+**Methods:**
+- `search(embedding: list[float], top_k: int = 5, user_context: UserContext | None = None, filter: Filter | None = None) -> VectorStoreSearchResponse`
 
 ## Return Types
 
-### GeneratedResponse
+### LLMResponse
 
-```python
-@dataclass
-class GeneratedResponse:
-    content: str            # Generated text
-    token_count: int        # Total tokens used
-    stop_reason: str        # Why generation stopped (e.g., "end_turn", "max_tokens")
-```
+- `content: str` - Generated text
+- `usage: LLMUsage` - Token counts (prompt_tokens, completion_tokens, total_tokens)
+- `metadata: LLMMetadata` - Model, provider, latency_ms, request_id, timestamp, temperature, top_p, raw
 
-### RetrievedDocument
+### LLMStreamResponse
 
-```python
-@dataclass
-class RetrievedDocument:
-    id: str                 # Document ID
-    content: str            # Document content
-    metadata: dict          # Document metadata
-    score: float            # Relevance score (0.0-1.0)
-```
+- `stream: Iterator[LLMStreamChunk]` - Stream of chunks (delta: str)
+- `usage: LLMUsage | None` - Token counts
+- `metadata: LLMMetadata | None` - Metadata
+
+### QueryEmbeddingResponse
+
+- `embedding: list[float]` - Embedding vector
+- `metadata: QueryEmbeddingMetadata` - Model, provider, latency_ms, dimensions, request_id, timestamp, raw
+
+### VectorStoreSearchResponse
+
+- `records: list[VectorStoreRecord]` - Retrieved documents (id, content, score, metadata)
+- `metadata: VectorStoreSearchMetadata` - Provider, index, latency_ms, top_k, returned, request_id, timestamp, raw
 
 ## Implementation Examples
 
 See [Adapters Concept Guide](/concepts/adapters) for detailed implementation examples with OpenAI, Anthropic, Pinecone, and other services.
 
-## Best Practices
-
-1. **Error Handling**: Implement proper error handling and logging
-2. **Timeout Management**: Set reasonable timeouts for external calls
-3. **Caching**: Cache expensive operations when possible
-4. **Testing**: Create mock adapters for testing
-5. **Type Safety**: Use type hints for clarity
-
 ## See Also
 
 - [Adapters Concept Guide](/concepts/adapters)
-- [Quick Start](/getting-started/quick-start)
+- [Exceptions API](/api/exceptions)
 - [Engine API](/api/engine)
