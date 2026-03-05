@@ -45,6 +45,8 @@ class OpenAIAdapter(LLM):
         self.model = model
         openai.api_key = api_key
 
+    # Required abstract method implementation
+    # Generates text completion from a given prompt (non-streaming)
     def generate(
         self,
         prompt: PromptInput,
@@ -75,6 +77,8 @@ class OpenAIAdapter(LLM):
             )
         )
 
+    # Required abstract method implementation
+    # Generates text completion in streaming mode for real-time content delivery
     def stream(
         self,
         prompt: PromptInput,
@@ -131,11 +135,15 @@ class OpenAIEmbeddingAdapter(QueryEmbedding):
         self._embedding_model = model
         openai.api_key = api_key
 
+    # Required abstract property implementation
+    # Returns the identifier of the embedding model being used
     @property
     def embedding_model(self) -> str:
         """Return the embedding model identifier."""
         return self._embedding_model
 
+    # Required abstract method implementation
+    # Converts a query string into a vector embedding for similarity search
     def embed(
         self,
         query: str,
@@ -175,11 +183,15 @@ class PineconeAdapter(VectorStore):
         self.index = pinecone.Index(index_name)
         self._embedding_model = embedding_model
 
+    # Required abstract property implementation
+    # Returns the identifier of the embedding model being used
     @property
     def embedding_model(self) -> str:
         """Return the embedding model identifier."""
         return self._embedding_model
 
+    # Required abstract method implementation
+    # Searches for documents matching the query embedding and returns top results
     def search(
         self,
         embedding: list[float],
