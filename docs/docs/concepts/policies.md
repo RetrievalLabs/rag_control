@@ -442,23 +442,173 @@ Return response or denial
 
 This allows fine-grained control: different policies for different users, organizations, or situations without duplicating policy definitions.
 
-## Policy Validation
+## Enforcement Violations & Exceptions
 
-Policies are validated when the engine starts:
+When policy enforcement checks fail, rag_control raises specific exceptions to indicate what constraint was violated.
+
+### Common Enforcement Exceptions
+
+| Exception | When Raised | Cause | Fallback Behavior |
+|-----------|-------------|-------|-------------------|
+| `CitationValidationError` | `validate_citations: true` fails | Citations don't match retrieved documents | Depends on `fallback` |
+| `MissingCitationsError` | `block_on_missing_citations: true` fails | Required claims lack citations | Denied (or relaxed if soft fallback) |
+| `ExternalKnowledgeError` | `prevent_external_knowledge: true` fails | Response contains knowledge not in documents | Denied (or relaxed if soft fallback) |
+| `MaxTokensExceededError` | Response exceeds `max_output_tokens` | LLM generated too many tokens | Truncated or denied |
+| `PolicyDenialError` | Policy rule has `effect: deny` | Governance rule explicitly denies request | Request blocked immediately |
+| `EnforcementError` | Generic enforcement failure | Any other constraint violation | Depends on `fallback` |
+
+### Violation Examples
+
+#### Citation Validation Violation
 
 ```python
-from rag_control.core.engine import RAGControl
+# Policy requires citations
+generation:
+  require_citations: true
+enforcement:
+  validate_citations: true
+  block_on_missing_citations: true
+
+# LLM Response: "The capital is Paris (from Wikipedia)"
+# Retrieved documents: Only contains "France" - no mention of Paris
+# Result: CitationValidationError raised
+#   - If fallback: strict → Request denied with error
+#   - If fallback: soft → Constraint relaxed, try to proceed
+```
+
+#### External Knowledge Violation
+
+```python
+# Policy restricts external knowledge
+generation:
+  allow_external_knowledge: false
+enforcement:
+  prevent_external_knowledge: true
+
+# Retrieved documents: Only about French history
+# LLM Response: "Paris is the capital of France. It has a population of 2.2M
+#               and is known for the Eiffel Tower (common knowledge)"
+# Result: ExternalKnowledgeError raised
+#   - External knowledge detected (population, Eiffel Tower not in docs)
+#   - Response denied or relaxed based on fallback
+```
+
+#### Missing Citations Violation
+
+```python
+# Policy requires citations for all claims
+generation:
+  require_citations: true
+enforcement:
+  block_on_missing_citations: true
+
+# LLM Response: "The Eiffel Tower is in Paris. It was built in 1889."
+# Retrieved documents: Only first claim cited [Doc1]
+# Result: MissingCitationsError raised
+#   - Second claim ("built in 1889") lacks citation
+#   - Response blocked or relaxed based on fallback
+```
+
+#### Token Limit Violation
+
+```python
+# Policy limits response size
+enforcement:
+  max_output_tokens: 512
+
+# LLM generates 650 tokens
+# Result: MaxTokensExceededError raised
+#   - Response exceeds limit
+#   - Typically truncated to 512 tokens
+#   - If fallback: strict → May be denied entirely
+```
+
+### Fallback Behavior
+
+How violations are handled depends on the `fallback` strategy:
+
+#### Strict Fallback (Default)
+
+```yaml
+fallback: strict
+```
+
+- **Behavior**: Never compromise on policy requirements
+- **On Violation**:
+  - Raises exception
+  - Request denied with error message
+  - User receives denial, not degraded response
+- **Best For**: Compliance, regulated environments, high-risk operations
+- **Trade-off**: Better guarantees, but may deny valid requests
+
+**Example**:
+```python
+try:
+    result = engine.run(
+        query="What is the capital?",
+        user_context=user_context
+    )
+except PolicyDenialError as e:
+    # Fallback: strict denied the request
+    return f"Request denied: {e.message}"
+    # Error message explains why (e.g., "Citations validation failed")
+```
+
+#### Soft Fallback
+
+```yaml
+fallback: soft
+```
+
+- **Behavior**: Try to satisfy constraints, relax if necessary
+- **On Violation**:
+  - Attempts to relax constraints
+  - Retries with looser policy version
+  - Returns best-effort response
+  - Still logs the violation for audit
+- **Best For**: User-facing systems, customer service, production UX
+- **Trade-off**: Better user experience, but weaker guarantees
+
+**Example**:
+```python
+# Request fails citation validation
+# Soft fallback: retries without citation validation
+result = engine.run(
+    query="What is the capital?",
+    user_context=user_context
+)
+# Returns response even though citations couldn't be validated
+# Response includes warning/note about relaxed constraints
+```
+
+### Error Handling Best Practices
+
+#### 1. Handle Exceptions Gracefully
+
+```python
+from rag_control.exceptions import (
+    CitationValidationError,
+    MissingCitationsError,
+    ExternalKnowledgeError,
+    PolicyDenialError,
+)
 
 try:
-    engine = RAGControl(
-        llm=llm_adapter,
-        query_embedding=embedding_adapter,
-        vector_store=vector_store_adapter,
-        config_path="policy_config.yaml"
-    )
-except Exception as e:
-    print(f"Policy validation error: {e}")
+    result = engine.run(query=user_query, user_context=user_context)
+except MissingCitationsError as e:
+    # Expected for strict policies - provide user guidance
+    return {
+        "error": "Response requires citations that weren't found",
+        "hint": "Try asking about information directly from documents",
+    }
+except PolicyDenialError as e:
+    # Policy rule explicitly denied - user isn't authorized
+    return {"error": "Request not permitted for your access level"}
+except ExternalKnowledgeError as e:
+    # Response used external knowledge - try again with different query
+    return {"error": "Please rephrase to focus on available documents"}
 ```
+
 
 ## Policy Design Best Practices
 
