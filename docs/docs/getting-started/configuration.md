@@ -24,6 +24,7 @@ orgs:
   # Organization definitions
   - org_id: org_id
     # ... org config
+
 ```
 
 ## Policies
@@ -64,7 +65,6 @@ policies:
 | `allow_external_knowledge` | boolean | Allow knowledge outside retrieved documents | `false` |
 | `require_citations` | boolean | Require citations for claims | `false` |
 | `temperature` | float | 0.0 to 2.0, higher = more creative | `0.7` |
-| `max_output_tokens` | integer | Maximum response length | `1024` |
 
 ### Enforcement Parameters
 
@@ -73,6 +73,7 @@ policies:
 | `validate_citations` | boolean | Verify citations match documents |
 | `block_on_missing_citations` | boolean | Block response if citations missing |
 | `prevent_external_knowledge` | boolean | Block claims without document support |
+| `max_output_tokens` | integer | Maximum response length | `1024` |
 
 ## Filters
 
@@ -126,7 +127,7 @@ orgs:
     # Document retrieval settings
     document_policy:
       top_k: 8                      # Number of documents to retrieve
-      filters: [enterprise_only]    # Applied filters
+      filter_name: enterprise_only    # Applied filter
 
     # Organization-specific policy rules
     policy_rules:
