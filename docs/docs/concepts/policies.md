@@ -534,10 +534,7 @@ fallback: strict
 ```
 
 - **Behavior**: Never compromise on policy requirements
-- **On Violation**:
-  - Raises exception
-  - Request denied with error message
-  - User receives denial, not degraded response
+- **On Violation**: Raises exception, request denied with error message
 - **Best For**: Compliance, regulated environments, high-risk operations
 - **Trade-off**: Better guarantees, but may deny valid requests
 
@@ -549,9 +546,7 @@ try:
         user_context=user_context
     )
 except PolicyDenialError as e:
-    # Fallback: strict denied the request
-    return f"Request denied: {e.message}"
-    # Error message explains why (e.g., "Citations validation failed")
+    return {"error": f"Request denied: {e.message}"}
 ```
 
 #### Soft Fallback
@@ -561,53 +556,9 @@ fallback: soft
 ```
 
 - **Behavior**: Try to satisfy constraints, relax if necessary
-- **On Violation**:
-  - Attempts to relax constraints
-  - Retries with looser policy version
-  - Returns best-effort response
-  - Still logs the violation for audit
+- **On Violation**: Attempts to relax constraints, retries with looser policy, returns best-effort response
 - **Best For**: User-facing systems, customer service, production UX
 - **Trade-off**: Better user experience, but weaker guarantees
-
-**Example**:
-```python
-# Request fails citation validation
-# Soft fallback: retries without citation validation
-result = engine.run(
-    query="What is the capital?",
-    user_context=user_context
-)
-# Returns response even though citations couldn't be validated
-# Response includes warning/note about relaxed constraints
-```
-
-### Error Handling Best Practices
-
-#### 1. Handle Exceptions Gracefully
-
-```python
-from rag_control.exceptions import (
-    CitationValidationError,
-    MissingCitationsError,
-    ExternalKnowledgeError,
-    PolicyDenialError,
-)
-
-try:
-    result = engine.run(query=user_query, user_context=user_context)
-except MissingCitationsError as e:
-    # Expected for strict policies - provide user guidance
-    return {
-        "error": "Response requires citations that weren't found",
-        "hint": "Try asking about information directly from documents",
-    }
-except PolicyDenialError as e:
-    # Policy rule explicitly denied - user isn't authorized
-    return {"error": "Request not permitted for your access level"}
-except ExternalKnowledgeError as e:
-    # Response used external knowledge - try again with different query
-    return {"error": "Please rephrase to focus on available documents"}
-```
 
 
 ## Policy Design Best Practices
