@@ -68,8 +68,8 @@ orgs:
 ## 3. Initialize the Engine
 
 ```python
-from rag_control.core.engine import RAGControl
-from rag_control.models.user import UserContext
+from rag_control import RAGControl
+from rag_control.models import UserContext
 
 # Initialize with your adapters
 engine = RAGControl(
@@ -120,10 +120,10 @@ for chunk in stream_result.response:
 
 Your RAG system now has:
 
-✅ **Policy Enforcement**: The response was validated against the `soft_research` policy
-✅ **Citation Tracking**: Citations were required and verified
-✅ **Audit Logging**: All requests and decisions are logged for compliance
-✅ **Token Optimization**: Token usage is tracked and reported
+- ✅ **Policy Enforcement**: The response was validated against the `soft_research` policy
+- ✅ **Citation Tracking**: Citations were required and verified
+- ✅ **Audit Logging**: All requests and decisions are logged for compliance
+- ✅ **Token Optimization**: Token usage is tracked and reported
 
 ## Implementing Adapters
 
@@ -132,7 +132,7 @@ You need to implement three adapter interfaces:
 ### LLM Adapter
 
 ```python
-from rag_control.core.adapters.llm import LLMAdapter
+from rag_control.adapters import LLMAdapter
 
 class MyLLMAdapter(LLMAdapter):
     def __init__(self, model_name):
@@ -150,18 +150,22 @@ class MyLLMAdapter(LLMAdapter):
 ### Query Embedding Adapter
 
 ```python
-from rag_control.core.adapters.query_embedding import QueryEmbeddingAdapter
+from rag_control.core.adapters import QueryEmbeddingAdapter
 
 class MyEmbeddingAdapter(QueryEmbeddingAdapter):
     def embed(self, query):
         # Your embedding implementation
+        pass
+    
+    def embedding_model(self):
+        # Returns model name used for generating embedding
         pass
 ```
 
 ### Vector Store Adapter
 
 ```python
-from rag_control.core.adapters.vector_store import VectorStoreAdapter
+from rag_control.core.adapters import VectorStoreAdapter
 
 class MyVectorStoreAdapter(VectorStoreAdapter):
     def search(self, embedding, top_k):
