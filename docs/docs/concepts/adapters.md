@@ -35,9 +35,9 @@ The LLM adapter handles text generation.
 
 ```python
 import openai
-from rag_control.models import LLM, ChatMessage, PromptInput
+from rag_control.adapters import LLM, LLMAdapterError, ChatMessage, PromptInput
 from rag_control.models import LLMResponse, LLMStreamResponse, LLMUsage, LLMMetadata, LLMStreamChunk
-from rag_control.models.user_context import UserContext
+from rag_control.models import UserContext
 
 class OpenAIAdapter(LLM):
     def __init__(self, api_key: str, model: str = "gpt-4"):
@@ -54,28 +54,33 @@ class OpenAIAdapter(LLM):
         max_output_tokens: int | None = None,
         user_context: UserContext | None = None,
     ) -> LLMResponse:
-        messages = self._to_messages(prompt)
-        response = openai.ChatCompletion.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_output_tokens,
-        )
-
-        return LLMResponse(
-            content=response.choices[0].message.content,
-            usage=LLMUsage(
-                prompt_tokens=response.usage.prompt_tokens,
-                completion_tokens=response.usage.completion_tokens,
-                total_tokens=response.usage.total_tokens,
-            ),
-            metadata=LLMMetadata(
+        try:
+            messages = self._to_messages(prompt)
+            response = openai.ChatCompletion.create(
                 model=self.model,
-                provider="openai",
-                latency_ms=0,
+                messages=messages,
                 temperature=temperature,
+                max_tokens=max_output_tokens,
             )
-        )
+
+            return LLMResponse(
+                content=response.choices[0].message.content,
+                usage=LLMUsage(
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=response.usage.completion_tokens,
+                    total_tokens=response.usage.total_tokens,
+                ),
+                metadata=LLMMetadata(
+                    model=self.model,
+                    provider="openai",
+                    latency_ms=0,
+                    temperature=temperature,
+                )
+            )
+        except openai.error.OpenAIError as e:
+            raise LLMAdapterError(f"OpenAI API error: {str(e)}") from e
+        except Exception as e:
+            raise LLMAdapterError(f"Unexpected error in OpenAI adapter: {str(e)}") from e
 
     # Required abstract method implementation
     # Generates text completion in streaming mode for real-time content delivery
@@ -86,29 +91,37 @@ class OpenAIAdapter(LLM):
         max_output_tokens: int | None = None,
         user_context: UserContext | None = None,
     ) -> LLMStreamResponse:
-        messages = self._to_messages(prompt)
-        response = openai.ChatCompletion.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_output_tokens,
-            stream=True,
-        )
-
-        def chunk_generator():
-            for chunk in response:
-                if "content" in chunk.choices[0].delta:
-                    yield LLMStreamChunk(delta=chunk.choices[0].delta.content)
-
-        return LLMStreamResponse(
-            stream=chunk_generator(),
-            metadata=LLMMetadata(
+        try:
+            messages = self._to_messages(prompt)
+            response = openai.ChatCompletion.create(
                 model=self.model,
-                provider="openai",
-                latency_ms=0,
+                messages=messages,
                 temperature=temperature,
+                max_tokens=max_output_tokens,
+                stream=True,
             )
-        )
+
+            def chunk_generator():
+                try:
+                    for chunk in response:
+                        if "content" in chunk.choices[0].delta:
+                            yield LLMStreamChunk(delta=chunk.choices[0].delta.content)
+                except openai.error.OpenAIError as e:
+                    raise LLMAdapterError(f"OpenAI streaming error: {str(e)}") from e
+
+            return LLMStreamResponse(
+                stream=chunk_generator(),
+                metadata=LLMMetadata(
+                    model=self.model,
+                    provider="openai",
+                    latency_ms=0,
+                    temperature=temperature,
+                )
+            )
+        except openai.error.OpenAIError as e:
+            raise LLMAdapterError(f"OpenAI API error: {str(e)}") from e
+        except Exception as e:
+            raise LLMAdapterError(f"Unexpected error in OpenAI adapter: {str(e)}") from e
 
     def _to_messages(self, prompt: PromptInput) -> list[ChatMessage]:
         """Convert string prompt to messages format."""
@@ -125,7 +138,7 @@ The query embedding adapter converts queries to vectors for search.
 
 ```python
 import openai
-from rag_control.adapters import QueryEmbedding
+from rag_control.adapters import QueryEmbedding, QueryEmbeddingAdapterError
 from rag_control.models.query_embedding import QueryEmbeddingResponse, QueryEmbeddingMetadata
 from rag_control.models import UserContext
 
@@ -149,20 +162,25 @@ class OpenAIEmbeddingAdapter(QueryEmbedding):
         query: str,
         user_context: UserContext | None = None,
     ) -> QueryEmbeddingResponse:
-        response = openai.Embedding.create(
-            input=query,
-            model=self._embedding_model
-        )
-
-        return QueryEmbeddingResponse(
-            embedding=response.data[0].embedding,
-            metadata=QueryEmbeddingMetadata(
-                model=self._embedding_model,
-                provider="openai",
-                latency_ms=0,
-                dimensions=len(response.data[0].embedding),
+        try:
+            response = openai.Embedding.create(
+                input=query,
+                model=self._embedding_model
             )
-        )
+
+            return QueryEmbeddingResponse(
+                embedding=response.data[0].embedding,
+                metadata=QueryEmbeddingMetadata(
+                    model=self._embedding_model,
+                    provider="openai",
+                    latency_ms=0,
+                    dimensions=len(response.data[0].embedding),
+                )
+            )
+        except openai.error.OpenAIError as e:
+            raise QueryEmbeddingAdapterError(f"OpenAI embedding error: {str(e)}") from e
+        except Exception as e:
+            raise QueryEmbeddingAdapterError(f"Unexpected error in embedding adapter: {str(e)}") from e
 ```
 
 ## Vector Store Adapter
@@ -173,7 +191,7 @@ The vector store adapter retrieves documents based on query embeddings.
 
 ```python
 import pinecone
-from rag_control.adapters import VectorStore
+from rag_control.adapters import VectorStore, VectorStoreAdapterError
 from rag_control.models.vector_store import VectorStoreSearchResponse, VectorStoreRecord, VectorStoreSearchMetadata
 from rag_control.models import Filter
 from rag_control.models import UserContext
@@ -199,37 +217,42 @@ class PineconeAdapter(VectorStore):
         user_context: UserContext | None = None,
         filter: Filter | None = None,
     ) -> VectorStoreSearchResponse:
-        # Convert Filter object to Pinecone filter format if provided
-        pinecone_filter = self._filter_to_pinecone(filter) if filter else None
+        try:
+            # Convert Filter object to Pinecone filter format if provided
+            pinecone_filter = self._filter_to_pinecone(filter) if filter else None
 
-        results = self.index.query(
-            vector=embedding,
-            top_k=top_k,
-            include_metadata=True,
-            filter=pinecone_filter,
-        )
+            results = self.index.query(
+                vector=embedding,
+                top_k=top_k,
+                include_metadata=True,
+                filter=pinecone_filter,
+            )
 
-        records = []
-        for match in results.matches:
-            records.append(
-                VectorStoreRecord(
-                    id=match.id,
-                    content=match.metadata.get("content", ""),
-                    metadata=match.metadata,
-                    score=match.score,
+            records = []
+            for match in results.matches:
+                records.append(
+                    VectorStoreRecord(
+                        id=match.id,
+                        content=match.metadata.get("content", ""),
+                        metadata=match.metadata,
+                        score=match.score,
+                    )
+                )
+
+            return VectorStoreSearchResponse(
+                records=records,
+                metadata=VectorStoreSearchMetadata(
+                    provider="pinecone",
+                    index=self.index.index_name,
+                    latency_ms=0,
+                    top_k=top_k,
+                    returned=len(records),
                 )
             )
-
-        return VectorStoreSearchResponse(
-            records=records,
-            metadata=VectorStoreSearchMetadata(
-                provider="pinecone",
-                index=self.index.index_name,
-                latency_ms=0,
-                top_k=top_k,
-                returned=len(records),
-            )
-        )
+        except pinecone.PineconeException as e:
+            raise VectorStoreAdapterError(f"Pinecone search error: {str(e)}") from e
+        except Exception as e:
+            raise VectorStoreAdapterError(f"Unexpected error in vector store adapter: {str(e)}") from e
 
     def _filter_to_pinecone(self, filter: Filter) -> dict:
         """Convert Filter object to Pinecone filter format."""
