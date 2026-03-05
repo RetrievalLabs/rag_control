@@ -171,6 +171,10 @@ class MyVectorStoreAdapter(VectorStoreAdapter):
     def search(self, embedding, top_k):
         # Your vector search implementation
         pass
+    
+    def embedding_model(self):
+        # Returns model name used for generating embedding 
+        pass
 ```
 
 ## Next Steps
@@ -180,9 +184,6 @@ class MyVectorStoreAdapter(VectorStoreAdapter):
 - Explore the [Architecture](/architecture/overview)
 - Check [API Reference](/api/engine)
 
-## Example Projects
-
-See the `examples/` directory in the repository for complete working examples.
 
 ## Getting Help
 
