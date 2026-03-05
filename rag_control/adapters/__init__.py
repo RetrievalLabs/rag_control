@@ -9,7 +9,7 @@ from .exceptions import (
     QueryEmbeddingAdapterError,
     VectorStoreAdapterError,
 )
-from .llm import ChatMessage, LLM, PromptInput
+from .llm import LLM, ChatMessage, PromptInput
 from .query_embedding import QueryEmbedding
 from .vector_store import VectorStore
 
