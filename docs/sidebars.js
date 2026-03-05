@@ -41,15 +41,6 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Architecture',
-      items: [
-        'architecture/overview',
-        'architecture/execution-flow',
-        'architecture/components',
-      ],
-    },
-    {
-      type: 'category',
       label: 'Observability',
       items: [
         'observability/audit-logging',
@@ -65,26 +56,6 @@ const sidebars = {
         'api/policies',
         'api/governance',
         'api/adapters',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Specifications',
-      items: [
-        'specs/execution-contract',
-        'specs/audit-log-contract',
-        'specs/metrics-contract',
-        'specs/tracing-contract',
-        'specs/config-contract',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Development',
-      items: [
-        'development/setup',
-        'development/testing',
-        'development/contributing',
       ],
     },
     {
