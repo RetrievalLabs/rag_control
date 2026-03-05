@@ -211,40 +211,6 @@ Traces are automatically correlated with:
 - **Organization ID**: From user context
 - **Span Context**: OpenTelemetry context propagation
 
-## Debugging with Traces
-
-### Find Slow Requests
-
-Query for requests >2000ms in Jaeger:
-
-```
-serviceName="rag-control" AND operationName="rag_control.request.run" AND duration>2000000
-```
-
-### Find Errors
-
-Query for failed requests:
-
-```
-serviceName="rag-control" AND operationName="rag_control.request.run" AND status.error=true
-```
-
-### Find Slow Embedding Stage
-
-Identify embedding bottlenecks:
-
-```
-serviceName="rag-control" AND operationName="rag_control.request.run.stage.embedding" AND duration>500000
-```
-
-### Trace a Specific Request
-
-Filter by request_id:
-
-```
-serviceName="rag-control" AND request_id="550e8400-e29b-41d4-a716-446655440000"
-```
-
 ## Error Handling in Traces
 
 Tracing is designed to never fail or affect request processing. All tracer operations are exception-safe:
