@@ -53,7 +53,6 @@ Generation parameters control how the LLM generates responses. They are constrai
 | `require_citations` | boolean | `true` | - | Whether citations are required |
 | `allow_external_knowledge` | boolean | `false` | - | Can use knowledge beyond documents |
 | `fallback` | string | `strict` | `strict`, `soft` | Behavior when constraints can't be met |
-| `max_output_tokens` | integer or null | `null` | > 0 or null | Maximum response length |
 
 ### reasoning_level
 
@@ -149,26 +148,6 @@ Strategy when constraints can't be satisfied:
   - Best for: User-facing systems needing responses
   - Better user experience but weaker guarantees
 
-### max_output_tokens
-
-Maximum tokens in the response:
-
-- **`null` (Default)**: No limit
-  - Lets LLM generate as needed
-  - Flexibility but variable cost
-
-- **512**: Short responses
-  - Best for: Summaries, quick answers, FAQs
-  - Cost-efficient
-
-- **1024**: Medium responses
-  - Best for: Detailed answers with balanced cost
-  - Standard for most use cases
-
-- **2048**: Long-form responses
-  - Best for: Detailed analysis, research reports
-  - Higher cost but more complete answers
-
 ## Enforcement Checks
 
 Enforcement validates the response after generation:
@@ -194,6 +173,26 @@ Block responses containing external knowledge:
 - Only if `allow_external_knowledge: false`
 - Checks response against retrieved documents
 
+### max_output_tokens
+
+Enforce maximum response length in tokens:
+
+- **`null` (Default)**: No limit
+  - Lets LLM generate as needed
+  - Flexibility but variable cost
+
+- **512**: Short responses
+  - Best for: Summaries, quick answers, FAQs
+  - Cost-efficient
+
+- **1024**: Medium responses
+  - Best for: Detailed answers with balanced cost
+  - Standard for most use cases
+
+- **2048**: Long-form responses
+  - Best for: Detailed analysis, research reports
+  - Higher cost but more complete answers
+
 ## Policy Patterns & Examples
 
 Different policies serve different business needs. Choose based on your use case:
@@ -218,12 +217,12 @@ Different policies serve different business needs. Choose based on your use case
     require_citations: true
     temperature: 0.0
     fallback: strict
-    max_output_tokens: 512
   enforcement:
     validate_citations: true
     block_on_missing_citations: true
     prevent_external_knowledge: true
     enforce_strict_fallback: true
+    max_output_tokens: 512
   logging:
     level: full
 ```
@@ -257,12 +256,12 @@ Different policies serve different business needs. Choose based on your use case
     require_citations: true
     temperature: 0.2
     fallback: soft
-    max_output_tokens: 1024
   enforcement:
     validate_citations: true
     block_on_missing_citations: false
     prevent_external_knowledge: true
     enforce_strict_fallback: false
+    max_output_tokens: 1024
   logging:
     level: full
 ```
@@ -297,12 +296,12 @@ Different policies serve different business needs. Choose based on your use case
     require_citations: false
     temperature: 1.2
     fallback: soft
-    max_output_tokens: 2048
   enforcement:
     validate_citations: false
     block_on_missing_citations: false
     prevent_external_knowledge: false
     enforce_strict_fallback: false
+    max_output_tokens: 2048
   logging:
     level: minimal
 ```
@@ -336,12 +335,12 @@ Different policies serve different business needs. Choose based on your use case
     require_citations: false
     temperature: 0.7
     fallback: soft
-    max_output_tokens: 2048
   enforcement:
     validate_citations: false
     block_on_missing_citations: false
     prevent_external_knowledge: false
     enforce_strict_fallback: false
+    max_output_tokens: 2048
   logging:
     level: minimal
 ```
@@ -373,12 +372,12 @@ Different policies serve different business needs. Choose based on your use case
     require_citations: true
     temperature: 0.5
     fallback: soft
-    max_output_tokens: 2048
   enforcement:
     validate_citations: true
     block_on_missing_citations: false
     prevent_external_knowledge: true
     enforce_strict_fallback: false
+    max_output_tokens: 2048
   logging:
     level: full
 ```
@@ -400,12 +399,12 @@ Quick reference for choosing the right policy:
 | **Citations Required** | Yes | Yes | No | Yes | No |
 | **Temperature** | 0.0 | 0.2 | 1.2 | 0.5 | 0.7 |
 | **External Knowledge** | No | No | Yes | No | Yes |
-| **Max Tokens** | 512 | 1024 | 2048 | 2048 | 2048 |
+| **Max Tokens (Enforcement)** | 512 | 1024 | 2048 | 2048 | 2048 |
 | **Reasoning** | Limited | Limited | Full | Full | Full |
-| **Enforcement** | Strict | Soft | None | Soft | None |
+| **Fallback** | Strict | Soft | Soft | Soft | Soft |
 | **Use Case** | Compliance | General | Research | VIP | Development |
 | **Hallucination Risk** | Very Low | Low | High | Low | Very High |
-| **Cost/Token** | Low | Medium | High | Very High | Medium |
+| **Cost** | Low | Medium | High | Very High | Medium |
 | **User Experience** | Strict | Good | Flexible | Premium | Unrestricted |
 
 ---
