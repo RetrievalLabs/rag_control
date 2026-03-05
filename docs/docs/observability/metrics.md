@@ -219,11 +219,13 @@ Supports any OpenTelemetry exporter:
 
 ### Default Recorder Selection
 
-If you don't specify a `metrics_recorder` when creating `RAGControl`, it automatically:
+If you don't specify a `metrics_recorder` when creating `RAGControl`, it automatically selects based on what's configured:
 
-1. Checks if OpenTelemetry is configured globally
-2. Uses `OpenTelemetryMetricsRecorder` if OTel is available
-3. Falls back to `StructlogMetricsRecorder` otherwise
+1. **Checks if OpenTelemetry metrics are configured** via `otel_metrics.get_meter_provider()`
+2. **Uses `OpenTelemetryMetricsRecorder`** if OpenTelemetry SDK is detected
+3. **Falls back to `StructlogMetricsRecorder`** if OpenTelemetry is not configured
+
+This ensures metrics always work: if you've set up OpenTelemetry in your application, rag_control will use it. Otherwise, metrics are recorded as structured JSON logs.
 
 ```python
 from rag_control.core.engine import RAGControl
@@ -237,6 +239,10 @@ engine = RAGControl(
     # metrics_recorder omitted - uses default behavior
 )
 ```
+
+**Fallback behavior:**
+- If OpenTelemetry is configured globally → `OpenTelemetryMetricsRecorder`
+- If OpenTelemetry is not configured → `StructlogMetricsRecorder` (JSON logs)
 
 ## Custom Metrics
 

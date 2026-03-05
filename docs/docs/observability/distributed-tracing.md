@@ -200,7 +200,32 @@ engine = RAGControl(
 )
 ```
 
-**Automatic Selection**: If no tracer is provided, rag_control automatically `StructlogTracer`
+### Default Tracer Selection
+
+If you don't specify a `tracer` when creating `RAGControl`, it automatically selects based on what's configured:
+
+1. **Checks if OpenTelemetry tracing is configured** via `otel_trace.get_tracer_provider()`
+2. **Uses `OpenTelemetryTracer`** if OpenTelemetry SDK is detected
+3. **Falls back to `StructlogTracer`** if OpenTelemetry is not configured
+
+This ensures tracing always works: if you've set up OpenTelemetry in your application, rag_control will use it. Otherwise, traces are recorded as structured JSON logs.
+
+```python
+from rag_control.core.engine import RAGControl
+
+# Auto-selects tracer based on environment
+engine = RAGControl(
+    llm=llm_adapter,
+    query_embedding=embedding_adapter,
+    vector_store=vector_store_adapter,
+    config_path="policy_config.yaml",
+    # tracer omitted - uses default behavior
+)
+```
+
+**Fallback behavior:**
+- If OpenTelemetry is configured globally → `OpenTelemetryTracer`
+- If OpenTelemetry is not configured → `StructlogTracer` (JSON logs)
 
 ## Trace Correlation
 
