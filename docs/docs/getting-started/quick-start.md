@@ -182,6 +182,6 @@ See the `examples/` directory in the repository for complete working examples.
 
 ## Getting Help
 
-- 📚 Read the [documentation](/docs)
+- 📚 Read the [documentation](/)
 - 🐛 Report issues on [GitHub](https://github.com/RetrievalLabs/rag_control/issues)
 - 💬 Ask questions on [GitHub Discussions](https://github.com/RetrievalLabs/rag_control/discussions)

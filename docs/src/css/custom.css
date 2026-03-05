@@ -78,3 +78,29 @@ pre {
   font-size: 1.5rem;
   margin-top: 1.5rem;
 }
+
+/* Version Banner Styling */
+.versionBanner {
+  background-color: rgba(42, 156, 230, 0.1);
+  border-left: 4px solid #2A9CE6;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  color: #2A9CE6;
+  font-size: 0.95rem;
+}
+
+.versionBanner strong {
+  color: #2A9CE6;
+}
+
+/* Unreleased version banner */
+.versionBannerUnreleased {
+  background-color: rgba(255, 193, 7, 0.1);
+  border-left: 4px solid #ffc107;
+  color: #ffc107;
+}
+
+.versionBannerUnreleased strong {
+  color: #ffc107;
+}

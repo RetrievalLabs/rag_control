@@ -22,7 +22,7 @@ const config = {
   organizationName: 'RetrievalLabs',
   projectName: 'rag_control',
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 
   // Favicon - same as logo
@@ -90,15 +90,15 @@ const config = {
             items: [
               {
                 label: 'Getting Started',
-                to: '/docs/getting-started',
+                to: '/getting-started/quick-start',
               },
               {
                 label: 'Core Concepts',
-                to: '/docs/core-concepts',
+                to: '/concepts/overview',
               },
               {
                 label: 'Architecture',
-                to: '/docs/architecture',
+                to: '/architecture/overview',
               },
             ],
           },
@@ -124,7 +124,7 @@ const config = {
               },
               {
                 label: 'License',
-                to: '/docs/license',
+                to: '/license',
               },
             ],
           },

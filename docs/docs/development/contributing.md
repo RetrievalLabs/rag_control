@@ -162,7 +162,7 @@ Releases are managed by the RetrievalLabs team and follow semantic versioning:
 
 ## Questions?
 
-- Check [Documentation](/docs)
+- Check [Documentation](/)
 - Open a [GitHub discussion](https://github.com/RetrievalLabs/rag_control/discussions)
 - Review [Examples](https://github.com/RetrievalLabs/rag_control/tree/main/examples)
 
