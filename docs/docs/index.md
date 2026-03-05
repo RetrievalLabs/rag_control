@@ -70,6 +70,10 @@ rag_control addresses these challenges with:
 - 💬 [GitHub Discussions](https://github.com/RetrievalLabs/rag_control/discussions)
 - 🏢 [RetrievalLabs.ai](https://retrievallabs.ai)
 
+## Support the Project
+
+If you find rag_control useful, please consider **[⭐ starring the repository on GitHub](https://github.com/RetrievalLabs/rag_control)** to show your support! Your star helps us reach more developers and organizations building secure RAG systems.
+
 ---
 
 **Built by [RetrievalLabs](https://retrievallabs.ai)** — Enterprise AI Governance and Security
