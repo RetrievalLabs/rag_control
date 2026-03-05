@@ -3,6 +3,8 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
+from rag_control.adapters.llm import ChatMessage, PromptInput
+
 from .config import ControlPlaneConfig
 from .filter import Condition as FilterCondition
 from .filter import Filter
