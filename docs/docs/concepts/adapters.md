@@ -31,67 +31,15 @@ rag_control Engine
 
 The LLM adapter handles text generation.
 
-### Interface
-
-```python
-from typing import Generator
-from rag_control.core.adapters import LLMAdapter
-from rag_control.models import GeneratedResponse
-from rag_control.models import UserContext
-
-class LLMAdapter:
-    def generate(
-        self,
-        prompt: str,
-        temperature: float,
-        max_tokens: int,
-        user_context: UserContext | None = None,
-    ) -> GeneratedResponse:
-        """Generate a response from a prompt.
-
-        Args:
-            prompt: The input text to generate a response for.
-            temperature: Sampling temperature (0.0-1.0). Higher values increase
-                randomness, lower values make output more deterministic.
-            max_tokens: Maximum number of tokens to generate in the response.
-            user_context: Optional user context for user-aware generation behavior.
-
-        Returns:
-            GeneratedResponse: The generated response with content and token metadata.
-        """
-        pass
-
-    def stream(
-        self,
-        prompt: str,
-        temperature: float,
-        max_tokens: int,
-        user_context: UserContext | None = None,
-    ) -> Generator[GeneratedResponse, None, None]:
-        """Stream a response from a prompt in chunks.
-
-        Args:
-            prompt: The input text to generate a response for.
-            temperature: Sampling temperature (0.0-1.0). Higher values increase
-                randomness, lower values make output more deterministic.
-            max_tokens: Maximum number of tokens to generate in the response.
-            user_context: Optional user context for user-aware generation behavior.
-
-        Yields:
-            GeneratedResponse: Response chunks as they become available.
-        """
-        pass
-```
-
 ### Implementation Example (OpenAI)
 
 ```python
 import openai
-from rag_control.core.adapters import LLMAdapter
-from rag_control.models import GeneratedResponse
-from rag_control.models import UserContext
+from rag_control.adapters.llm import LLM, ChatMessage, PromptInput
+from rag_control.models.llm import LLMResponse, LLMStreamResponse, LLMUsage, LLMMetadata, LLMStreamChunk
+from rag_control.models.user_context import UserContext
 
-class OpenAIAdapter(LLMAdapter):
+class OpenAIAdapter(LLM):
     def __init__(self, api_key: str, model: str = "gpt-4"):
         self.api_key = api_key
         self.model = model
@@ -99,171 +47,182 @@ class OpenAIAdapter(LLMAdapter):
 
     def generate(
         self,
-        prompt: str,
-        temperature: float,
-        max_tokens: int,
+        prompt: PromptInput,
+        temperature: float | None = None,
+        max_output_tokens: int | None = None,
         user_context: UserContext | None = None,
-    ) -> GeneratedResponse:
+    ) -> LLMResponse:
+        messages = self._to_messages(prompt)
         response = openai.ChatCompletion.create(
             model=self.model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             temperature=temperature,
-            max_tokens=max_tokens,
+            max_tokens=max_output_tokens,
         )
 
-        return GeneratedResponse(
+        return LLMResponse(
             content=response.choices[0].message.content,
-            token_count=response.usage.total_tokens,
-            stop_reason="end_turn"
+            usage=LLMUsage(
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+                total_tokens=response.usage.total_tokens,
+            ),
+            metadata=LLMMetadata(
+                model=self.model,
+                provider="openai",
+                latency_ms=0,
+                temperature=temperature,
+            )
         )
 
     def stream(
         self,
-        prompt: str,
-        temperature: float,
-        max_tokens: int,
+        prompt: PromptInput,
+        temperature: float | None = None,
+        max_output_tokens: int | None = None,
         user_context: UserContext | None = None,
-    ):
+    ) -> LLMStreamResponse:
+        messages = self._to_messages(prompt)
         response = openai.ChatCompletion.create(
             model=self.model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             temperature=temperature,
-            max_tokens=max_tokens,
+            max_tokens=max_output_tokens,
             stream=True,
         )
 
-        for chunk in response:
-            if "content" in chunk.choices[0].delta:
-                yield GeneratedResponse(
-                    content=chunk.choices[0].delta.content,
-                    token_count=0,  # Updated in batch
-                    stop_reason=None
-                )
+        def chunk_generator():
+            for chunk in response:
+                if "content" in chunk.choices[0].delta:
+                    yield LLMStreamChunk(delta=chunk.choices[0].delta.content)
+
+        return LLMStreamResponse(
+            stream=chunk_generator(),
+            metadata=LLMMetadata(
+                model=self.model,
+                provider="openai",
+                latency_ms=0,
+                temperature=temperature,
+            )
+        )
+
+    def _to_messages(self, prompt: PromptInput) -> list[ChatMessage]:
+        """Convert string prompt to messages format."""
+        if isinstance(prompt, str):
+            return [{"role": "user", "content": prompt}]
+        return prompt
 ```
 
 ## Query Embedding Adapter
 
 The query embedding adapter converts queries to vectors for search.
 
-### Interface
-
-```python
-from rag_control.core.adapters import QueryEmbeddingAdapter
-from rag_control.models import UserContext
-
-class QueryEmbeddingAdapter:
-    def embed(
-        self,
-        query: str,
-        user_context: UserContext | None = None,
-    ) -> list[float]:
-        """Convert query to embedding vector.
-
-        Args:
-            query: The text to embed.
-            user_context: Optional user context for user-aware embedding behavior.
-
-        Returns:
-            list[float]: The embedding vector.
-        """
-        pass
-```
-
 ### Implementation Example
 
 ```python
 import openai
-from rag_control.core.adapters import QueryEmbeddingAdapter
-from rag_control.models import UserContext
+from rag_control.adapters.query_embedding import QueryEmbedding
+from rag_control.models.query_embedding import QueryEmbeddingResponse, QueryEmbeddingMetadata
+from rag_control.models.user_context import UserContext
 
-class OpenAIEmbeddingAdapter(QueryEmbeddingAdapter):
+class OpenAIEmbeddingAdapter(QueryEmbedding):
     def __init__(self, api_key: str, model: str = "text-embedding-3-small"):
         self.api_key = api_key
-        self.model = model
+        self._embedding_model = model
         openai.api_key = api_key
+
+    @property
+    def embedding_model(self) -> str:
+        """Return the embedding model identifier."""
+        return self._embedding_model
 
     def embed(
         self,
         query: str,
         user_context: UserContext | None = None,
-    ) -> list[float]:
+    ) -> QueryEmbeddingResponse:
         response = openai.Embedding.create(
             input=query,
-            model=self.model
+            model=self._embedding_model
         )
-        return response.data[0].embedding
+
+        return QueryEmbeddingResponse(
+            embedding=response.data[0].embedding,
+            metadata=QueryEmbeddingMetadata(
+                model=self._embedding_model,
+                provider="openai",
+                latency_ms=0,
+                dimensions=len(response.data[0].embedding),
+            )
+        )
 ```
 
 ## Vector Store Adapter
 
 The vector store adapter retrieves documents based on query embeddings.
 
-### Interface
-
-```python
-from rag_control.core.adapters.vector_store import VectorStoreAdapter
-from rag_control.models.document import RetrievedDocument
-from rag_control.models import UserContext
-
-class VectorStoreAdapter:
-    def search(
-        self,
-        embedding: list[float],
-        top_k: int,
-        user_context: UserContext | None = None,
-        filter: dict | None = None,
-    ) -> list[RetrievedDocument]:
-        """Search for documents similar to embedding.
-
-        Args:
-            embedding: The query embedding vector to search with.
-            top_k: Maximum number of documents to return.
-            user_context: Optional user context for user-scoped retrieval behavior.
-            filter: Optional metadata filter for document selection.
-
-        Returns:
-            list[RetrievedDocument]: Retrieved documents ranked by similarity.
-        """
-        pass
-```
-
 ### Implementation Example (Pinecone)
 
 ```python
 import pinecone
-from rag_control.core.adapters.vector_store import VectorStoreAdapter
-from rag_control.models.document import RetrievedDocument
-from rag_control.models import UserContext
+from rag_control.adapters.vector_store import VectorStore
+from rag_control.models.vector_store import VectorStoreSearchResponse, VectorStoreRecord, VectorStoreSearchMetadata
+from rag_control.models.filter import Filter
+from rag_control.models.user_context import UserContext
 
-class PineconeAdapter(VectorStoreAdapter):
-    def __init__(self, index_name: str):
+class PineconeAdapter(VectorStore):
+    def __init__(self, index_name: str, embedding_model: str):
         self.index = pinecone.Index(index_name)
+        self._embedding_model = embedding_model
+
+    @property
+    def embedding_model(self) -> str:
+        """Return the embedding model identifier."""
+        return self._embedding_model
 
     def search(
         self,
         embedding: list[float],
-        top_k: int,
+        top_k: int = 5,
         user_context: UserContext | None = None,
-        filter: dict | None = None,
-    ) -> list[RetrievedDocument]:
+        filter: Filter | None = None,
+    ) -> VectorStoreSearchResponse:
+        # Convert Filter object to Pinecone filter format if provided
+        pinecone_filter = self._filter_to_pinecone(filter) if filter else None
+
         results = self.index.query(
             vector=embedding,
             top_k=top_k,
             include_metadata=True,
-            filter=filter,
+            filter=pinecone_filter,
         )
 
-        documents = []
+        records = []
         for match in results.matches:
-            documents.append(
-                RetrievedDocument(
+            records.append(
+                VectorStoreRecord(
                     id=match.id,
                     content=match.metadata.get("content", ""),
                     metadata=match.metadata,
                     score=match.score,
                 )
             )
-        return documents
+
+        return VectorStoreSearchResponse(
+            records=records,
+            metadata=VectorStoreSearchMetadata(
+                provider="pinecone",
+                index=self.index.index_name,
+                latency_ms=0,
+                top_k=top_k,
+                returned=len(records),
+            )
+        )
+
+    def _filter_to_pinecone(self, filter: Filter) -> dict:
+        """Convert Filter object to Pinecone filter format."""
+        # Implementation depends on Filter structure
+        return {}
 ```
 
 ## Using Adapters
