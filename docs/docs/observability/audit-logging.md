@@ -306,6 +306,87 @@ engine = RAGControl(
 )
 ```
 
+#### Custom Audit Logger
+
+Implement a custom audit logger by following the `AuditLogger` protocol:
+
+```python
+from typing import Any, Literal
+from rag_control.observability.audit_logger import AuditLogger, AuditLogLevel
+
+class MyCustomAuditLogger:
+    """Custom audit logger implementation"""
+
+    def log_event(
+        self,
+        event: str,
+        *,
+        level: AuditLogLevel = "info",
+        **fields: Any
+    ) -> None:
+        """Log an audit event to your custom system"""
+        # Send to your logging system (database, API, message queue, etc.)
+        print(f"[{level.upper()}] {event}: {fields}")
+
+# Use it with RAGControl
+custom_logger = MyCustomAuditLogger()
+
+engine = RAGControl(
+    llm=llm,
+    query_embedding=query_embedding,
+    vector_store=vector_store,
+    config=config,
+    audit_logger=custom_logger
+)
+```
+
+**Protocol Requirements:**
+
+Your custom logger must implement:
+- `log_event(event: str, *, level: AuditLogLevel = "info", **fields: Any) -> None`
+  - `event`: Event name (string)
+  - `level`: Log level (debug, info, warning, error, critical)
+  - `**fields`: Event-specific fields (org_id, request_id, etc.)
+
+**Common Use Cases:**
+
+```python
+class DatabaseAuditLogger:
+    """Store audit logs in a database"""
+
+    def log_event(self, event: str, *, level: str = "info", **fields: Any) -> None:
+        db.insert('audit_logs', {
+            'event': event,
+            'level': level,
+            'timestamp': datetime.utcnow(),
+            **fields
+        })
+
+class SlackAuditLogger:
+    """Send critical events to Slack"""
+
+    def log_event(self, event: str, *, level: str = "info", **fields: Any) -> None:
+        if level in ['error', 'critical'] or event == 'request.denied':
+            slack.send_message(
+                channel='#audit-alerts',
+                text=f"[{level}] {event}: {fields.get('error_message', '')}"
+            )
+
+class MultiAuditLogger:
+    """Log to multiple destinations"""
+
+    def __init__(self, loggers: list[AuditLogger]):
+        self.loggers = loggers
+
+    def log_event(self, event: str, *, level: str = "info", **fields: Any) -> None:
+        for logger in self.loggers:
+            try:
+                logger.log_event(event, level=level, **fields)
+            except Exception as e:
+                # Swallow exceptions to ensure one logger failure doesn't affect others
+                print(f"Logger failed: {e}")
+```
+
 ### Log Output
 
 Structlog outputs JSON-formatted logs to stdout:
