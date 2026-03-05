@@ -133,57 +133,13 @@ Your RAG system now has:
 
 ## Implementing Adapters
 
-You need to implement three adapter interfaces:
+rag_control uses three adapter interfaces to connect to your infrastructure:
 
-### LLM Adapter
+- **LLM Adapter**: Connect to language models (OpenAI, Anthropic, etc.)
+- **Query Embedding Adapter**: Convert queries to vectors (OpenAI, Cohere, etc.)
+- **Vector Store Adapter**: search documents (Pinecone, Weaviate, etc.)
 
-```python
-from rag_control.adapters import LLMAdapter
-
-class MyLLMAdapter(LLMAdapter):
-    def __init__(self, model_name):
-        self.model_name = model_name
-
-    def generate(self, prompt, temperature, max_tokens):
-        # Your LLM implementation
-        pass
-
-    def stream(self, prompt, temperature, max_tokens):
-        # Your streaming implementation
-        pass
-```
-
-### Query Embedding Adapter
-
-```python
-from rag_control.core.adapters import QueryEmbeddingAdapter
-
-class MyEmbeddingAdapter(QueryEmbeddingAdapter):
-    def embed(self, query):
-        # Your embedding implementation
-        pass
-    
-    def embedding_model(self):
-        # Returns model name used for generating embedding
-        pass
-```
-
-### Vector Store Adapter
-
-```python
-from rag_control.core.adapters import VectorStoreAdapter
-
-class MyVectorStoreAdapter(VectorStoreAdapter):
-    def search(self, embedding, top_k):
-        # Your vector search implementation
-        pass
-    
-    def embedding_model(self):
-        # Returns model name used for generating embedding
-        pass
-```
-
-> **Learn more:** See the [Adapter Patterns](/concepts/adapters) for detailed implementation guidance.
+For complete implementation examples, see the [Adapters](/concepts/adapters) documentation.
 
 ## Next Steps
 
