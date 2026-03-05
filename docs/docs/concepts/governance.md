@@ -223,10 +223,38 @@ When `effect: deny`, the request is rejected entirely:
 ```
 
 **Behavior:**
-- Request is blocked and returns an error
+- Request is blocked and `GovernancePolicyDeniedError` exception is raised
 - No policy is applied
 - Metrics record the denial with appropriate error categorization
 - Error category is `governance` or `enforcement` depending on context
+
+**Exception Details:**
+
+```python
+from rag_control.exceptions.governance import GovernancePolicyDeniedError
+
+# Exception is raised with:
+# - user_context: The UserContext that triggered the denial
+# - rule_name: Name of the deny rule that matched
+# - Message: "governance policy denied for org 'org_id' by rule 'rule_name'"
+```
+
+**Catching and Handling Denials:**
+
+```python
+from rag_control.exceptions.governance import GovernancePolicyDeniedError
+from rag_control.core.engine import Engine
+
+try:
+    result = engine.run(user_context=user_context, query=query)
+except GovernancePolicyDeniedError as e:
+    # Handle denial
+    print(f"Request denied: {e}")
+    print(f"Org: {e.user_context.org_id}")
+    print(f"Rule: {e.rule_name}")
+    # Return user-friendly error message
+    return {"error": "Your request cannot be processed due to governance policy"}
+```
 
 ### Rule Conditions
 
@@ -756,12 +784,22 @@ UserContext(
 
 When a request is denied by governance, the system:
 
-1. Returns an error with appropriate messaging
-2. Records metrics about the denial
-3. Categorizes the error as `governance` or `enforcement`
-4. Increments `requests.denied` counter
+1. **Raises Exception**: `GovernancePolicyDeniedError` is raised immediately
+2. **Records Metrics**: Increments `requests.denied` counter with error categorization
+3. **Logs Audit Event**: Records denial in audit logs with rule name and details
+4. **Stops Processing**: Request never proceeds to policy enforcement or document retrieval
+
+### Exception Raised
+
+When a deny rule matches, `GovernancePolicyDeniedError` is raised with:
+
+- **user_context**: The UserContext that triggered the denial
+- **rule_name**: Name of the deny rule that matched
+- **Message**: `"governance policy denied for org 'org_id' by rule 'rule_name'"`
 
 ### Example Denial Scenario
+
+Configuration:
 
 ```yaml
 policy_rules:
@@ -784,14 +822,77 @@ policy_rules:
 When denied:
 
 ```python
-Error:
-  message: "Request denied by governance policy: block_external_in_production"
-  error_category: "governance"
-  error_type: "PolicyDeniedError"
+from rag_control.exceptions.governance import GovernancePolicyDeniedError
 
-Metrics recorded:
-  - requests.denied counter incremented
-  - error_category: "governance"
+try:
+    result = engine.run(user_context=user_context, query=query)
+except GovernancePolicyDeniedError as e:
+    # e.user_context.org_id: Organization that was denied
+    # e.rule_name: "block_external_in_production"
+    # str(e): "governance policy denied for org 'org_id' by rule 'block_external_in_production'"
+
+    # Audit event logged:
+    # {
+    #   "event": "request.denied",
+    #   "level": "warning",
+    #   "rule_name": "block_external_in_production",
+    #   "error_type": "GovernancePolicyDeniedError"
+    # }
+
+    # Metrics recorded:
+    # - requests.denied counter incremented
+    # - error_category: "governance"
+    # - error_type: "GovernancePolicyDeniedError"
+```
+
+### Handling Denials in Your Application
+
+Best practices for catching and responding to denials:
+
+```python
+from rag_control.exceptions.governance import GovernancePolicyDeniedError
+from rag_control.core.engine import Engine
+
+engine = Engine(config)
+
+def process_query(user_context, query):
+    try:
+        result = engine.run(user_context=user_context, query=query)
+        return {"success": True, "result": result}
+    except GovernancePolicyDeniedError as e:
+        # Log for audit purposes
+        logger.warning(f"Request denied by rule: {e.rule_name}")
+
+        # Return user-friendly error
+        return {
+            "success": False,
+            "error": "Your request cannot be processed due to security policy",
+            "rule": e.rule_name,  # Optionally include for debugging
+        }
+    except Exception as e:
+        # Handle other errors differently
+        logger.error(f"Processing error: {e}")
+        return {"success": False, "error": "Processing failed"}
+```
+
+### Distinguish Denial Types
+
+If you need to distinguish governance denials from other errors:
+
+```python
+from rag_control.exceptions.governance import GovernancePolicyDeniedError
+
+try:
+    result = engine.run(user_context=user_context, query=query)
+except GovernancePolicyDeniedError as e:
+    # Governance-level denial (organization rules blocked request)
+    logger.warning(f"Governance denial by rule '{e.rule_name}' for org '{e.user_context.org_id}'")
+    # Return 403 Forbidden or similar
+    return error_response("Access denied by policy", status_code=403)
+except Exception as e:
+    # Other errors (embedding failures, retrieval errors, etc.)
+    logger.error(f"Processing error: {e}")
+    return error_response("Processing failed", status_code=500)
 ```
 
 ## Best Practices
