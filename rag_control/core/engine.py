@@ -202,7 +202,9 @@ class RAGControl:
             )
 
             retrieval_filter = (
-                engine.filter_registry.get(org.document_policy.filter_name) if org.document_policy.filter_name is not None else None
+                engine.filter_registry.get(org.document_policy.filter_name)
+                if org.document_policy.filter_name is not None
+                else None
             )
 
             query_embedding_res = engine._run_stage(

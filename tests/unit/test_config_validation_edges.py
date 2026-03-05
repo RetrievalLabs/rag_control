@@ -44,7 +44,9 @@ def test_control_plane_config_validate_reference_error_branches(
         ),
         (
             "org_filter_name_missing",
-            lambda payload: payload["orgs"][0]["document_policy"].update({"filter_name": "missing"}),
+            lambda payload: payload["orgs"][0]["document_policy"].update(
+                {"filter_name": "missing"}
+            ),
             "document_policy.filter_name 'missing' does not exist",
         ),
         (
