@@ -41,7 +41,8 @@ filters:
 orgs:
   - org_id: test_org
     default_policy: default_policy
-    filter_name: default_filter
+    document_policy:
+      filter_name: default_filter
     policy_rules:
       - name: allow_enterprise
         priority: 1
@@ -84,7 +85,8 @@ filters:
 orgs:
   - org_id: test_org
     default_policy: default_policy
-    filter_name: default_filter
+    document_policy:
+      filter_name: default_filter
     policy_rules: []
 """.strip(),
         encoding="utf-8",
@@ -103,7 +105,8 @@ filters:
 orgs:
   - org_id: test_org
     default_policy: default_policy
-    filter_name: default_filter
+    document_policy:
+      filter_name: default_filter
     policy_rules: []
 """.strip(),
         encoding="utf-8",
@@ -134,7 +137,8 @@ filters:
 orgs:
   - org_id: test_org
     default_policy: default_policy
-    filter_name: default_filter
+    document_policy:
+      filter_name: default_filter
     policy_rules: []
 """.strip(),
         encoding="utf-8",

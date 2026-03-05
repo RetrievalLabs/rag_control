@@ -10,6 +10,7 @@ from .rule import PolicyRule
 
 class DocumentPolicy(BaseModel):
     top_k: int = 5
+    filter_name: str | None = None
 
 
 class OrgConfig(BaseModel):
@@ -17,5 +18,4 @@ class OrgConfig(BaseModel):
     description: str | None = None
     default_policy: str
     policy_rules: list[PolicyRule]
-    filter_name: str | None = None
     document_policy: DocumentPolicy = Field(default_factory=DocumentPolicy)

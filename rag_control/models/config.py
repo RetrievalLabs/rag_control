@@ -67,9 +67,9 @@ class ControlPlaneConfig(BaseModel):
                     f"org '{org.org_id}' default_policy '{org.default_policy}' does not exist"
                 )
 
-            if org.filter_name is not None and org.filter_name not in filter_name_set:
+            if org.document_policy.filter_name is not None and org.document_policy.filter_name not in filter_name_set:
                 raise ControlPlaneConfigValidationError(
-                    f"org '{org.org_id}' filter_name '{org.filter_name}' does not exist"
+                    f"org '{org.org_id}' document_policy.filter_name '{org.document_policy.filter_name}' does not exist"
                 )
 
             rule_names = [rule.name for rule in org.policy_rules]
