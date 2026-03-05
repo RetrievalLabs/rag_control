@@ -3,6 +3,8 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
+from rag_control.adapters.llm import ChatMessage, PromptInput
+
 from .config import ControlPlaneConfig
 from .filter import Condition as FilterCondition
 from .filter import Filter
@@ -19,6 +21,7 @@ from .query_embedding import QueryEmbeddingMetadata, QueryEmbeddingResponse
 from .rule import Condition as RuleCondition
 from .rule import LogicalCondition, PolicyRule
 from .run import RunResponse, StreamResponse
+from .user_context import UserContext
 from .vector_store import (
     VectorStoreRecord,
     VectorStoreSearchMetadata,
@@ -26,6 +29,7 @@ from .vector_store import (
 )
 
 __all__ = [
+    "ChatMessage",
     "LLMUsage",
     "LLMMetadata",
     "LLMResponse",
@@ -43,8 +47,10 @@ __all__ = [
     "PolicyRule",
     "LogicalCondition",
     "RuleCondition",
+    "PromptInput",
     "RunResponse",
     "StreamResponse",
+    "UserContext",
     "QueryEmbeddingMetadata",
     "QueryEmbeddingResponse",
     "VectorStoreRecord",

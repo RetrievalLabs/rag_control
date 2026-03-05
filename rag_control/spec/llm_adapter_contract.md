@@ -14,6 +14,11 @@ Scope
   - `LLM.stream(prompt, temperature: float | None = None, max_output_tokens: int | None = None, user_context: UserContext | None = None) -> LLMStreamResponse`
 - Output models are defined in `rag_control/models/llm.py`.
 
+Type Definitions
+- `ChatMessage = dict[str, str]` — a single message with at minimum `role` and `content` keys.
+- `PromptInput = str | list[ChatMessage]` — prompt can be a simple string or a list of chat messages.
+- These types are defined in `rag_control/adapters/llm.py` and re-exported from `rag_control.adapters` and `rag_control.models` for convenience.
+
 Normative Terms
 - MUST: required.
 - SHOULD: recommended unless provider constraints prevent it.

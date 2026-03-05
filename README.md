@@ -72,11 +72,11 @@ policies:
       allow_external_knowledge: false
       require_citations: true
       temperature: 0.0
-      max_output_tokens: 512
     enforcement:
       validate_citations: true
       block_on_missing_citations: true
       prevent_external_knowledge: true
+      max_output_tokens: 512
     logging:
       level: full
 
@@ -87,11 +87,11 @@ policies:
       allow_external_knowledge: false
       require_citations: true
       temperature: 0.1
-      max_output_tokens: 1024
     enforcement:
       validate_citations: true
       block_on_missing_citations: false
       prevent_external_knowledge: true
+      max_output_tokens: 512
     logging:
       level: full
 
@@ -137,8 +137,8 @@ orgs:
 ### 2. Initialize the Engine
 
 ```python
-from rag_control.core.engine import RAGControl
-from rag_control.models.user import UserContext
+from rag_control import RAGControl
+from rag_control.models import UserContext
 
 # Initialize with your adapters and config
 engine = RAGControl(

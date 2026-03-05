@@ -1,7 +1,7 @@
 VENV_DIR := .venv
 PYTHON := python3
 
-.PHONY: venv activate install install-dev sync sync-dev test tests unit-test coverage lint format typecheck clean
+.PHONY: venv activate install install-dev sync sync-dev test tests unit-test coverage lint format typecheck docs-clean docs-install docs-build docs-start clean
 
 venv:
 	uv venv $(VENV_DIR) --python $(PYTHON)
@@ -41,6 +41,20 @@ format: install-dev
 
 typecheck: install-dev
 	uv run --python $(VENV_DIR)/bin/python mypy .
+
+
+docs-clean:
+	rm -rf docs/build docs/site docs/_build 2>/dev/null; \
+	echo "Documentation build artifacts cleaned"
+
+docs-install:
+	cd docs && npm install
+
+docs-build:
+	cd docs && npm run build
+
+docs-start:
+	cd docs && npm start
 
 clean:
 	rm -rf $(VENV_DIR)

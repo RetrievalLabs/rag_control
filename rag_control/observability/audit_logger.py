@@ -61,7 +61,7 @@ def should_emit_audit_event(
             "org.resolved",
             "request.completed",
             "request.denied",
-            "request.failed",
+            "error.occurred",
         }
     return True
 

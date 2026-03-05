@@ -1,0 +1,133 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a simple framework built on top of it.
+ * The following line ensures that you'll have the most minimal CSS baseline.
+ */
+
+:root {
+  /* Primary Accent - Bright Blue */
+  --ifm-color-primary: #1F7FC3;
+  --ifm-color-primary-dark: #1a6aaa;
+  --ifm-color-primary-darker: #155595;
+  --ifm-color-primary-darkest: #0d3d6b;
+  /* Secondary Accent - Light Blue */
+  --ifm-color-primary-light: #2A9CE6;
+  --ifm-color-primary-lighter: #4aafed;
+  --ifm-color-primary-lightest: #6ac2f4;
+  /* Background - Purpleish Blue */
+  --ifm-background-color: #050510;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(31, 127, 195, 0.1);
+}
+
+[data-theme='dark'] {
+  --docusaurus-highlighted-code-line-bg: rgba(31, 127, 195, 0.2);
+}
+
+html[data-theme='dark'] {
+  /* Primary Accent - Bright Blue */
+  --ifm-color-primary: #2A9CE6;
+  --ifm-color-primary-dark: #1F7FC3;
+  --ifm-color-primary-darker: #1a6aaa;
+  --ifm-color-primary-darkest: #155595;
+  /* Secondary Accent - Light Blue */
+  --ifm-color-primary-light: #4aafed;
+  --ifm-color-primary-lighter: #6ac2f4;
+  --ifm-color-primary-lightest: #8ad0fb;
+  /* Background - Purpleish Blue */
+  --ifm-background-color: #050510;
+}
+
+.docTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.featureCard {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+code {
+  background-color: var(--ifm-code-background);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+}
+
+pre {
+  background-color: var(--ifm-pre-background);
+  border-radius: 6px;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.markdown h1 {
+  font-size: 2.5rem;
+}
+
+.markdown h2 {
+  font-size: 2rem;
+  margin-top: 2rem;
+}
+
+.markdown h3 {
+  font-size: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+/* Version Banner Styling */
+.versionBanner {
+  background-color: rgba(42, 156, 230, 0.1);
+  border-left: 4px solid #2A9CE6;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  color: #2A9CE6;
+  font-size: 0.95rem;
+}
+
+.versionBanner strong {
+  color: #2A9CE6;
+}
+
+/* Unreleased version banner */
+.versionBannerUnreleased {
+  background-color: rgba(255, 193, 7, 0.1);
+  border-left: 4px solid #ffc107;
+  color: #ffc107;
+}
+
+.versionBannerUnreleased strong {
+  color: #ffc107;
+}
+
+/* Sidebar always visible for desktop */
+@media (min-width: 997px) {
+  .docSidebarContainer {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+  }
+
+  aside {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .theme-doc-sidebar {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .docPageContainer_node_modules_\@docusaurus_theme_classic_lib_theme_DocPage_Layout__docPageContainer {
+    display: flex !important;
+  }
+
+  .docMainContainer_node_modules_\@docusaurus_theme_classic_lib_theme_DocPage_Layout_Main__docMainContainer {
+    flex: 1 !important;
+  }
+}
