@@ -63,13 +63,6 @@ rag_control addresses these challenges with:
 - [API Reference](/api/engine)
 - [Contributing](/development/contributing)
 
-## Latest Updates
-
-- **18 Metrics**: Comprehensive observability covering throughput, latency, quality, costs, and error tracking
-- **OpenTelemetry Integration**: Full distributed tracing support
-- **Enhanced Governance**: Organization-specific policy rules for fine-grained control
-- **Robust Error Handling**: Custom exception types and comprehensive error categorization
-
 ## Support & Community
 
 - 📚 [Read the Documentation](/getting-started/installation)
@@ -77,16 +70,6 @@ rag_control addresses these challenges with:
 - 💬 [GitHub Discussions](https://github.com/RetrievalLabs/rag_control/discussions)
 - 🏢 [RetrievalLabs.ai](https://retrievallabs.ai)
 
-## Getting Started
-
-Choose where you want to start:
-
-1. **New to rag_control?** → [Installation & Quick Start](/getting-started/quick-start)
-2. **Need to understand the basics?** → [Core Concepts](/concepts/overview)
-3. **Want to dive into architecture?** → [Architecture Overview](/architecture/overview)
-4. **Looking for API details?** → [Engine API Reference](/api/engine)
-5. **Want to contribute?** → [Contributing Guide](/development/contributing)
-
 ---
 
-**Built by [RetrievalLabs](https://retrievallabs.ai)** — Enterprise RAG Governance and Security
+**Built by [RetrievalLabs](https://retrievallabs.ai)** — Enterprise AI Governance and Security
