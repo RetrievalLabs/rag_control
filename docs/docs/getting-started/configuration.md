@@ -157,12 +157,14 @@ Document policies control document retrieval behavior for organizations.
 
 ```yaml
 document_policy:
-  top_k: 5  # Number of documents to retrieve (required, must be > 0)
+  top_k: 5                    # Number of documents to retrieve (required, must be > 0)
+  filter_name: null           # Optional: filter to apply to document retrieval
 ```
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `top_k` | integer | `5` | Number of documents to retrieve. Must be greater than 0 |
+| `filter_name` | string or null | `null` | Optional filter name to apply to document retrieval. Must exist in filters section |
 
 ## Policy Rules
 
@@ -243,10 +245,10 @@ orgs:
     # Document retrieval settings
     document_policy:
       top_k: 8                      # Number of documents to retrieve
-    filter_name: enterprise_only    # Optional: filter applied to all requests
+      filter_name: enterprise_only  # Optional: filter applied to all requests
 
-    # Organization configuration details
-    # Required: must contain rules or be an empty list
+    # Policy rules for organization-specific governance
+    policy_rules: []                # Can be empty if no additional rules needed
 ```
 
 ### Organization Parameters
@@ -256,8 +258,7 @@ orgs:
 | `org_id` | string | Yes | Unique organization identifier |
 | `description` | string | No | Human-readable organization description |
 | `default_policy` | string | Yes | Default policy name (must exist in policies) |
-| `document_policy` | object | Yes | Document retrieval configuration |
-| `filter_name` | string | No | Optional filter to apply to all requests |
+| `document_policy` | object | Yes | Document retrieval configuration (see Document Policy section) |
 | `policy_rules` | list | Yes | List of policy rules (can be empty) |
 
 ### Example Organization Structure
@@ -266,6 +267,11 @@ orgs:
 orgs:
   - org_id: acme_corp
     description: Acme Corporation
+    default_policy: strict_citations
+
+    # Document retrieval settings
+    document_policy:
+      top_k: 5
 
     # Organization-specific policy rules
     policy_rules:
@@ -372,7 +378,7 @@ orgs:
     default_policy: production
     document_policy:
       top_k: 5
-    filter_name: sensitive_only
+      filter_name: sensitive_only
     policy_rules:
       - name: block_external_knowledge
         priority: 100
@@ -403,6 +409,9 @@ filters:
 orgs:
   - org_id: acme_corp
     default_policy: strict
+    document_policy:
+      top_k: 5
+      filter_name: acme_filter
     policy_rules:
       - name: acme_specific_rule
         priority: 50
@@ -417,6 +426,8 @@ orgs:
 
   - org_id: standard_org
     default_policy: moderate
+    document_policy:
+      top_k: 10
 ```
 
 ## Validation
