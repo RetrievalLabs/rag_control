@@ -1,317 +1,151 @@
 ---
 title: Engine API Reference
-description: RAGControl Engine API documentation
+description: RAGControl Engine API and initialization
 ---
 
 # Engine API Reference
 
-The RAGControl Engine is the main orchestrator for executing RAG requests with governance and policy enforcement.
+The main orchestrator for executing RAG requests with governance and policy enforcement.
 
-## RAGControl Class
+## RAGControl
 
 ```python
-from rag_control.core.engine import RAGControl
-from rag_control.models.user import UserContext
-
-engine = RAGControl(
-    llm=llm_adapter,
-    query_embedding=embedding_adapter,
-    vector_store=vector_store_adapter,
-    config_path="policy_config.yaml"
-)
+from rag_control import RAGControl
 ```
+
+Initialize with adapters and governance configuration.
 
 ## Constructor
 
 ```python
 def __init__(
     self,
-    llm: LLMAdapter,
-    query_embedding: QueryEmbeddingAdapter,
-    vector_store: VectorStoreAdapter,
-    config_path: str,
-    audit_logger: Optional[AuditLogger] = None,
-    tracer: Optional[Tracer] = None,
-    metrics_recorder: Optional[MetricsRecorder] = None,
-):
-    """
-    Initialize RAGControl engine.
-
-    Args:
-        llm: LLM adapter for generation
-        query_embedding: Query embedding adapter
-        vector_store: Vector store adapter for retrieval
-        config_path: Path to policy configuration file
-        audit_logger: Optional audit logger (default: NoOpAuditLogger)
-        tracer: Optional distributed tracer (default: NoOpTracer)
-        metrics_recorder: Optional metrics recorder (default: NoOpMetricsRecorder)
-
-    Raises:
-        ConfigurationError: If configuration is invalid
-        FileNotFoundError: If config file not found
-    """
+    llm: LLM,
+    query_embedding: QueryEmbedding,
+    vector_store: VectorStore,
+    config: ControlPlaneConfig | None = None,
+    config_path: str | Path | None = None,
+    audit_logger: AuditLogger | None = None,
+    tracer: Tracer | None = None,
+    metrics_recorder: MetricsRecorder | None = None,
+)
 ```
+
+**Parameters:**
+- `llm: LLM` - LLM adapter for generation
+- `query_embedding: QueryEmbedding` - Query embedding adapter
+- `vector_store: VectorStore` - Vector store adapter for retrieval
+- `config: ControlPlaneConfig | None` - Config object (optional, use config_path instead)
+- `config_path: str | Path | None` - Path to YAML config file (optional)
+- `audit_logger: AuditLogger | None` - Audit logger (default: StructlogAuditLogger)
+- `tracer: Tracer | None` - Distributed tracer (default: default tracer)
+- `metrics_recorder: MetricsRecorder | None` - Metrics recorder (default: default recorder)
+
+**Note:** Provide exactly one of `config` or `config_path`.
 
 ## Methods
 
 ### run()
 
-Execute a query and return a complete response.
+Execute a query synchronously and return a complete response.
 
-```python
-def run(
-    self,
-    query: str,
-    user_context: UserContext,
-) -> ExecutionResult:
-    """
-    Execute query with governance and policy enforcement.
+`run(query: str, user_context: UserContext) -> RunResponse`
 
-    Args:
-        query: The user's query
-        user_context: User context with org_id, user_id, etc.
-
-    Returns:
-        ExecutionResult containing:
-        - response: Generated response with content and token count
-        - policy_name: Name of policy applied
-        - enforcement_passed: Whether enforcement checks passed
-        - metadata: Execution metadata (documents, latency, etc.)
-
-    Raises:
-        PolicyEnforcementError: If enforcement validation fails
-        OrganizationNotFoundError: If organization invalid
-        RetrievalError: If document retrieval fails
-        LLMError: If LLM generation fails
-    """
-```
+**Returns:** RunResponse with policy name, enforcement result, and LLMResponse
 
 ### stream()
 
 Stream a query response for real-time output.
 
-```python
-def stream(
-    self,
-    query: str,
-    user_context: UserContext,
-) -> StreamingResult:
-    """
-    Stream query response for real-time output.
+`stream(query: str, user_context: UserContext) -> StreamResponse`
 
-    Args:
-        query: The user's query
-        user_context: User context with org_id, user_id, etc.
-
-    Yields:
-        Token chunks as they arrive from LLM
-
-    Returns:
-        StreamingResult with final metadata
-
-    Raises:
-        PolicyEnforcementError: If enforcement validation fails
-        OrganizationNotFoundError: If organization invalid
-        RetrievalError: If document retrieval fails
-        LLMError: If LLM generation fails
-    """
-```
+**Returns:** StreamResponse with policy name, enforcement result, and LLMStreamResponse
 
 ## Return Types
 
-### ExecutionResult
+### RunResponse
+
+- `policy_name: str` - Policy applied
+- `org_id: str` - Organization ID
+- `user_id: str` - User ID
+- `trace_id: str | None` - Trace ID (if tracing enabled)
+- `filter_name: str | None` - Filter applied (if any)
+- `retrieval_top_k: int` - Number of docs requested
+- `retrieved_count: int` - Number of docs retrieved
+- `enforcement_passed: bool` - Enforcement check result
+- `response: LLMResponse` - Generated response with content, usage, metadata
+
+### StreamResponse
+
+- `policy_name: str` - Policy applied
+- `org_id: str` - Organization ID
+- `user_id: str` - User ID
+- `trace_id: str | None` - Trace ID (if tracing enabled)
+- `filter_name: str | None` - Filter applied (if any)
+- `retrieval_top_k: int` - Number of docs requested
+- `retrieved_count: int` - Number of docs retrieved
+- `enforcement_attached: bool` - Enforcement check result
+- `response: LLMStreamResponse` - Streaming response with usage, metadata
+
+## UserContext
 
 ```python
-@dataclass
-class ExecutionResult:
-    response: GeneratedResponse
-    policy_name: str
-    enforcement_passed: bool
-    documents: list[RetrievedDocument]
-    metadata: ExecutionMetadata
-```
+from rag_control.models import UserContext
 
-### GeneratedResponse
-
-```python
-@dataclass
-class GeneratedResponse:
-    content: str                    # Generated text
-    token_count: int               # Total tokens used
-    prompt_tokens: int             # Prompt tokens
-    completion_tokens: int         # Completion tokens
-    stop_reason: str              # Why generation stopped
-```
-
-### StreamingResult
-
-```python
-class StreamingResult:
-    def __iter__(self) -> Iterator[str]:
-        """Iterate over response chunks."""
-
-    @property
-    def metadata(self) -> ExecutionMetadata:
-        """Get execution metadata after streaming completes."""
-```
-
-### ExecutionMetadata
-
-```python
-@dataclass
-class ExecutionMetadata:
-    request_id: str
-    duration_ms: int
-    org_id: str
-    user_id: str
-    policy_resolved_by: str        # rule name or "default"
-    documents_retrieved: int
-    tokens_used: int
-    enforcement_checks: dict
-```
-
-## User Context
-
-```python
-@dataclass
-class UserContext:
-    org_id: str                   # Organization ID (required)
-    user_id: str                  # User ID (required)
-    org_tier: Optional[str] = None
-    role: Optional[str] = None
-    # Additional custom fields supported
-```
-
-## Exception Hierarchy
-
-```python
-class RAGControlException(Exception):
-    """Base exception for rag_control."""
-
-class OrganizationError(RAGControlException):
-    """Organization-related errors."""
-
-class PolicyError(RAGControlException):
-    """Policy-related errors."""
-
-class RetrievalError(RAGControlException):
-    """Document retrieval errors."""
-
-class LLMError(RAGControlException):
-    """LLM generation errors."""
-
-class PolicyEnforcementError(RAGControlException):
-    """Policy enforcement failures."""
-
-class ValidationError(RAGControlException):
-    """Input validation errors."""
-```
-
-## Usage Examples
-
-### Basic Query
-
-```python
-from rag_control.core.engine import RAGControl
-from rag_control.models.user import UserContext
-
-# Initialize engine
-engine = RAGControl(
-    llm=your_llm_adapter,
-    query_embedding=your_embedding_adapter,
-    vector_store=your_vector_store_adapter,
-    config_path="policy_config.yaml"
-)
-
-# Create user context
-user_context = UserContext(
-    org_id="acme_corp",
+context = UserContext(
+    org_id="acme-corp",
     user_id="user-123",
-    org_tier="enterprise"
 )
-
-# Execute query
-result = engine.run(
-    query="What are the key findings from Q1?",
-    user_context=user_context
-)
-
-# Process result
-print(f"Response: {result.response.content}")
-print(f"Policy: {result.policy_name}")
-print(f"Enforcement passed: {result.enforcement_passed}")
-print(f"Tokens: {result.response.token_count}")
 ```
 
-### Streaming Response
+**Fields:**
+- `org_id: str` - Organization ID (required)
+- `user_id: str` - User ID (required)
+- Additional custom fields supported
 
-```python
-# Stream response
-stream_result = engine.stream(
-    query="Summarize the financial impact",
-    user_context=user_context
-)
+## Execution Flow
 
-# Output as it arrives
-for chunk in stream_result:
-    print(chunk, end="", flush=True)
-
-# Access final metadata
-print(f"\nTokens: {stream_result.metadata.tokens_used}")
-print(f"Duration: {stream_result.metadata.duration_ms}ms")
-```
-
-### Error Handling
-
-```python
-from rag_control.core.engine import (
-    RAGControl,
-    OrganizationError,
-    PolicyEnforcementError,
-    RAGControlException
-)
-
-try:
-    result = engine.run(query, user_context)
-except OrganizationError as e:
-    # Handle org validation failure
-    print(f"Invalid organization: {e}")
-except PolicyEnforcementError as e:
-    # Handle policy violation
-    print(f"Policy enforcement failed: {e}")
-except RAGControlException as e:
-    # Handle other rag_control errors
-    print(f"Error: {e}")
-```
+1. **Organization Lookup** - Validate org_id and retrieve org config
+2. **Document Retrieval** - Embed query and retrieve top-k documents
+3. **Policy Resolution** - Determine which policy applies based on rules
+4. **Prompt Building** - Build LLM prompt with retrieved documents and policy
+5. **Generation** - Generate response via LLM adapter
+6. **Enforcement** - Validate response against enforcement policy
 
 ## Configuration
 
-Engine behavior is controlled via YAML configuration file:
+Pass config programmatically or from YAML:
 
-```yaml
-policies:
-  # Policy definitions
+```python
+# From ControlPlaneConfig object
+from rag_control.models.config import ControlPlaneConfig
 
-filters:
-  # Filter definitions
-
-orgs:
-  # Organization configurations
+config = ControlPlaneConfig(policies=[...], filters=[...], orgs=[...])
+engine = RAGControl(..., config=config)
 ```
 
-See [Configuration Guide](/getting-started/configuration) for details.
+```python
+# From YAML file
+engine = RAGControl(..., config_path="config.yaml")
+```
 
-## Best Practices
+See [Policy, Governance & Filters API](/api/policy-gov-config) for configuration details.
 
-1. **Reuse Engine Instance**: Create once, reuse for multiple requests
-2. **Handle Errors**: Catch and log exceptions appropriately
-3. **Set Observability**: Configure audit logging, tracing, and metrics
-4. **Monitor Performance**: Track latency and token usage
-5. **Version Configuration**: Keep configs in version control
+## Exceptions
+
+Common exceptions from `rag_control.exceptions`:
+
+- `RagControlError` - Base exception
+- `GovernanceOrgNotFoundError` - Organization not found
+- `GovernancePolicyDeniedError` - Policy denied by governance
+- `GovernanceUserContextOrgIDRequiredError` - org_id required
+- `EnforcementPolicyViolationError` - Enforcement validation failed
+- `AdapterError` - Adapter integration failures
+
+See [Exceptions API](/api/exceptions) for complete reference.
 
 ## See Also
 
-- [Core Concepts](/concepts/overview)
-- [Quick Start](/getting-started/quick-start)
-- [API Reference - Policies](/api/policies)
-- [API Reference - Governance](/api/governance)
+- [Adapters API](/api/adapters)
+- [Policy, Governance & Filters API](/api/policy-gov-config)
+- [Exceptions API](/api/exceptions)
