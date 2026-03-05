@@ -104,3 +104,30 @@ pre {
 .versionBannerUnreleased strong {
   color: #ffc107;
 }
+
+/* Sidebar always visible for desktop */
+@media (min-width: 997px) {
+  .docSidebarContainer {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+  }
+
+  aside {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .theme-doc-sidebar {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .docPageContainer_node_modules_\@docusaurus_theme_classic_lib_theme_DocPage_Layout__docPageContainer {
+    display: flex !important;
+  }
+
+  .docMainContainer_node_modules_\@docusaurus_theme_classic_lib_theme_DocPage_Layout_Main__docMainContainer {
+    flex: 1 !important;
+  }
+}

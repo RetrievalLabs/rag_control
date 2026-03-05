@@ -45,6 +45,7 @@ const config = {
           sidebarPath: './sidebars.js',
           editUrl: 'https://github.com/RetrievalLabs/rag_control/tree/main/docs/',
           routeBasePath: '/',
+          sidebarCollapsible: true,
         },
         blog: false,
         theme: {
@@ -72,8 +73,8 @@ const config = {
           {
             type: 'docSidebar',
             sidebarId: 'tutorialSidebar',
+            label: '📚 Docs',
             position: 'left',
-            label: 'Docs',
           },
           {
             href: 'https://github.com/RetrievalLabs/rag_control',
