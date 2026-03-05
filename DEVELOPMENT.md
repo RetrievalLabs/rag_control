@@ -8,6 +8,7 @@
 
 - Python 3.9 or higher
 - [uv](https://docs.astral.sh/uv/) for dependency management
+- Node.js and npm (for building and serving documentation)
 
 ## Development Setup
 
@@ -125,11 +126,49 @@ docs/
 
 ### Building Documentation
 
-Documentation is built using standard markdown. To view locally:
+Documentation is built using standard markdown with Node.js tooling. Use the following make commands:
 
+#### Install Documentation Dependencies
 ```bash
-# Serve documentation locally (requires a doc server like mdbook or similar)
-# Check project's doc tools configuration for specific build commands
+make docs-install
+```
+
+This installs Node.js dependencies required for building and serving documentation.
+
+#### Build Documentation
+```bash
+make docs-build
+```
+
+This builds static documentation in the `docs/` directory, generating the final documentation site.
+
+#### View Documentation Locally
+```bash
+make docs-start
+```
+
+This starts a local development server to view documentation in your browser (typically at http://localhost:3000). Live reload is enabled for development.
+
+#### Clean Documentation Build
+```bash
+make docs-clean
+```
+
+This removes all documentation build artifacts (`docs/build`, `docs/site`, `docs/_build`).
+
+**Typical workflow:**
+```bash
+# First time setup
+make docs-install
+
+# Start local dev server
+make docs-start
+
+# Make changes to files in docs/ directory
+# Browser will auto-reload with changes
+
+# When done, stop the server (Ctrl+C) and clean if needed
+make docs-clean
 ```
 
 ### Documentation Standards
