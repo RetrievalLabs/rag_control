@@ -331,7 +331,6 @@ request_span
 
 ## See Also
 
-- [Tracing Contract](/specs/tracing-contract)
 - [Audit Logging](/observability/audit-logging)
 - [Metrics](/observability/metrics)
 - [OpenTelemetry Documentation](https://opentelemetry.io/)

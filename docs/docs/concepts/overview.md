@@ -102,6 +102,6 @@ rag_control provides comprehensive observability:
 
 ## See Also
 
-- [Architecture Overview](/architecture/overview)
 - [Quick Start](/getting-started/quick-start)
 - [Configuration Guide](/getting-started/configuration)
+- [API Reference](/api/engine)

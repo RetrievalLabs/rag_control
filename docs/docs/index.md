@@ -53,9 +53,8 @@ RAG systems combine powerful retrieval and generation capabilities but introduce
 
 - [Installation & Quick Start](/getting-started/quick-start)
 - [Core Concepts](/concepts/overview)
-- [Architecture](/architecture/overview)
 - [API Reference](/api/engine)
-- [Contributing](/development/contributing)
+- [Observability](/observability/audit-logging)
 
 ## Support & Community
 

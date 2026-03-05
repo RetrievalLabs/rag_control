@@ -338,7 +338,6 @@ custom_metrics = CustomMetricsRecorder()
 
 ## See Also
 
-- [Metrics Contract](/specs/metrics-contract)
 - [Audit Logging](/observability/audit-logging)
 - [Distributed Tracing](/observability/distributed-tracing)
 - [Prometheus Documentation](https://prometheus.io/)

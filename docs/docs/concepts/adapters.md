@@ -296,4 +296,4 @@ Check the examples directory for more implementations.
 
 - [Core Concepts Overview](/concepts/overview)
 - [Quick Start](/getting-started/quick-start)
-- [Architecture](/architecture/overview)
+- [API Reference](/api/adapters)

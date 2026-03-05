@@ -469,7 +469,7 @@ except Exception as e:
 
 ## Configuration Reference
 
-For detailed specification, see the [Control Plane Config Contract](/specs/config-contract)
+The control plane configuration is fully documented in the [Configuration Guide](/getting-started/configuration).
 
 ## Next Steps
 

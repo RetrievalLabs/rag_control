@@ -39,7 +39,7 @@ See individual component licenses for full details.
 
 By contributing to rag_control, you agree that your contributions will be licensed under the same RBRL license.
 
-See [Contributing Guide](/development/contributing) for more information.
+Contributions are welcome! Please see the [GitHub repository](https://github.com/RetrievalLabs/rag_control) for contribution guidelines.
 
 ## Questions?
 

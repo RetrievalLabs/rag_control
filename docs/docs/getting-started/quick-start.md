@@ -183,14 +183,14 @@ class MyVectorStoreAdapter(VectorStoreAdapter):
         pass
 ```
 
-> **Learn more:** See the [Architecture Guide](/architecture/overview) and [Adapter Patterns](/architecture/adapters) for detailed implementation guidance.
+> **Learn more:** See the [Adapter Patterns](/concepts/adapters) for detailed implementation guidance.
 
 ## Next Steps
 
 - Learn more about [Core Concepts](/concepts/overview)
 - Understand [Configuration](/getting-started/configuration) in detail
-- Explore the [Architecture](/architecture/overview)
 - Check [API Reference](/api/engine)
+- Explore [Observability](/observability/audit-logging)
 
 
 ## Getting Help

@@ -360,6 +360,6 @@ engine = RAGControl(
 
 ## See Also
 
-- [Audit Log Contract](/specs/audit-log-contract)
 - [Distributed Tracing](/observability/distributed-tracing)
+- [Metrics](/observability/metrics)
 - [Metrics](/observability/metrics)
