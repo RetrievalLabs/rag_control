@@ -229,7 +229,7 @@ The adapter must support:
 
 When implementing a vector store adapter, ensure it applies configured filters to filter results based on user authorization and data accessibility rules.
 
-## Filter Examples
+## Real World Filter Examples
 
 ### Data Classification Filters
 
