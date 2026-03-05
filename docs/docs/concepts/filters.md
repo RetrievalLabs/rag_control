@@ -223,7 +223,6 @@ Filters are applied during document retrieval and **must be supported by the vec
 The adapter must support:
 - Filtering by document metadata fields (any field in document metadata)
 - Filtering by user context (org_id, role, tier, custom attributes)
-- Multiple filters with AND logic (all filters must pass)
 - All supported operators: `equals`, `contains`, `in`, `gt`, `lt`, `gte`, `lte`, etc.
 - Nested field paths (e.g., `metadata.owner.department`)
 - Document matching modes: `any` and `all`
@@ -440,7 +439,7 @@ When implementing a vector store adapter, ensure it applies configured filters t
 
 ## Applying Filters in Organizations
 
-Filters are referenced in organization configurations:
+Filters are referenced in organization configurations. Each organization has **one filter** applied to all document retrievals:
 
 ```yaml
 orgs:
@@ -449,51 +448,41 @@ orgs:
     default_policy: strict_citations
     document_policy:
       top_k: 8
-      filters:
-        - enterprise_only
-        - internal_only
+      filter_name: enterprise_only        # Single filter name
+
+  - org_id: startup_xyz
+    description: Startup XYZ
+    default_policy: balanced_production
+    document_policy:
+      top_k: 10
+      filter_name: public_only            # Different filter for different org
 ```
 
-### Multiple Filters (AND Logic)
+### Single Filter Per Organization
 
-When multiple filters are specified, **ALL filters must pass**:
+Each organization's `document_policy` specifies exactly one filter name to apply to all document retrievals for that organization.
+
+To apply complex filtering logic, create a compound filter using the `in` operator or other operators:
 
 ```yaml
-document_policy:
-  filters:
-    - enterprise_only        # AND
-    - internal_only          # AND
-    - exclude_confidential   # AND
-    - active_documents       # All four must be true
+# Define a compound filter that handles multiple conditions:
+- name: internal_and_active
+  description: Documents that are both internal and active
+  condition:
+    field: metadata.status
+    operator: equals
+    value: active
+    source: documents
+    document_match: all
+
+# Then reference it in your organization:
+orgs:
+  - org_id: my_org
+    document_policy:
+      filter_name: internal_and_active
 ```
 
-This is equivalent to: `(enterprise_only) AND (internal_only) AND (exclude_confidential) AND (active_documents)`
-
-### No OR Logic
-
-Filters always use AND logic. If you need OR logic, you must:
-
-1. Create multiple organizations with different filter sets, or
-2. Use a single compound filter with `in` operator
-
-**Example - OR logic via in operator:**
-
-Instead of:
-```yaml
-filters: [source_is_internal, source_is_proprietary]  # Not how OR works
-```
-
-Use:
-```yaml
-filters:
-  - name: internal_or_proprietary
-    condition:
-      field: metadata.source
-      operator: in
-      value: [internal, proprietary]
-      source: documents
-      document_match: all
-```
+Or create multiple organizations with different filters for different tiers:
 
 ## Filter Resolution Flow
 
