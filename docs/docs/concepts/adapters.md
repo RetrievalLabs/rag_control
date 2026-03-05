@@ -35,8 +35,8 @@ The LLM adapter handles text generation.
 
 ```python
 import openai
-from rag_control.adapters.llm import LLM, ChatMessage, PromptInput
-from rag_control.models.llm import LLMResponse, LLMStreamResponse, LLMUsage, LLMMetadata, LLMStreamChunk
+from rag_control.models import LLM, ChatMessage, PromptInput
+from rag_control.models import LLMResponse, LLMStreamResponse, LLMUsage, LLMMetadata, LLMStreamChunk
 from rag_control.models.user_context import UserContext
 
 class OpenAIAdapter(LLM):
@@ -121,9 +121,9 @@ The query embedding adapter converts queries to vectors for search.
 
 ```python
 import openai
-from rag_control.adapters.query_embedding import QueryEmbedding
+from rag_control.adapters import QueryEmbedding
 from rag_control.models.query_embedding import QueryEmbeddingResponse, QueryEmbeddingMetadata
-from rag_control.models.user_context import UserContext
+from rag_control.models import UserContext
 
 class OpenAIEmbeddingAdapter(QueryEmbedding):
     def __init__(self, api_key: str, model: str = "text-embedding-3-small"):
@@ -165,10 +165,10 @@ The vector store adapter retrieves documents based on query embeddings.
 
 ```python
 import pinecone
-from rag_control.adapters.vector_store import VectorStore
+from rag_control.adapters import VectorStore
 from rag_control.models.vector_store import VectorStoreSearchResponse, VectorStoreRecord, VectorStoreSearchMetadata
-from rag_control.models.filter import Filter
-from rag_control.models.user_context import UserContext
+from rag_control.models import Filter
+from rag_control.models import UserContext
 
 class PineconeAdapter(VectorStore):
     def __init__(self, index_name: str, embedding_model: str):
@@ -230,7 +230,7 @@ class PineconeAdapter(VectorStore):
 Once implemented, pass adapters to the engine:
 
 ```python
-from rag_control.core.engine import RAGControl
+from rag_control import RAGControl
 
 llm = OpenAIAdapter(api_key="sk-...")
 embedding = OpenAIEmbeddingAdapter(api_key="sk-...")
