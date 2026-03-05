@@ -810,4 +810,4 @@ policy_rules:
 - [Core Concepts Overview](/concepts/overview) - Understand policy context
 - [Governance](/concepts/governance) - How policies are selected
 - [Configuration Guide](/getting-started/configuration) - Policy syntax and examples
-- [Observability](/concepts/observability) - Monitor policy metrics
+- [Observability](/observability/metrics) - Monitor policy metrics and performance

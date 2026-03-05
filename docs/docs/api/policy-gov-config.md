@@ -463,9 +463,9 @@ Invalid configs raise `ControlPlaneConfigValidationError`.
 
 ## YAML Configuration Alternative
 
-Configs can also be loaded from YAML files 
+Configs can also be loaded from YAML files
 
-For YAML structure and configuration details, see the [Configuration Guide](/guides/configuration).
+For YAML structure and configuration details, see the [Configuration Guide](/getting-started/configuration).
 
 ## See Also
 

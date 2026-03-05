@@ -170,7 +170,7 @@ document_policy:
 | `top_k` | integer | `5` | Number of documents to retrieve. Must be greater than 0 |
 | `filter_name` | string or null | `null` | Optional filter name to apply to document retrieval. Must exist in filters section |
 
-> **Learn more:** See [Document Retrieval](/concepts/retrieval) concept guide for information about document selection and ranking.
+> **Learn more:** See [Filters](/concepts/filters) concept guide for information about document filtering and selection.
 
 ## Policy Rules
 
@@ -322,7 +322,7 @@ Rules use `when` clauses with:
 - `any`: Match if any condition is true (OR)
 - `all`: Match if all conditions are true (AND)
 
-> **Learn more:** See [Organizations](/concepts/organizations) concept guide for multi-tenant setup and organization management.
+> **Learn more:** See [Governance](/concepts/governance) concept guide for multi-tenant setup and organization-level policy rules.
 
 ## Example Configurations
 

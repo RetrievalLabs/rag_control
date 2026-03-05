@@ -49,12 +49,10 @@ docs/
 │   ├── index.md                    # Home page
 │   ├── getting-started/            # Getting started guides
 │   ├── concepts/                   # Core concepts
-│   ├── architecture/               # Architecture documentation
 │   ├── observability/              # Audit, tracing, metrics
 │   ├── api/                        # API reference
-│   ├── specs/                      # Formal specifications
-│   ├── development/                # Development guides
-│   └── license.md
+│   ├── license.md                  # License information
+│   └── [future subdirectories]
 ├── src/
 │   ├── css/
 │   │   └── custom.css             # Custom styling
