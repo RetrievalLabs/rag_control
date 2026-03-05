@@ -67,3 +67,4 @@ pip install --upgrade pydantic
 ## Getting Help
 
 - Open an [issue on GitHub](https://github.com/RetrievalLabs/rag_control/issues)
+- Contact [RetrievalLabs support](mailto:support@retrievallabs.ai) at support@retrievallabs.ai
