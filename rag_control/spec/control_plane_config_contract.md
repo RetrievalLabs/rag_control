@@ -28,7 +28,7 @@ Top-Level Model: `ControlPlaneConfig`
   - `filters[*].name` MUST be unique.
   - `orgs[*].org_id` MUST be unique.
   - Every `org.default_policy` MUST reference an existing `policies[*].name`.
-  - If present, every `org.filter_name` MUST reference an existing `filters[*].name`.
+  - If present, every `org.document_policy.filter_name` MUST reference an existing `filters[*].name`.
   - Within each org:
     - `policy_rules[*].name` MUST be unique.
     - `policy_rules[*].priority` MUST be unique.
@@ -43,11 +43,11 @@ Org Model: `OrgConfig`
   - `description: str | None` (optional)
   - `default_policy: str` (required)
   - `policy_rules: list[PolicyRule]` (required)
-  - `filter_name: str | None` (optional)
   - `document_policy: DocumentPolicy` (optional; default values apply)
 
 Document Policy: `DocumentPolicy`
 - `top_k: int` (default `5`, MUST be `> 0`)
+- `filter_name: str | None` (optional)
 
 Policy Model: `Policy`
 - Fields:

@@ -109,6 +109,7 @@ orgs:
     default_policy: strict_citations
     document_policy:
       top_k: 8
+      filter_name: enterprise_only
     policy_rules:
       - name: deny_untrusted_document_source
         description: Deny if any retrieved document comes from an untrusted source.
@@ -172,13 +173,13 @@ orgs:
               operator: equals
               value: finance
               source: user
-    filter_name: enterprise_only
 
   - org_id: beta_labs
     description: Beta Labs with flexible research policies.
     default_policy: soft_research
     document_policy:
       top_k: 12
+      filter_name: pii_sensitive
     policy_rules:
       - name: allow_trusted_docs_only
         description: Escalate to strict policy when all retrieved docs are from trusted KB.
@@ -259,4 +260,3 @@ orgs:
               operator: equals
               value: analyst
               source: user
-    filter_name: pii_sensitive

@@ -8,7 +8,7 @@ import pytest
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.filter import Condition as FilterCondition
 from rag_control.models.filter import Filter
-from rag_control.models.org import OrgConfig
+from rag_control.models.org import DocumentPolicy, OrgConfig
 from rag_control.models.policy import (
     EnforcementPolicy,
     GenerationPolicy,
@@ -66,7 +66,7 @@ def fake_config() -> ControlPlaneConfig:
                         ),
                     )
                 ],
-                filter_name="default_filter",
+                document_policy=DocumentPolicy(filter_name="default_filter"),
             )
         ],
     )

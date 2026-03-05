@@ -44,8 +44,10 @@ def test_control_plane_config_validate_reference_error_branches(
         ),
         (
             "org_filter_name_missing",
-            lambda payload: payload["orgs"][0].update({"filter_name": "missing"}),
-            "filter_name 'missing' does not exist",
+            lambda payload: payload["orgs"][0]["document_policy"].update(
+                {"filter_name": "missing"}
+            ),
+            "document_policy.filter_name 'missing' does not exist",
         ),
         (
             "duplicate_rule_names",
@@ -98,6 +100,7 @@ def test_control_plane_config_validate_reference_error_branches(
         payload["orgs"][0]["policy_rules"] = [
             rule.copy() for rule in base["orgs"][0]["policy_rules"]
         ]
+        payload["orgs"][0]["document_policy"] = base["orgs"][0]["document_policy"].copy()
         mutate_payload(payload)
         with pytest.raises(ValidationError, match=expected_error):
             ControlPlaneConfig.model_validate(payload)

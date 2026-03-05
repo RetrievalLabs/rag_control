@@ -183,7 +183,7 @@ class RAGControl:
                 engine._trace_stage_span_name(mode, "org_lookup"),
                 _resolve_org,
                 success_fields=lambda resolved_org: {
-                    "filter_name": resolved_org.filter_name,
+                    "filter_name": resolved_org.document_policy.filter_name,
                     "retrieval_top_k": resolved_org.document_policy.top_k,
                 },
                 metrics_labels={"mode": mode, "stage": "org_lookup", "org_id": org_id or ""},
@@ -192,17 +192,19 @@ class RAGControl:
 
             audit_context.log_event(
                 "org.resolved",
-                filter_name=org.filter_name,
+                filter_name=org.document_policy.filter_name,
                 retrieval_top_k=org.document_policy.top_k,
             )
             trace_span.event(
                 "transition.org_lookup.completed",
-                filter_name=org.filter_name,
+                filter_name=org.document_policy.filter_name,
                 retrieval_top_k=org.document_policy.top_k,
             )
 
             retrieval_filter = (
-                engine.filter_registry.get(org.filter_name) if org.filter_name is not None else None
+                engine.filter_registry.get(org.document_policy.filter_name)
+                if org.document_policy.filter_name is not None
+                else None
             )
 
             query_embedding_res = engine._run_stage(
@@ -505,7 +507,7 @@ class RAGControl:
                     org_id=org_id,
                     user_id=user_context.user_id,
                     trace_id=trace_id,
-                    filter_name=org.filter_name,
+                    filter_name=org.document_policy.filter_name,
                     retrieval_top_k=org.document_policy.top_k,
                     retrieved_count=len(docs),
                     enforcement_attached=True,
@@ -516,7 +518,7 @@ class RAGControl:
                 org_id=org_id,
                 user_id=user_context.user_id,
                 trace_id=trace_id,
-                filter_name=org.filter_name,
+                filter_name=org.document_policy.filter_name,
                 retrieval_top_k=org.document_policy.top_k,
                 retrieved_count=len(docs),
                 enforcement_passed=True,
