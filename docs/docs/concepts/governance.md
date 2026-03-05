@@ -1199,4 +1199,4 @@ If the wrong policy is applied:
 - [Policies Documentation](/concepts/policies) - Policy constraints and enforcement
 - [Core Concepts Overview](/concepts/overview) - How everything fits together
 - [Configuration Guide](/getting-started/configuration) - Setting up governance
-- [User Context](/concepts/user-context) - Detailed user context reference
+- [API Reference](/api/models) - Detailed user context and model reference

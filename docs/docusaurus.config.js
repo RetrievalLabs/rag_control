@@ -96,8 +96,8 @@ const config = {
                 to: '/concepts/overview',
               },
               {
-                label: 'Architecture',
-                to: '/architecture/overview',
+                label: 'API Reference',
+                to: '/api/engine',
               },
             ],
           },
