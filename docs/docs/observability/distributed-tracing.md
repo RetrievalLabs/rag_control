@@ -19,22 +19,17 @@ Distributed tracing tracks:
 
 ## Span Hierarchy
 
-Requests create a nested span hierarchy:
+Requests create a nested span hierarchy. The root span is `rag_control.request.<mode>` where mode is either `run` or `stream`. Child spans follow the pattern `rag_control.request.<mode>.stage.<stage_name>`:
 
 ```
-request_span (root)
-├── org_lookup_span
-├── document_filtering_span
-├── embedding_span
-│   └── embedding_api_call_span
-├── retrieval_span
-│   └── vector_store_search_span
-├── policy_resolution_span
-├── prompt_building_span
-├── llm_generation_span
-│   └── llm_api_call_span
-├── enforcement_span
-└── observability_span
+rag_control.request.run (or .stream)
+├── rag_control.request.run.stage.org_lookup
+├── rag_control.request.run.stage.embedding
+├── rag_control.request.run.stage.retrieval
+├── rag_control.request.run.stage.policy.resolve
+├── rag_control.request.run.stage.prompt.build
+├── rag_control.request.run.stage.llm.generate (or .llm.stream)
+└── rag_control.request.run.stage.enforcement
 ```
 
 ## Span Attributes
@@ -44,84 +39,81 @@ Each span includes relevant attributes:
 ### Root Request Span
 
 ```
-request_span
-├── request_id: "req-abc123"
+rag_control.request.run (or .stream)
+├── request_id: "550e8400-e29b-41d4-a716-446655440000"
+├── mode: "run" | "stream"
 ├── org_id: "acme_corp"
 ├── user_id: "user-123"
-├── query: "What are findings?"
-├── mode: "run"
-├── status: "ok" | "error"
-└── duration_ms: 1500
+└── status: "ok" | "error"
 ```
 
 ### Organization Lookup Span
 
 ```
-org_lookup_span
-├── org_id: "acme_corp"
-├── status: "found" | "not_found"
-└── duration_ms: 2
-```
-
-### Document Filtering Span
-
-```
-document_filtering_span
-├── filter_count: 2
-├── filters_applied: ["enterprise_only", "internal_only"]
-└── duration_ms: 5
+rag_control.request.run.stage.org_lookup
+├── filter_name: "enterprise_filter" (or null)
+├── retrieval_top_k: 5
+└── stage_latency_ms: 2
 ```
 
 ### Query Embedding Span
 
 ```
-embedding_span
-├── query_length: 50
+rag_control.request.run.stage.embedding
+├── embedding_model: "text-embedding-ada-002"
 ├── embedding_dimensions: 1536
-└── duration_ms: 350
+└── stage_latency_ms: 350
 ```
 
 ### Document Retrieval Span
 
 ```
-retrieval_span
-├── top_k: 5
-├── document_count: 5
-├── min_score: 0.85
-├── max_score: 0.95
-└── duration_ms: 75
+rag_control.request.run.stage.retrieval
+├── vector_index: "qdrant" (or other vector store)
+├── returned: 5
+└── stage_latency_ms: 75
 ```
 
 ### Policy Resolution Span
 
 ```
-policy_resolution_span
-├── org_id: "acme_corp"
+rag_control.request.run.stage.policy.resolve
 ├── policy_name: "strict_citations"
-├── resolved_by: "rule:enterprise_strict"
-└── duration_ms: 2
+└── stage_latency_ms: 2
 ```
 
 ### LLM Generation Span
 
+For `run` mode:
 ```
-llm_generation_span
-├── policy_name: "strict_citations"
+rag_control.request.run.stage.llm.generate
+├── llm_model: "gpt-4"
 ├── temperature: 0.0
-├── max_tokens: 512
+├── max_output_tokens: 512
 ├── prompt_tokens: 150
 ├── completion_tokens: 95
 ├── total_tokens: 245
-└── duration_ms: 2000
+└── stage_latency_ms: 2000
+```
+
+For `stream` mode:
+```
+rag_control.request.stream.stage.llm.stream
+├── llm_model: "gpt-4"
+├── temperature: 0.0
+├── max_output_tokens: 512
+├── prompt_tokens: 150
+├── completion_tokens: 95
+├── total_tokens: 245
+└── stage_latency_ms: 2000
 ```
 
 ### Enforcement Span
 
 ```
-enforcement_span
-├── enforcement_type: "citations" | "knowledge_restriction"
-├── status: "passed" | "failed"
-└── duration_ms: 40
+rag_control.request.run.stage.enforcement
+├── policy_name: "strict_citations"
+└── stage_latency_ms: 40
 ```
 
 ## Tracing Setup
@@ -132,8 +124,8 @@ enforcement_span
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from rag_control.core.engine import RAGControl
-from rag_control.observability.tracing import OpenTelemetryTracer
+from rag_control import RAGControl
+from rag_control.observability import OpenTelemetryTracer
 
 # Setup OpenTelemetry exporter
 jaeger_exporter = JaegerExporter(
@@ -159,64 +151,56 @@ engine = RAGControl(
 )
 ```
 
-### Exporters
+### Tracer Implementations
 
-#### Jaeger
+rag_control supports three tracing implementations:
+
+#### NoOpTracer (If no tracing is needed)
 
 ```python
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from rag_control.observability.tracing import NoOpTracer
 
-jaeger_exporter = JaegerExporter(
-    agent_host_name="localhost",
-    agent_port=6831,
+tracer = NoOpTracer()
+engine = RAGControl(
+    llm=llm_adapter,
+    query_embedding=embedding_adapter,
+    vector_store=vector_store_adapter,
+    config_path="policy_config.yaml",
+    tracer=tracer
 )
 ```
 
-#### Datadog
+#### StructlogTracer (JSON structured logging)
 
 ```python
-from opentelemetry.exporter.datadog.propagator import DatadogPropagator
-from opentelemetry.exporter.datadog import DatadogSpanExporter
+from rag_control.observability.tracing import StructlogTracer
 
-dd_exporter = DatadogSpanExporter(
-    agent_host="localhost",
-    agent_port=8126,
+tracer = StructlogTracer()
+engine = RAGControl(
+    llm=llm_adapter,
+    query_embedding=embedding_adapter,
+    vector_store=vector_store_adapter,
+    config_path="policy_config.yaml",
+    tracer=tracer
 )
 ```
 
-#### OTLP (OpenTelemetry Protocol)
+#### OpenTelemetryTracer (Recommended for production)
 
 ```python
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from rag_control.observability.tracing import OpenTelemetryTracer
 
-otlp_exporter = OTLPSpanExporter(
-    endpoint="http://localhost:4317",
+tracer = OpenTelemetryTracer()
+engine = RAGControl(
+    llm=llm_adapter,
+    query_embedding=embedding_adapter,
+    vector_store=vector_store_adapter,
+    config_path="policy_config.yaml",
+    tracer=tracer
 )
 ```
 
-## Trace Visualization
-
-### Jaeger UI
-
-Access traces at `http://localhost:16686`:
-
-1. Select "rag-control" service
-2. Filter by request_id or org_id
-3. View span waterfall diagram
-
-### Viewing a Trace
-
-```
-request_span ═══════════════════════════════════════════
-├── org_lookup_span ═════[5ms]
-├── document_filtering_span ═════[10ms]
-├── embedding_span ═════════════════════[350ms]
-├── retrieval_span ═══════[75ms]
-├── policy_resolution_span ═[2ms]
-├── llm_generation_span ═════════════════════[2000ms]
-├── enforcement_span ═════════[40ms]
-└── observability_span ═══════[18ms]
-```
+**Automatic Selection**: If no tracer is provided, rag_control automatically `StructlogTracer`
 
 ## Trace Correlation
 
@@ -227,54 +211,14 @@ Traces are automatically correlated with:
 - **Organization ID**: From user context
 - **Span Context**: OpenTelemetry context propagation
 
-### Cross-Service Correlation
-
-For distributed systems, propagate context:
-
-```python
-from opentelemetry.propagators.jaeger import JaegerPropagator
-from opentelemetry.propagators.b3 import B3SingleFormat
-
-# Use Jaeger propagator
-propagator = JaegerPropagator()
-
-# Extract context from incoming request
-context = propagator.extract(request.headers)
-
-# Context will be used for child spans
-result = engine.run(query, user_context)
-```
-
-## Trace Sampling
-
-Control trace collection with sampling:
-
-```python
-from opentelemetry.sdk.trace.sampling import ProbabilitySampler
-
-# Sample 10% of traces for cost control
-sampler = ProbabilitySampler(rate=0.1)
-
-trace_provider = TracerProvider(sampler=sampler)
-```
-
-## Performance Impact
-
-Tracing overhead:
-
-- **Enabled**: `<10ms` per request
-- **Disabled**: `<1ms` per request
-
-For high-throughput systems, use sampling.
-
 ## Debugging with Traces
 
 ### Find Slow Requests
 
-Query for requests >2000ms:
+Query for requests >2000ms in Jaeger:
 
 ```
-operation_name="request" AND duration>2000ms
+serviceName="rag-control" AND operationName="rag_control.request.run" AND duration>2000000
 ```
 
 ### Find Errors
@@ -282,52 +226,34 @@ operation_name="request" AND duration>2000ms
 Query for failed requests:
 
 ```
-operation_name="request" AND status="error"
+serviceName="rag-control" AND operationName="rag_control.request.run" AND status.error=true
+```
+
+### Find Slow Embedding Stage
+
+Identify embedding bottlenecks:
+
+```
+serviceName="rag-control" AND operationName="rag_control.request.run.stage.embedding" AND duration>500000
 ```
 
 ### Trace a Specific Request
 
-```
-request_id="req-abc123"
-```
-
-## Best Practices
-
-1. **Always Enable Tracing**: Minimal overhead for high value
-2. **Use Sampling**: Reduce overhead in production
-3. **Correlate Requests**: Use request IDs consistently
-4. **Monitor Traces**: Alert on slow requests
-5. **Propagate Context**: For distributed systems
-
-## Example Trace Analysis
-
-### Finding Performance Bottlenecks
+Filter by request_id:
 
 ```
-Total latency: 2.5s
-
-Breakdown:
-- Embedding: 350ms (14%) - Slow but expected
-- LLM generation: 2000ms (80%) - Main cost
-- Other stages: 150ms (6%)
-
-Recommendation: LLM is the bottleneck, not rag_control
+serviceName="rag-control" AND request_id="550e8400-e29b-41d4-a716-446655440000"
 ```
 
-### Identifying Policy Denials
+## Error Handling in Traces
 
-```
-request_span
-├── policy_resolved_span
-│   └── policy: strict_citations
-├── llm_generation_span
-│   └── status: ok
-├── enforcement_span
-│   └── status: failed
-│       └── reason: missing_citations
-└── request_span
-    └── status: denied
-```
+Tracing is designed to never fail or affect request processing. All tracer operations are exception-safe:
+
+- If a span fails to start, a NoOp span is returned that silently accepts all operations
+- If span attributes cannot be set, the tracer continues without error
+- If context propagation fails, execution continues normally
+
+This design ensures observability never impacts request latency or reliability.
 
 ## See Also
 
