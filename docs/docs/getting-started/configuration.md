@@ -79,6 +79,8 @@ policies:
 | `prevent_external_knowledge` | boolean | `true` | Block responses with claims not in retrieved documents |
 | `max_output_tokens` | integer or null | `null` | Maximum tokens in response; `null` = no limit |
 
+> **Learn more:** See [Policies](/concepts/policies) concept guide for detailed policy behavior and examples.
+
 ## Filters
 
 Filters control document retrieval based on data classification and metadata.
@@ -149,6 +151,8 @@ filters:
           source: user
 ```
 
+> **Learn more:** See [Filters](/concepts/filters) concept guide for advanced filter patterns and use cases.
+
 ## Document Policy
 
 Document policies control document retrieval behavior for organizations.
@@ -165,6 +169,8 @@ document_policy:
 |-----------|------|---------|-------------|
 | `top_k` | integer | `5` | Number of documents to retrieve. Must be greater than 0 |
 | `filter_name` | string or null | `null` | Optional filter name to apply to document retrieval. Must exist in filters section |
+
+> **Learn more:** See [Document Retrieval](/concepts/retrieval) concept guide for information about document selection and ranking.
 
 ## Policy Rules
 
@@ -229,6 +235,8 @@ policy_rules:
 - Any condition in `any` can be true (OR)
 - Use `document_match: any` when applying conditions to documents (matches if any doc meets the condition)
 - Use `document_match: all` to require all documents to meet the condition
+
+> **Learn more:** See [Governance](/concepts/governance) concept guide for policy rule strategies and enforcement patterns.
 
 ## Organizations
 
@@ -313,6 +321,8 @@ Rules use `when` clauses with:
 
 - `any`: Match if any condition is true (OR)
 - `all`: Match if all conditions are true (AND)
+
+> **Learn more:** See [Organizations](/concepts/organizations) concept guide for multi-tenant setup and organization management.
 
 ## Example Configurations
 

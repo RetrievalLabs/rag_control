@@ -65,6 +65,8 @@ orgs:
       top_k: 5
 ```
 
+> **Learn more:** See the [Configuration Guide](/getting-started/configuration) for detailed policy options, filters, and multi-org setups.
+
 ## 3. Initialize the Engine
 
 ```python
@@ -86,6 +88,8 @@ user_context = UserContext(
     org_tier="standard"
 )
 ```
+
+> **Learn more:** See the [API Reference](/api/engine) for all initialization options and methods.
 
 ## 4. Run a Query
 
@@ -124,6 +128,8 @@ Your RAG system now has:
 - ✅ **Citation Tracking**: Citations were required and verified
 - ✅ **Audit Logging**: All requests and decisions are logged for compliance
 - ✅ **Token Optimization**: Token usage is tracked and reported
+
+> **Learn more:** Explore [Core Concepts](/concepts/overview) to understand how policies, governance, and enforcement work together.
 
 ## Implementing Adapters
 
@@ -173,9 +179,11 @@ class MyVectorStoreAdapter(VectorStoreAdapter):
         pass
     
     def embedding_model(self):
-        # Returns model name used for generating embedding 
+        # Returns model name used for generating embedding
         pass
 ```
+
+> **Learn more:** See the [Architecture Guide](/architecture/overview) and [Adapter Patterns](/architecture/adapters) for detailed implementation guidance.
 
 ## Next Steps
 
