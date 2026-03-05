@@ -71,12 +71,6 @@ const config = {
         },
         items: [
           {
-            type: 'docSidebar',
-            sidebarId: 'tutorialSidebar',
-            label: '📚 Docs',
-            position: 'left',
-          },
-          {
             href: 'https://github.com/RetrievalLabs/rag_control',
             label: 'GitHub',
             position: 'right',
