@@ -58,8 +58,8 @@ def should_emit_audit_event(
     if logging_level == "minimal":
         return event in {
             "request.received",
+            "org.resolved",
             "request.completed",
-            "policy.resolved",
             "request.denied",
             "error.occurred",
         }
