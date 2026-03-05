@@ -9,16 +9,18 @@ from .exceptions import (
     QueryEmbeddingAdapterError,
     VectorStoreAdapterError,
 )
-from .llm import LLM
+from .llm import ChatMessage, LLM, PromptInput
 from .query_embedding import QueryEmbedding
 from .vector_store import VectorStore
 
 __all__ = [
     "AdapterError",
-    "LLMAdapterError",
+    "ChatMessage",
     "LLM",
-    "QueryEmbeddingAdapterError",
+    "LLMAdapterError",
+    "PromptInput",
     "QueryEmbedding",
-    "VectorStoreAdapterError",
+    "QueryEmbeddingAdapterError",
     "VectorStore",
+    "VectorStoreAdapterError",
 ]
