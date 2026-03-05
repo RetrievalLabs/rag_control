@@ -34,8 +34,10 @@ The LLM adapter handles text generation.
 ### Interface
 
 ```python
-from rag_control.core.adapters.llm import LLMAdapter
-from rag_control.models.response import GeneratedResponse
+from typing import Generator
+from rag_control.core.adapters import LLMAdapter
+from rag_control.models import GeneratedResponse
+from rag_control.models import UserContext
 
 class LLMAdapter:
     def generate(
@@ -43,8 +45,20 @@ class LLMAdapter:
         prompt: str,
         temperature: float,
         max_tokens: int,
+        user_context: UserContext | None = None,
     ) -> GeneratedResponse:
-        """Generate a response from a prompt."""
+        """Generate a response from a prompt.
+
+        Args:
+            prompt: The input text to generate a response for.
+            temperature: Sampling temperature (0.0-1.0). Higher values increase
+                randomness, lower values make output more deterministic.
+            max_tokens: Maximum number of tokens to generate in the response.
+            user_context: Optional user context for user-aware generation behavior.
+
+        Returns:
+            GeneratedResponse: The generated response with content and token metadata.
+        """
         pass
 
     def stream(
@@ -52,8 +66,20 @@ class LLMAdapter:
         prompt: str,
         temperature: float,
         max_tokens: int,
+        user_context: UserContext | None = None,
     ) -> Generator[GeneratedResponse, None, None]:
-        """Stream a response from a prompt."""
+        """Stream a response from a prompt in chunks.
+
+        Args:
+            prompt: The input text to generate a response for.
+            temperature: Sampling temperature (0.0-1.0). Higher values increase
+                randomness, lower values make output more deterministic.
+            max_tokens: Maximum number of tokens to generate in the response.
+            user_context: Optional user context for user-aware generation behavior.
+
+        Yields:
+            GeneratedResponse: Response chunks as they become available.
+        """
         pass
 ```
 
@@ -61,8 +87,9 @@ class LLMAdapter:
 
 ```python
 import openai
-from rag_control.core.adapters.llm import LLMAdapter
-from rag_control.models.response import GeneratedResponse
+from rag_control.core.adapters import LLMAdapter
+from rag_control.models import GeneratedResponse
+from rag_control.models import UserContext
 
 class OpenAIAdapter(LLMAdapter):
     def __init__(self, api_key: str, model: str = "gpt-4"):
@@ -75,6 +102,7 @@ class OpenAIAdapter(LLMAdapter):
         prompt: str,
         temperature: float,
         max_tokens: int,
+        user_context: UserContext | None = None,
     ) -> GeneratedResponse:
         response = openai.ChatCompletion.create(
             model=self.model,
@@ -89,7 +117,13 @@ class OpenAIAdapter(LLMAdapter):
             stop_reason="end_turn"
         )
 
-    def stream(self, prompt, temperature, max_tokens):
+    def stream(
+        self,
+        prompt: str,
+        temperature: float,
+        max_tokens: int,
+        user_context: UserContext | None = None,
+    ):
         response = openai.ChatCompletion.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
@@ -114,11 +148,24 @@ The query embedding adapter converts queries to vectors for search.
 ### Interface
 
 ```python
-from rag_control.core.adapters.query_embedding import QueryEmbeddingAdapter
+from rag_control.core.adapters import QueryEmbeddingAdapter
+from rag_control.models import UserContext
 
 class QueryEmbeddingAdapter:
-    def embed(self, query: str) -> list[float]:
-        """Convert query to embedding vector."""
+    def embed(
+        self,
+        query: str,
+        user_context: UserContext | None = None,
+    ) -> list[float]:
+        """Convert query to embedding vector.
+
+        Args:
+            query: The text to embed.
+            user_context: Optional user context for user-aware embedding behavior.
+
+        Returns:
+            list[float]: The embedding vector.
+        """
         pass
 ```
 
@@ -126,7 +173,8 @@ class QueryEmbeddingAdapter:
 
 ```python
 import openai
-from rag_control.core.adapters.query_embedding import QueryEmbeddingAdapter
+from rag_control.core.adapters import QueryEmbeddingAdapter
+from rag_control.models import UserContext
 
 class OpenAIEmbeddingAdapter(QueryEmbeddingAdapter):
     def __init__(self, api_key: str, model: str = "text-embedding-3-small"):
@@ -134,7 +182,11 @@ class OpenAIEmbeddingAdapter(QueryEmbeddingAdapter):
         self.model = model
         openai.api_key = api_key
 
-    def embed(self, query: str) -> list[float]:
+    def embed(
+        self,
+        query: str,
+        user_context: UserContext | None = None,
+    ) -> list[float]:
         response = openai.Embedding.create(
             input=query,
             model=self.model
@@ -151,15 +203,27 @@ The vector store adapter retrieves documents based on query embeddings.
 ```python
 from rag_control.core.adapters.vector_store import VectorStoreAdapter
 from rag_control.models.document import RetrievedDocument
+from rag_control.models import UserContext
 
 class VectorStoreAdapter:
     def search(
         self,
         embedding: list[float],
         top_k: int,
-        org_id: str | None = None,
+        user_context: UserContext | None = None,
+        filter: dict | None = None,
     ) -> list[RetrievedDocument]:
-        """Search for documents similar to embedding."""
+        """Search for documents similar to embedding.
+
+        Args:
+            embedding: The query embedding vector to search with.
+            top_k: Maximum number of documents to return.
+            user_context: Optional user context for user-scoped retrieval behavior.
+            filter: Optional metadata filter for document selection.
+
+        Returns:
+            list[RetrievedDocument]: Retrieved documents ranked by similarity.
+        """
         pass
 ```
 
@@ -169,6 +233,7 @@ class VectorStoreAdapter:
 import pinecone
 from rag_control.core.adapters.vector_store import VectorStoreAdapter
 from rag_control.models.document import RetrievedDocument
+from rag_control.models import UserContext
 
 class PineconeAdapter(VectorStoreAdapter):
     def __init__(self, index_name: str):
@@ -178,12 +243,14 @@ class PineconeAdapter(VectorStoreAdapter):
         self,
         embedding: list[float],
         top_k: int,
-        org_id: str | None = None,
+        user_context: UserContext | None = None,
+        filter: dict | None = None,
     ) -> list[RetrievedDocument]:
         results = self.index.query(
             vector=embedding,
             top_k=top_k,
             include_metadata=True,
+            filter=filter,
         )
 
         documents = []
@@ -218,79 +285,6 @@ engine = RAGControl(
 )
 ```
 
-## Adapter Guidelines
-
-### Error Handling
-
-Adapters should handle errors gracefully:
-
-```python
-class RobustLLMAdapter(LLMAdapter):
-    def generate(self, prompt, temperature, max_tokens):
-        try:
-            # Call LLM
-            response = self.llm_client.generate(...)
-            return response
-        except Exception as e:
-            # Log and re-raise
-            logger.error(f"LLM generation failed: {e}")
-            raise
-```
-
-### Performance Considerations
-
-- Cache embeddings when possible
-- Batch operations for efficiency
-- Use connection pooling for external services
-
-### Testing Adapters
-
-Mock adapters for testing:
-
-```python
-from rag_control.core.adapters.llm import LLMAdapter
-
-class MockLLMAdapter(LLMAdapter):
-    def generate(self, prompt, temperature, max_tokens):
-        return GeneratedResponse(
-            content="Mock response",
-            token_count=2,
-            stop_reason="end_turn"
-        )
-
-    def stream(self, prompt, temperature, max_tokens):
-        yield GeneratedResponse(
-            content="Mock ",
-            token_count=0,
-            stop_reason=None
-        )
-        yield GeneratedResponse(
-            content="response",
-            token_count=0,
-            stop_reason="end_turn"
-        )
-```
-
-## Common Adapters
-
-Ready-made adapters for popular services:
-
-| Service | Adapter | Link |
-|---------|---------|------|
-| OpenAI | `OpenAIAdapter` | [OpenAI API](https://openai.com/) |
-| Anthropic | `AnthropicAdapter` | [Anthropic API](https://www.anthropic.com/) |
-| Pinecone | `PineconeAdapter` | [Pinecone](https://www.pinecone.io/) |
-| Weaviate | `WeaviateAdapter` | [Weaviate](https://weaviate.io/) |
-
-Check the examples directory for more implementations.
-
-## Best Practices
-
-1. **Handle Errors**: Implement proper error handling in adapters
-2. **Log Calls**: Log adapter calls for debugging
-3. **Implement Caching**: Cache expensive operations when possible
-4. **Test Thoroughly**: Test adapters with mock data
-5. **Type Safety**: Use type hints for clarity
 
 ## See Also
 
