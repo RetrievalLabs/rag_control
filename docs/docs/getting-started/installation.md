@@ -12,7 +12,7 @@ description: How to install and set up rag_control
 
 ## Core Dependencies
 
-rag_control requires the following packages:
+rag_control comes with the following packages:
 
 ```
 pydantic>=2.0         # Data validation
@@ -41,19 +41,6 @@ Or check that the core module imports:
 python -c "from rag_control.core.engine import RAGControl; print('Installation successful!')"
 ```
 
-## Optional Dependencies
-
-### Distributed Tracing (OpenTelemetry)
-
-For production observability:
-
-```bash
-pip install opentelemetry-api opentelemetry-sdk
-pip install opentelemetry-exporter-jaeger  # Jaeger exporter
-# or
-pip install opentelemetry-exporter-otlp  # OTLP exporters
-```
-
 ## Next Steps
 
 1. **Quick Start**: Learn the basics with [Quick Start Guide](/getting-started/quick-start)
@@ -76,12 +63,6 @@ rag_control requires Pydantic v2. If you have conflicts:
 ```bash
 pip install --upgrade pydantic
 ```
-
-### OpenTelemetry import issues
-
-OpenTelemetry is optional. If you see import errors but don't need tracing:
-- Skip the OpenTelemetry optional dependency
-- Use the `NoOpTracingProvider` in configuration
 
 ## Getting Help
 
