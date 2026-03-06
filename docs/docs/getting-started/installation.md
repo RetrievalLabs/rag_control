@@ -25,7 +25,7 @@ opentelemetry-sdk>=1.15        # Distributed tracing (optional)
 ## Install from PyPI
 
 ```bash
-pip install rag_control==0.1.2
+pip install rag_control==0.1.3
 ```
 
 ## Verify Installation
