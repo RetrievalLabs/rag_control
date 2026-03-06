@@ -52,6 +52,9 @@ dev = [
     "ruff>=0.15.1",
 ]
 
+[tool.setuptools.package-data]
+rag_control = ["py.typed"]
+
 [tool.coverage.run]
 source = ["rag_control"]
 
