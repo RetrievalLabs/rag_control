@@ -3,7 +3,7 @@ Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
 Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 """
 
-from typing import List, Literal, Optional, Union
+from typing import List, Literal
 
 from pydantic import BaseModel, StrictFloat, StrictInt
 
@@ -33,20 +33,20 @@ ConditionSource = Literal["user", "documents"]
 class Condition(BaseModel):
     field: str
     operator: Operator
-    value: Optional[Union[str, StrictInt, StrictFloat]] = None
+    value: str | StrictInt | StrictFloat | None = None
     source: ConditionSource = "user"
-    document_match: Optional[DocumentMatchOperator] = None
+    document_match: DocumentMatchOperator | None = None
 
 
 class LogicalCondition(BaseModel):
-    all: Optional[List[Condition]] = None
-    any: Optional[List[Condition]] = None
+    all: List[Condition] | None = None
+    any: List[Condition] | None = None
 
 
 class PolicyRule(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     priority: int
     effect: Literal["allow", "deny"]
-    apply_policy: Optional[str] = None
+    apply_policy: str | None = None
     when: LogicalCondition

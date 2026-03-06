@@ -6,7 +6,7 @@
 
 ## Prerequisites
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - [uv](https://docs.astral.sh/uv/) for dependency management
 - Node.js and npm (for building and serving documentation)
 
