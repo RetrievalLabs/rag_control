@@ -54,7 +54,7 @@ pip install rag_control
 ```
 
 ### Requirements
-- Python 3.9+
+- Python 3.10+
 - Dependencies: `pydantic`, `pyyaml`, `structlog`, `opentelemetry-api`, `opentelemetry-sdk`
 
 ## Quick Start
