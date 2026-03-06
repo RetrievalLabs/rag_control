@@ -7,7 +7,7 @@ description: How to install and set up rag_control
 
 ## Requirements
 
-- **Python**: 3.9+
+- **Python**: 3.10+
 - **Package Manager**: pip, poetry or uv
 
 ## Core Dependencies
