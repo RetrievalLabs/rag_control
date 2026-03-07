@@ -47,15 +47,14 @@ RAG systems are powerful but can be risky in production:
 - Type-safe with mypy strict mode compliance
 - 100% code coverage with extensive test suite
 
-## Installation
+## Installations
 
 ```bash
-pip install rag_control
+pip install rag_control openai_adapter pinecone_adapter
 ```
 
 ### Requirements
 - Python 3.10+
-- Dependencies: `pydantic`, `pyyaml`, `structlog`, `opentelemetry-api`, `opentelemetry-sdk`
 
 ## Quick Start
 
@@ -136,23 +135,46 @@ orgs:
 
 ### 2. Initialize the Engine
 
+
 ```python
 from rag_control import RAGControl
 from rag_control.models import UserContext
+from openai_adapter import OpenAILLMAdapter, OpenAIQueryEmbeddingAdapter
+from pinecone_adapter import PineconeVectorStoreAdapter
 
-# Initialize with your adapters and config
+# Initialize adapters
+llm_adapter = OpenAILLMAdapter(
+    api_key="sk-your-openai-key",
+    model="gpt-4"
+)
+
+embedding_adapter = OpenAIQueryEmbeddingAdapter(
+    api_key="sk-your-openai-key",
+    model="text-embedding-3-small"
+)
+
+vector_store = PineconeVectorStoreAdapter(
+    api_key="your-pinecone-key",
+    index_name="documents",
+    embedding_model="text-embedding-3-small"
+)
+
+# Initialize rag_control
 engine = RAGControl(
-    llm=your_llm_adapter,
-    query_embedding=your_embedding_adapter,
-    vector_store=your_vector_store_adapter,
+    llm=llm_adapter,
+    query_embedding=embedding_adapter,
+    vector_store=vector_store,
     config_path="policy_config.yaml"
 )
 
-# Create user context
+# Create a user context
 user_context = UserContext(
-    org_id="acme-corp",
+    org_id="default",
     user_id="user-123",
-    org_tier="enterprise"
+    attributes={
+      "namespace": "demo",
+      "dept": "hr"
+    },
 )
 ```
 
