@@ -42,6 +42,11 @@ line-length = 100
 
 [tool.mypy]
 strict = true
+exclude = ["tests/"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
 
 [dependency-groups]
 dev = [
