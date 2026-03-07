@@ -72,12 +72,31 @@ orgs:
 ```python
 from rag_control import RAGControl
 from rag_control.models import UserContext
+from openai_adapter import OpenAILLMAdapter, OpenAIQueryEmbeddingAdapter
+from pinecone_adapter import PineconeVectorStoreAdapter
 
-# Initialize with your adapters
+# Initialize adapters
+llm_adapter = OpenAILLMAdapter(
+    api_key="sk-your-openai-key",
+    model="gpt-4"
+)
+
+embedding_adapter = OpenAIQueryEmbeddingAdapter(
+    api_key="sk-your-openai-key",
+    model="text-embedding-3-small"
+)
+
+vector_store = PineconeVectorStoreAdapter(
+    api_key="your-pinecone-key",
+    index_name="documents",
+    embedding_model="text-embedding-3-small"
+)
+
+# Initialize rag_control
 engine = RAGControl(
-    llm=your_llm_adapter,              # Your LLM implementation
-    query_embedding=your_embedding_adapter,
-    vector_store=your_vector_store_adapter,
+    llm=llm_adapter,
+    query_embedding=embedding_adapter,
+    vector_store=vector_store,
     config_path="policy_config.yaml"
 )
 
@@ -85,7 +104,10 @@ engine = RAGControl(
 user_context = UserContext(
     org_id="default",
     user_id="user-123",
-    org_tier="standard"
+    attributes={
+      "namespace": "demo",
+      "dept": "hr"
+    },
 )
 ```
 
