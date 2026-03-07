@@ -275,6 +275,14 @@ request_span
 
 ## Documentation
 
+For extensive documentation, guides, and API references, visit the **[docs](docs/docs)** directory:
+- Getting Started guides and quick start tutorials
+- Core concepts and architecture
+- API reference and adapters documentation
+- Observability and monitoring guides
+- Configuration reference
+
+Quick links to spec documents:
 - **[DEVELOPMENT.md](DEVELOPMENT.md)**: Development setup, testing, quality standards
 - **[CONTRIBUTING.md](CONTRIBUTING.md)**: Contribution guidelines
 - **[Execution Contract](rag_control/spec/execution_contract.md)**: Engine behavior specification
