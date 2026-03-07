@@ -279,6 +279,29 @@ engine = RAGControl(
 )
 ```
 
+## Implemented Adapters
+
+We provide production-ready adapter implementations for popular LLM and vector database providers:
+
+### OpenAI Adapter
+
+A high-performance adapter for OpenAI's LLM and embedding services:
+
+- **LLM Support** - GPT models for text generation with streaming
+- **Embeddings** - Text embedding models for query vectorization
+- **Features** - Token tracking, latency monitoring, full OpenAI client configuration
+
+[Learn more →](../adapters/openai-adapter)
+
+### Pinecone Adapter
+
+A production-ready vector database adapter for Pinecone:
+
+- **Vector Search** - Semantic search with metadata filtering
+- **Governance** - Per-user namespace isolation and access control
+- **Configuration** - YAML-based policy and filter management
+
+[Learn more →](../adapters/pinecone-adapter)
 
 ## See Also
 
