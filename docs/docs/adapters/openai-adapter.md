@@ -107,6 +107,6 @@ Initialize the embedding adapter.
 This project is **open source** and contributions are welcome!
 
 - **GitHub Repository:** [RetrievalLabs/openai-adapter](https://github.com/RetrievalLabs/openai-adapter)
-- **License:** MIT
+- **License:** Apache License 2.0
 
 You can contribute by reporting issues, suggesting features, or submitting pull requests on GitHub.
