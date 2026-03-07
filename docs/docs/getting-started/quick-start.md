@@ -7,10 +7,10 @@ description: Get up and running with rag_control in 5 minutes
 
 This guide will help you get rag_control running in 5 minutes.
 
-## 1. Install rag_control
+## 1. Install rag_control, and adapters
 
 ```bash
-pip install rag_control
+pip install rag_control pinecone_adapter openai_adapter
 ```
 
 ## 2. Create a Policy Configuration
