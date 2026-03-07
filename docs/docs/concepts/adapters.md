@@ -279,6 +279,52 @@ engine = RAGControl(
 )
 ```
 
+## Implemented Adapters
+
+We provide production-ready adapter implementations for popular LLM and vector database providers:
+
+### OpenAI Adapter
+
+A high-performance adapter for OpenAI's LLM and embedding services:
+
+- **LLM Support** - GPT models for text generation with streaming
+- **Embeddings** - Text embedding models for query vectorization
+- **Features** - Token tracking, latency monitoring, full OpenAI client configuration
+
+[Learn more →](../adapters/openai-adapter)
+
+### Pinecone Adapter
+
+A production-ready vector database adapter for Pinecone:
+
+- **Vector Search** - Semantic search with metadata filtering
+- **Governance** - Per-user namespace isolation and access control
+- **Configuration** - YAML-based policy and filter management
+
+[Learn more →](../adapters/pinecone-adapter)
+
+## Contributing New Adapters
+
+We're always looking to expand our adapter ecosystem! If you've implemented an adapter for another LLM provider, embedding service, or vector database, we'd love to include it in our documentation.
+
+**If you've created a new adapter:**
+
+1. Follow the adapter interface patterns shown in this guide
+2. Create comprehensive documentation for your adapter
+3. Test your implementation thoroughly
+4. **Raise a Pull Request** to add your adapter to the docs
+
+Your contribution will help the community use rag_control with their preferred infrastructure components. Visit the [rag-control repository](https://github.com/RetrievalLabs/rag-control) to raise a PR with your adapter documentation.
+
+## Requesting New Adapters
+
+If you need an adapter for a specific LLM provider, embedding service, or vector database that's not yet available, please create an issue in the [rag-control repository](https://github.com/RetrievalLabs/rag-control/issues) with:
+
+- **Provider/Service Name** - The LLM provider or database you need an adapter for
+- **Use Case** - How you plan to use it with rag_control
+- **Priority** - How critical this adapter is for your needs
+
+Community contributions and feature requests help prioritize which adapters to implement next!
 
 ## See Also
 

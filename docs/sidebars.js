@@ -50,6 +50,14 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: 'Adapters',
+      items: [
+        'adapters/openai-adapter',
+        'adapters/pinecone-adapter',
+      ],
+    },
+    {
+      type: 'category',
       label: 'API Reference',
       items: [
         'api/engine',
