@@ -17,6 +17,8 @@ Distributed tracing tracks:
 - External service calls
 - Errors and exceptions
 
+![rag_control Distributed Tracing](../../static/img/rag_control_traces.png)
+
 ## Span Hierarchy
 
 Requests create a nested span hierarchy. The root span is `rag_control.request.<mode>` where mode is either `run` or `stream`. Child spans follow the pattern `rag_control.request.<mode>.stage.<stage_name>`:
