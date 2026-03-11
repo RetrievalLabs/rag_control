@@ -11,9 +11,8 @@ rag_control provides comprehensive metrics for observability and monitoring acro
 
 All metrics are prefixed with `rag_control.` in telemetry output.
 
-![Metrics Dashboard 1](../../../static/img/rag-control-metrics-1.png)
-
-![Metrics Dashboard 2](../../../static/img/rag-control-metrics-2.png)
+![Metrics Dashboard](../../static/img/rag-control-metrics-1.png)
+![Metrics Dashboard](../../static/img/rag-control-metrics-2.png)
 
 ### Request & Latency Metrics
 
