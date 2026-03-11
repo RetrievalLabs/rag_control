@@ -11,6 +11,10 @@ rag_control provides comprehensive metrics for observability and monitoring acro
 
 All metrics are prefixed with `rag_control.` in telemetry output.
 
+![Metrics Dashboard 1](../../../static/img/rag-control-metrics-1.png)
+
+![Metrics Dashboard 2](../../../static/img/rag-control-metrics-2.png)
+
 ### Request & Latency Metrics
 
 | Metric | Type | Description |
@@ -138,6 +142,7 @@ rag_control uses a protocol-based metrics system that:
 - **Guarantees reliability**: Metric recording failures never affect request processing (exceptions are caught and suppressed)
 - **Supports multiple exporters**: Implement the `MetricsRecorder` protocol to use any observability backend
 - **Provides sensible defaults**: Falls back to structured logging if metrics isn't configured
+
 
 ### Initialize Metrics
 
