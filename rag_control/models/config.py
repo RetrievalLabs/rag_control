@@ -99,7 +99,7 @@ class ControlPlaneConfig(BaseModel):
                 )
 
             for rule in org.policy_rules:
-                self._validate_rule_conditions(org.org_id, rule.name, rule.when, is_access_rule=False)
+                self._validate_rule_conditions(org.org_id, rule.name, rule.when, is_deny_rule=False)
                 if rule.apply_policy is not None and rule.apply_policy not in policy_name_set:
                     raise ControlPlaneConfigValidationError(
                         f"org '{org.org_id}' rule '{rule.name}' apply_policy "
@@ -123,22 +123,22 @@ class ControlPlaneConfig(BaseModel):
                 )
 
             for rule in org.access_rules:
-                self._validate_rule_conditions(org.org_id, rule.name, rule.when, is_access_rule=True)
+                self._validate_rule_conditions(org.org_id, rule.name, rule.when, is_deny_rule=True)
 
         return self
 
     @staticmethod
-    def _validate_rule_conditions(org_id: str, rule_name: str, when: Union[AccessLogicalCondition, PolicyLogicalCondition], is_access_rule: bool = True) -> None:
+    def _validate_rule_conditions(org_id: str, rule_name: str, when: Union[DenyRuleLogicalCondition, PolicyRuleLogicalCondition], is_deny_rule: bool = True) -> None:
         if when.all is not None:
             for condition in when.all:
-                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition, is_access_rule)
+                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition, is_deny_rule)
         if when.any is not None:
             for condition in when.any:
-                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition, is_access_rule)
+                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition, is_deny_rule)
 
     @staticmethod
-    def _validate_rule_condition(org_id: str, rule_name: str, condition: Union[AccessCondition, PolicyCondition], is_access_rule: bool = True) -> None:
-        if is_access_rule and hasattr(condition, 'document_match') and condition.document_match is not None and condition.source != "documents":
+    def _validate_rule_condition(org_id: str, rule_name: str, condition: Union[DenyRuleCondition, PolicyRuleCondition], is_deny_rule: bool = True) -> None:
+        if is_deny_rule and hasattr(condition, 'document_match') and condition.document_match is not None and condition.source != "documents":
             raise ControlPlaneConfigValidationError(
                 f"org '{org_id}' rule '{rule_name}': "
                 "document_match is only supported when source is 'documents'"
