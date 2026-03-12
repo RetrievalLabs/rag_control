@@ -5,7 +5,8 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from .documet import DocumentPolicy
 
 
 class GenerationPolicy(BaseModel):
@@ -34,3 +35,6 @@ class Policy(BaseModel):
     generation: GenerationPolicy
     logging: LoggingPolicy
     enforcement: EnforcementPolicy
+    document_policy: DocumentPolicy = Field(default_factory=DocumentPolicy)
+
+    

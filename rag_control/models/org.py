@@ -6,12 +6,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from pydantic import BaseModel, Field
 
 from .rule import PolicyRule
-
-
-class DocumentPolicy(BaseModel):
-    top_k: int = 5
-    filter_name: str | None = None
-
+from .documet import DocumentPolicy
 
 class OrgConfig(BaseModel):
     org_id: str
@@ -19,3 +14,4 @@ class OrgConfig(BaseModel):
     default_policy: str
     policy_rules: list[PolicyRule]
     document_policy: DocumentPolicy = Field(default_factory=DocumentPolicy)
+
