@@ -53,6 +53,10 @@ class ControlPlaneConfig(BaseModel):
                 raise ControlPlaneConfigValidationError(
                     f"policy '{policy.name}' generation.temperature must be between 0.0 and 2.0"
                 )
+            if policy.document_policy.top_k <= 0:
+                raise ControlPlaneConfigValidationError(
+                    f"policy '{policy.name}' document_policy.top_k must be greater than 0"
+                )
 
         if len(filter_names) != len(set(filter_names)):
             raise ControlPlaneConfigValidationError("filters must have unique names")
