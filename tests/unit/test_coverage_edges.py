@@ -30,7 +30,7 @@ from rag_control.models.llm import (
     LLMUsage,
 )
 from rag_control.models.policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
-from rag_control.models.deny_rule import Condition, LogicalCondition
+from rag_control.models.deny_rule import DenyRuleCondition, DenyRuleLogicalCondition
 from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import VectorStoreRecord
 from rag_control.observability import audit_logger as audit_logger_module
@@ -222,19 +222,19 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     doc = VectorStoreRecord(id="d", content="c", score=0.5, metadata={"score": 9, "region": ["eu"]})
 
-    empty_logical = LogicalCondition.model_construct(all=None, any=None)
+    empty_logical = DenyRuleLogicalCondition.model_construct(all=None, any=None)
     assert GovernanceRegistry._matches_logical_condition(empty_logical, user_context) is False
 
     assert (
         GovernanceRegistry._matches_condition(
-            Condition.model_construct(field="score", operator="gt", value=None, source="user"),
+            DenyRuleCondition.model_construct(field="score", operator="gt", value=None, source="user"),
             user_context,
         )
         is False
     )
     assert (
         GovernanceRegistry._matches_condition(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="region",
                 operator="intersects",
                 value="eu",
@@ -246,21 +246,21 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition(
-            Condition.model_construct(field="score", operator="lt", value=10, source="user"),
+            DenyRuleCondition.model_construct(field="score", operator="lt", value=10, source="user"),
             user_context,
         )
         is True
     )
     assert (
         GovernanceRegistry._matches_condition(
-            Condition.model_construct(field="score", operator="gt", value=1, source="user"),
+            DenyRuleCondition.model_construct(field="score", operator="gt", value=1, source="user"),
             user_context,
         )
         is True
     )
     assert (
         GovernanceRegistry._matches_condition(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="word",
                 operator="intersects",
                 value="eu",
@@ -272,7 +272,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition(
-            Condition.model_construct(field="score", operator="unknown", value=1, source="user"),
+            DenyRuleCondition.model_construct(field="score", operator="unknown", value=1, source="user"),
             user_context,
         )
         is False
@@ -281,7 +281,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     monkeypatch.setattr(gov_module, "DENY_RULE_NUMERIC_OPERATORS", ("lt", "lte", "gt", "gte", "mystery"))
     assert (
         GovernanceRegistry._matches_condition(
-            Condition.model_construct(field="score", operator="mystery", value=5, source="user"),
+            DenyRuleCondition.model_construct(field="score", operator="mystery", value=5, source="user"),
             user_context,
         )
         is True
@@ -289,7 +289,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
 
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="metadata.score",
                 operator="gt",
                 value=None,
@@ -301,7 +301,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="metadata.score",
                 operator="lt",
                 value=10,
@@ -313,7 +313,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="metadata.score",
                 operator="lte",
                 value=9,
@@ -325,7 +325,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="metadata.score",
                 operator="gt",
                 value=1,
@@ -337,7 +337,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="metadata.score",
                 operator="gte",
                 value=9,
@@ -349,7 +349,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="metadata.region",
                 operator="intersects",
                 value="eu",
@@ -361,7 +361,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="metadata.region",
                 operator="intersects",
                 value=99,
@@ -379,7 +379,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="metadata.region",
                 operator="intersects",
                 value="eu",
@@ -391,7 +391,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="metadata.score",
                 operator="unknown",
                 value=1,
@@ -403,7 +403,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition_for_document(
-            Condition.model_construct(
+            DenyRuleCondition.model_construct(
                 field="metadata.score",
                 operator="mystery",
                 value=5,

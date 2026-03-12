@@ -27,12 +27,12 @@ from .deny_rule import (
     DENY_RULE_OPERATOR_EQUALS,
     DENY_RULE_OPERATOR_EXISTS,
     DENY_RULE_OPERATOR_INTERSECTS,
-    Condition as AccessCondition,
-    LogicalCondition as AccessLogicalCondition,
+    DenyRuleCondition ,
+    DenyRuleLogicalCondition,
 )
 from .policy_rule import (
-    Condition as PolicyCondition,
-    LogicalCondition as PolicyLogicalCondition,
+    PolicyRuleCondition,
+    PolicyRuleLogicalCondition,
 )
 
 

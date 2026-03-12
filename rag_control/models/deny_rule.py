@@ -22,26 +22,26 @@ DENY_RULE_NUMERIC_OPERATORS = {
     DENY_RULE_OPERATOR_GTE,
 }
 
-Operator = Literal["equals", "lt", "lte", "gt", "gte", "intersects", "exists"]
-ConditionSource = Literal["user", "documents"]
-DocumentMatchOperator = Literal["any", "all"]
+DenyRuleOperator = Literal["equals", "lt", "lte", "gt", "gte", "intersects", "exists"]
+DenyRuleConditionSource = Literal["user", "documents"]
+DenyRuleDocumentMatchOperator = Literal["any", "all"]
 
 
-class Condition(BaseModel):
+class DenyRuleCondition(BaseModel):
     field: str
-    operator: Operator
+    operator: DenyRuleOperator
     value: str | StrictInt | StrictFloat | None = None
-    source: ConditionSource = "user"
-    document_match: DocumentMatchOperator | None = None
+    source: DenyRuleConditionSource = "user"
+    document_match: DenyRuleDocumentMatchOperator | None = None
 
 
-class LogicalCondition(BaseModel):
-    all: List[Condition] | None = None
-    any: List[Condition] | None = None
+class DenyRuleLogicalCondition(BaseModel):
+    all: List[DenyRuleCondition] | None = None
+    any: List[DenyRuleCondition] | None = None
 
 
 class DenyRule(BaseModel):
     name: str
     description: str | None = None
     priority: int
-    when: LogicalCondition
+    when: DenyRuleLogicalCondition

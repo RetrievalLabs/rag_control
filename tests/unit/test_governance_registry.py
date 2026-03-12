@@ -21,7 +21,8 @@ from rag_control.models.policy import (
     LoggingPolicy,
     Policy,
 )
-from rag_control.models.deny_rule import Condition, LogicalCondition, PolicyRule
+from rag_control.models.deny_rule import DenyRule, DenyRuleCondition, DenyRuleLogicalCondition
+from rag_control.models.policy_rule import PolicyRule, PolicyRuleCondition, PolicyRuleLogicalCondition
 from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import VectorStoreRecord
 

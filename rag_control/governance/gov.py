@@ -20,8 +20,8 @@ from rag_control.models.deny_rule import (
     DENY_RULE_OPERATOR_INTERSECTS,
     DENY_RULE_OPERATOR_LT,
     DENY_RULE_OPERATOR_LTE,
-    Condition,
-    LogicalCondition,
+    DenyRuleCondition,
+    DenyRuleLogicalCondition,
 )
 from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import VectorStoreRecord
@@ -79,7 +79,7 @@ class GovernanceRegistry:
 
     @staticmethod
     def _matches_logical_condition(
-        logical_condition: LogicalCondition,
+        logical_condition: DenyRuleLogicalCondition,
         user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
     ) -> bool:
@@ -119,7 +119,7 @@ class GovernanceRegistry:
 
     @staticmethod
     def _matches_condition(
-        condition: Condition,
+        condition: DenyRuleCondition,
         user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
     ) -> bool:
@@ -187,7 +187,7 @@ class GovernanceRegistry:
 
     @staticmethod
     def _matches_source_document_condition(
-        condition: Condition, source_documents: list[VectorStoreRecord]
+        condition: DenyRuleCondition, source_documents: list[VectorStoreRecord]
     ) -> bool:
         if len(source_documents) == 0:
             return False
@@ -203,7 +203,7 @@ class GovernanceRegistry:
 
     @staticmethod
     def _matches_condition_for_document(
-        condition: Condition, source_document: VectorStoreRecord
+        condition: DenyRuleCondition, source_document: VectorStoreRecord
     ) -> bool:
         source_document_data = source_document.model_dump()
         has_field, actual_value = GovernanceRegistry._resolve_nested_value(

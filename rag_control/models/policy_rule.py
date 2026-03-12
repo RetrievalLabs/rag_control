@@ -17,23 +17,23 @@ POLICY_RULE_NUMERIC_OPERATORS = {
     POLICY_RULE_OPERATOR_GTE,
 }
 
-Operator = Literal["equals", "lt", "lte", "gt", "gte", "intersects", "exists"]
+PolicyRuleOperator = Literal["equals", "lt", "lte", "gt", "gte", "intersects", "exists"]
 
 
-class Condition(BaseModel):
+class PolicyRuleCondition(BaseModel):
     field: str
-    operator: Operator
+    operator: PolicyRuleOperator
     value: str | StrictInt | StrictFloat | None = None
 
 
-class LogicalCondition(BaseModel):
-    all: List[Condition] | None = None
-    any: List[Condition] | None = None
+class PolicyRuleLogicalCondition(BaseModel):
+    all: List[PolicyRuleCondition] | None = None
+    any: List[PolicyRuleCondition] | None = None
 
 
 class PolicyRule(BaseModel):
     name: str
     description: str | None = None
     priority: int
-    when: LogicalCondition
-    apply_policy: str 
+    when: PolicyRuleLogicalCondition
+    apply_policy: str
