@@ -10,16 +10,18 @@ from rag_control.exceptions.governance import (
 )
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.org import OrgConfig
+from rag_control.models.operator import (
+    OPERATOR_EQUALS,
+    OPERATOR_EXISTS,
+    OPERATOR_GT,
+    OPERATOR_GTE,
+    OPERATOR_INTERSECTS,
+    OPERATOR_LT,
+    OPERATOR_LTE,
+
+)
 from rag_control.models.deny_rule import (
-    DENY_RULE_EFFECT_DENY,
     DENY_RULE_NUMERIC_OPERATORS,
-    DENY_RULE_OPERATOR_EQUALS,
-    DENY_RULE_OPERATOR_EXISTS,
-    DENY_RULE_OPERATOR_GT,
-    DENY_RULE_OPERATOR_GTE,
-    DENY_RULE_OPERATOR_INTERSECTS,
-    DENY_RULE_OPERATOR_LT,
-    DENY_RULE_OPERATOR_LTE,
     DenyRuleCondition,
     DenyRuleLogicalCondition,
 )
