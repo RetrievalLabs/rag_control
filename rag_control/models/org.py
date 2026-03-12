@@ -7,11 +7,15 @@ from pydantic import BaseModel, Field
 
 from .policy_rule import PolicyRule
 from .documet import DocumentPolicy
+from .access_rule import AccessRule
 
 class OrgConfig(BaseModel):
     org_id: str
     description: str | None = None
     default_policy: str
-    policy_rules: list[PolicyRule]
     document_policy: DocumentPolicy = Field(default_factory=DocumentPolicy)
+    policy_rules: list[PolicyRule]
+    access_rules: list[AccessRule]
+    
+    
 
