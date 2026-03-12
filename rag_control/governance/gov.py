@@ -10,16 +10,16 @@ from rag_control.exceptions.governance import (
 )
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.org import OrgConfig
-from rag_control.models.access_rule import (
-    ACCESS_RULE_EFFECT_DENY,
-    ACCESS_RULE_NUMERIC_OPERATORS,
-    ACCESS_RULE_OPERATOR_EQUALS,
-    ACCESS_RULE_OPERATOR_EXISTS,
-    ACCESS_RULE_OPERATOR_GT,
-    ACCESS_RULE_OPERATOR_GTE,
-    ACCESS_RULE_OPERATOR_INTERSECTS,
-    ACCESS_RULE_OPERATOR_LT,
-    ACCESS_RULE_OPERATOR_LTE,
+from rag_control.models.deny_rule import (
+    DENY_RULE_EFFECT_DENY,
+    DENY_RULE_NUMERIC_OPERATORS,
+    DENY_RULE_OPERATOR_EQUALS,
+    DENY_RULE_OPERATOR_EXISTS,
+    DENY_RULE_OPERATOR_GT,
+    DENY_RULE_OPERATOR_GTE,
+    DENY_RULE_OPERATOR_INTERSECTS,
+    DENY_RULE_OPERATOR_LT,
+    DENY_RULE_OPERATOR_LTE,
     Condition,
     LogicalCondition,
 )
@@ -58,7 +58,7 @@ class GovernanceRegistry:
         for rule in org.policy_rules:
             if not self._matches_logical_condition(rule.when, user_context, source_documents):
                 continue
-            if rule.effect == ACCESS_RULE_EFFECT_DENY:
+            if rule.effect == DENY_RULE_EFFECT_DENY:
                 if audit_context is not None:
                     audit_context.log_event(
                         "request.denied",
@@ -134,31 +134,31 @@ class GovernanceRegistry:
         expected_value = condition.value
         operator = condition.operator
 
-        if operator == ACCESS_RULE_OPERATOR_EXISTS:
+        if operator == DENY_RULE_OPERATOR_EXISTS:
             return has_field
 
-        if operator == ACCESS_RULE_OPERATOR_EQUALS:
+        if operator == DENY_RULE_OPERATOR_EQUALS:
             return bool(actual_value == expected_value)
 
         if expected_value is None:
             return False
 
-        if operator in ACCESS_RULE_NUMERIC_OPERATORS:
+        if operator in DENY_RULE_NUMERIC_OPERATORS:
             if not isinstance(actual_value, (int, float)) or not isinstance(
                 expected_value, (int, float)
             ):
                 return False
-            if operator == ACCESS_RULE_OPERATOR_LT:
+            if operator == DENY_RULE_OPERATOR_LT:
                 return actual_value < expected_value
-            if operator == ACCESS_RULE_OPERATOR_LTE:
+            if operator == DENY_RULE_OPERATOR_LTE:
                 return actual_value <= expected_value
-            if operator == ACCESS_RULE_OPERATOR_GT:
+            if operator == DENY_RULE_OPERATOR_GT:
                 return actual_value > expected_value
-            if operator == ACCESS_RULE_OPERATOR_GTE:
+            if operator == DENY_RULE_OPERATOR_GTE:
                 return actual_value >= expected_value
             return actual_value >= expected_value
 
-        if operator == ACCESS_RULE_OPERATOR_INTERSECTS:
+        if operator == DENY_RULE_OPERATOR_INTERSECTS:
             if isinstance(actual_value, (list, set, tuple)):
                 return expected_value in actual_value
             if isinstance(actual_value, str) and isinstance(expected_value, str):
@@ -212,31 +212,31 @@ class GovernanceRegistry:
         expected_value = condition.value
         operator = condition.operator
 
-        if operator == ACCESS_RULE_OPERATOR_EXISTS:
+        if operator == DENY_RULE_OPERATOR_EXISTS:
             return has_field
 
-        if operator == ACCESS_RULE_OPERATOR_EQUALS:
+        if operator == DENY_RULE_OPERATOR_EQUALS:
             return bool(actual_value == expected_value)
 
         if expected_value is None:
             return False
 
-        if operator in ACCESS_RULE_NUMERIC_OPERATORS:
+        if operator in DENY_RULE_NUMERIC_OPERATORS:
             if not isinstance(actual_value, (int, float)) or not isinstance(
                 expected_value, (int, float)
             ):
                 return False
-            if operator == ACCESS_RULE_OPERATOR_LT:
+            if operator == DENY_RULE_OPERATOR_LT:
                 return actual_value < expected_value
-            if operator == ACCESS_RULE_OPERATOR_LTE:
+            if operator == DENY_RULE_OPERATOR_LTE:
                 return actual_value <= expected_value
-            if operator == ACCESS_RULE_OPERATOR_GT:
+            if operator == DENY_RULE_OPERATOR_GT:
                 return actual_value > expected_value
-            if operator == ACCESS_RULE_OPERATOR_GTE:
+            if operator == DENY_RULE_OPERATOR_GTE:
                 return actual_value >= expected_value
             return actual_value >= expected_value
 
-        if operator == ACCESS_RULE_OPERATOR_INTERSECTS:
+        if operator == DENY_RULE_OPERATOR_INTERSECTS:
             if isinstance(actual_value, (list, set, tuple)):
                 return expected_value in actual_value
             if isinstance(actual_value, str) and isinstance(expected_value, str):

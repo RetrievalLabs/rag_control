@@ -7,27 +7,24 @@ from typing import List, Literal
 
 from pydantic import BaseModel, StrictFloat, StrictInt
 
-ACCESS_RULE_EFFECT_ALLOW = "allow"
-ACCESS_RULE_EFFECT_DENY = "deny"
+DENY_RULE_OPERATOR_EQUALS = "equals"
+DENY_RULE_OPERATOR_LT = "lt"
+DENY_RULE_OPERATOR_LTE = "lte"
+DENY_RULE_OPERATOR_GT = "gt"
+DENY_RULE_OPERATOR_GTE = "gte"
+DENY_RULE_OPERATOR_INTERSECTS = "intersects"
+DENY_RULE_OPERATOR_EXISTS = "exists"
 
-ACCESS_RULE_OPERATOR_EQUALS = "equals"
-ACCESS_RULE_OPERATOR_LT = "lt"
-ACCESS_RULE_OPERATOR_LTE = "lte"
-ACCESS_RULE_OPERATOR_GT = "gt"
-ACCESS_RULE_OPERATOR_GTE = "gte"
-ACCESS_RULE_OPERATOR_INTERSECTS = "intersects"
-ACCESS_RULE_OPERATOR_EXISTS = "exists"
-
-ACCESS_RULE_NUMERIC_OPERATORS = {
-    ACCESS_RULE_OPERATOR_LT,
-    ACCESS_RULE_OPERATOR_LTE,
-    ACCESS_RULE_OPERATOR_GT,
-    ACCESS_RULE_OPERATOR_GTE,
+DENY_RULE_NUMERIC_OPERATORS = {
+    DENY_RULE_OPERATOR_LT,
+    DENY_RULE_OPERATOR_LTE,
+    DENY_RULE_OPERATOR_GT,
+    DENY_RULE_OPERATOR_GTE,
 }
 
 Operator = Literal["equals", "lt", "lte", "gt", "gte", "intersects", "exists"]
-DocumentMatchOperator = Literal["any", "all"]
 ConditionSource = Literal["user", "documents"]
+DocumentMatchOperator = Literal["any", "all"]
 
 
 class Condition(BaseModel):
@@ -43,9 +40,8 @@ class LogicalCondition(BaseModel):
     any: List[Condition] | None = None
 
 
-class AccessRule(BaseModel):
+class DenyRule(BaseModel):
     name: str
     description: str | None = None
     priority: int
-    effect: Literal["allow", "deny"]
     when: LogicalCondition

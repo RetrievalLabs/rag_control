@@ -30,7 +30,7 @@ from rag_control.models.llm import (
     LLMUsage,
 )
 from rag_control.models.policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
-from rag_control.models.access_rule import Condition, LogicalCondition
+from rag_control.models.deny_rule import Condition, LogicalCondition
 from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import VectorStoreRecord
 from rag_control.observability import audit_logger as audit_logger_module
@@ -278,7 +278,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
         is False
     )
 
-    monkeypatch.setattr(gov_module, "ACCESS_RULE_NUMERIC_OPERATORS", ("lt", "lte", "gt", "gte", "mystery"))
+    monkeypatch.setattr(gov_module, "DENY_RULE_NUMERIC_OPERATORS", ("lt", "lte", "gt", "gte", "mystery"))
     assert (
         GovernanceRegistry._matches_condition(
             Condition.model_construct(field="score", operator="mystery", value=5, source="user"),

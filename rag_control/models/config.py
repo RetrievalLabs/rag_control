@@ -5,6 +5,8 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 
 from __future__ import annotations
 
+from typing import Union
+
 from pydantic import BaseModel, model_validator
 
 from rag_control.exceptions import ControlPlaneConfigValidationError
@@ -20,13 +22,17 @@ from .filter import (
 from .filter import Condition as FilterCondition
 from .org import OrgConfig
 from .policy import Policy
-from .access_rule import (
-    ACCESS_RULE_NUMERIC_OPERATORS,
-    ACCESS_RULE_OPERATOR_EQUALS,
-    ACCESS_RULE_OPERATOR_EXISTS,
-    ACCESS_RULE_OPERATOR_INTERSECTS,
-    Condition,
-    LogicalCondition,
+from .deny_rule import (
+    DENY_RULE_NUMERIC_OPERATORS,
+    DENY_RULE_OPERATOR_EQUALS,
+    DENY_RULE_OPERATOR_EXISTS,
+    DENY_RULE_OPERATOR_INTERSECTS,
+    Condition as AccessCondition,
+    LogicalCondition as AccessLogicalCondition,
+)
+from .policy_rule import (
+    Condition as PolicyCondition,
+    LogicalCondition as PolicyLogicalCondition,
 )
 
 
@@ -93,43 +99,62 @@ class ControlPlaneConfig(BaseModel):
                 )
 
             for rule in org.policy_rules:
-                self._validate_rule_conditions(org.org_id, rule.name, rule.when)
+                self._validate_rule_conditions(org.org_id, rule.name, rule.when, is_access_rule=False)
                 if rule.apply_policy is not None and rule.apply_policy not in policy_name_set:
                     raise ControlPlaneConfigValidationError(
                         f"org '{org.org_id}' rule '{rule.name}' apply_policy "
                         f"'{rule.apply_policy}' does not exist"
                     )
 
+            access_rule_names = [rule.name for rule in org.access_rules]
+            if len(access_rule_names) != len(set(access_rule_names)):
+                raise ControlPlaneConfigValidationError(
+                    f"org '{org.org_id}' access_rules must have unique names"
+                )
+
+            access_rule_priorities = [rule.priority for rule in org.access_rules]
+            if any(priority <= 0 for priority in access_rule_priorities):
+                raise ControlPlaneConfigValidationError(
+                    f"org '{org.org_id}' access_rules priorities must be greater than 0"
+                )
+            if len(access_rule_priorities) != len(set(access_rule_priorities)):
+                raise ControlPlaneConfigValidationError(
+                    f"org '{org.org_id}' access_rules priorities must be unique"
+                )
+
+            for rule in org.access_rules:
+                self._validate_rule_conditions(org.org_id, rule.name, rule.when, is_access_rule=True)
+
         return self
 
     @staticmethod
-    def _validate_rule_conditions(org_id: str, rule_name: str, when: LogicalCondition) -> None:
+    def _validate_rule_conditions(org_id: str, rule_name: str, when: Union[AccessLogicalCondition, PolicyLogicalCondition], is_access_rule: bool = True) -> None:
         if when.all is not None:
             for condition in when.all:
-                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition)
+                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition, is_access_rule)
         if when.any is not None:
             for condition in when.any:
-                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition)
+                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition, is_access_rule)
 
     @staticmethod
-    def _validate_rule_condition(org_id: str, rule_name: str, condition: Condition) -> None:
-        if condition.document_match is not None and condition.source != "documents":
+    def _validate_rule_condition(org_id: str, rule_name: str, condition: Union[AccessCondition, PolicyCondition], is_access_rule: bool = True) -> None:
+        if is_access_rule and hasattr(condition, 'document_match') and condition.document_match is not None and condition.source != "documents":
             raise ControlPlaneConfigValidationError(
                 f"org '{org_id}' rule '{rule_name}': "
                 "document_match is only supported when source is 'documents'"
             )
 
-        if condition.operator == ACCESS_RULE_OPERATOR_EXISTS:
+        if condition.operator == DENY_RULE_OPERATOR_EXISTS:
             return
 
-        if condition.operator == ACCESS_RULE_OPERATOR_EQUALS:
+        if condition.operator == DENY_RULE_OPERATOR_EQUALS:
             if condition.value is None:
                 raise ControlPlaneConfigValidationError(
                     f"org '{org_id}' rule '{rule_name}': value is required for 'equals' operator"
                 )
             return
 
-        if condition.operator in ACCESS_RULE_NUMERIC_OPERATORS:
+        if condition.operator in DENY_RULE_NUMERIC_OPERATORS:
             if not isinstance(condition.value, (int, float)) or isinstance(condition.value, bool):
                 raise ControlPlaneConfigValidationError(
                     f"org '{org_id}' rule '{rule_name}': "
@@ -137,7 +162,7 @@ class ControlPlaneConfig(BaseModel):
                 )
             return
 
-        if condition.operator == ACCESS_RULE_OPERATOR_INTERSECTS and condition.value is None:
+        if condition.operator == DENY_RULE_OPERATOR_INTERSECTS and condition.value is None:
             raise ControlPlaneConfigValidationError(
                 f"org '{org_id}' rule '{rule_name}': value is required for 'intersects' operator"
             )

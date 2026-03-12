@@ -18,8 +18,9 @@ from .llm import (
 from .org import DocumentPolicy, OrgConfig
 from .policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
 from .query_embedding import QueryEmbeddingMetadata, QueryEmbeddingResponse
-from .access_rule import Condition as RuleCondition
-from .access_rule import LogicalCondition, PolicyRule
+from .deny_rule import Condition as RuleCondition
+from .deny_rule import LogicalCondition, DenyRule
+from .policy_rule import PolicyRule
 from .run import RunResponse, StreamResponse
 from .user_context import UserContext
 from .vector_store import (
@@ -45,6 +46,7 @@ __all__ = [
     "Filter",
     "FilterCondition",
     "PolicyRule",
+    "DenyRule",
     "LogicalCondition",
     "RuleCondition",
     "PromptInput",
