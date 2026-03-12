@@ -16,6 +16,9 @@ POLICY_RULE_NUMERIC_OPERATORS = {
     OPERATOR_GTE,
 }
 
+POLICY_RULE_EFFECT_ALLOW = "allow"
+POLICY_RULE_EFFECT_DENY = "deny"
+
 PolicyRuleOperator = Literal["equals", "lt", "lte", "gt", "gte", "intersects", "exists"]
 
 
@@ -35,5 +38,6 @@ class PolicyRule(BaseModel):
     name: str
     description: str | None = None
     priority: int
+    effect: Literal["allow", "deny"]="allow"
     when: PolicyRuleLogicalCondition
     apply_policy: str
