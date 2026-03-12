@@ -6,7 +6,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from typing import Literal
 
 from pydantic import BaseModel, Field
-from .documet import DocumentPolicy
+from .document import DocumentPolicy
 
 
 class GenerationPolicy(BaseModel):
