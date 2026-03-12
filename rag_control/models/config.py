@@ -21,10 +21,10 @@ from .filter import Condition as FilterCondition
 from .org import OrgConfig
 from .policy import Policy
 from .access_rule import (
-    RULE_NUMERIC_OPERATORS,
-    RULE_OPERATOR_EQUALS,
-    RULE_OPERATOR_EXISTS,
-    RULE_OPERATOR_INTERSECTS,
+    ACCESS_ACCESS_RULE_NUMERIC_OPERATORS,
+    ACCESS_ACCESS_RULE_OPERATOR_EQUALS,
+    ACCESS_ACCESS_RULE_OPERATOR_EXISTS,
+    ACCESS_ACCESS_RULE_OPERATOR_INTERSECTS,
     Condition,
     LogicalCondition,
 )
@@ -119,17 +119,17 @@ class ControlPlaneConfig(BaseModel):
                 "document_match is only supported when source is 'documents'"
             )
 
-        if condition.operator == RULE_OPERATOR_EXISTS:
+        if condition.operator == ACCESS_RULE_OPERATOR_EXISTS:
             return
 
-        if condition.operator == RULE_OPERATOR_EQUALS:
+        if condition.operator == ACCESS_RULE_OPERATOR_EQUALS:
             if condition.value is None:
                 raise ControlPlaneConfigValidationError(
                     f"org '{org_id}' rule '{rule_name}': value is required for 'equals' operator"
                 )
             return
 
-        if condition.operator in RULE_NUMERIC_OPERATORS:
+        if condition.operator in ACCESS_RULE_NUMERIC_OPERATORS:
             if not isinstance(condition.value, (int, float)) or isinstance(condition.value, bool):
                 raise ControlPlaneConfigValidationError(
                     f"org '{org_id}' rule '{rule_name}': "
@@ -137,7 +137,7 @@ class ControlPlaneConfig(BaseModel):
                 )
             return
 
-        if condition.operator == RULE_OPERATOR_INTERSECTS and condition.value is None:
+        if condition.operator == ACCESS_RULE_OPERATOR_INTERSECTS and condition.value is None:
             raise ControlPlaneConfigValidationError(
                 f"org '{org_id}' rule '{rule_name}': value is required for 'intersects' operator"
             )

@@ -278,7 +278,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
         is False
     )
 
-    monkeypatch.setattr(gov_module, "RULE_NUMERIC_OPERATORS", ("lt", "lte", "gt", "gte", "mystery"))
+    monkeypatch.setattr(gov_module, "ACCESS_RULE_NUMERIC_OPERATORS", ("lt", "lte", "gt", "gte", "mystery"))
     assert (
         GovernanceRegistry._matches_condition(
             Condition.model_construct(field="score", operator="mystery", value=5, source="user"),
