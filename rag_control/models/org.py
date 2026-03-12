@@ -15,7 +15,7 @@ class OrgConfig(BaseModel):
     default_policy: str
     document_policy: DocumentPolicy = Field(default_factory=DocumentPolicy)
     policy_rules: list[PolicyRule]
-    access_rules: list[DenyRule]
+    deny_rules: list[DenyRule]
     
     
 

@@ -8,6 +8,7 @@ from typing import Any
 from rag_control.exceptions.governance import (
     GovernancePolicyDeniedError,
 )
+from rag_control.models.policy_rule import PolicyRuleLogicalCondition, POLICY_RULE_EFFECT_DENY, POLICY_RULE_NUMERIC_OPERATORS
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.org import OrgConfig
 from rag_control.models.operator import (
@@ -18,7 +19,6 @@ from rag_control.models.operator import (
     OPERATOR_INTERSECTS,
     OPERATOR_LT,
     OPERATOR_LTE,
-
 )
 from rag_control.models.deny_rule import (
     DENY_RULE_NUMERIC_OPERATORS,
@@ -48,19 +48,44 @@ class GovernanceRegistry:
     def get_org(self, org_id: str) -> OrgConfig | None:
         return self.org_map.get(org_id)
 
-    def resolve_policy(
+    def resolve_deny(
         self,
         user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
+        audit_context: AuditLoggingContext | None = None,
+    ) -> None:
+        org = self.org_map[user_context.org_id]
+
+        for rule in org.deny_rules:
+            if not self._matches_logical_condition(rule.when, user_context, source_documents):
+                continue
+
+            if audit_context is not None:
+                audit_context.log_event(
+                    "request.denied",
+                    level="warning",
+                    rule_name=rule.name,
+                    error_type=GovernancePolicyDeniedError.__name__,
+                    error_message=(
+                        f"governance policy denied for org '{user_context.org_id}' "
+                        f"by rule '{rule.name}'"
+                    ),
+                )
+            raise GovernancePolicyDeniedError(user_context, rule.name)
+ 
+    
+    def resolve_policy(
+        self,
+        user_context: UserContext,
         audit_context: AuditLoggingContext | None = None,
     ) -> str:
         org = self.org_map[user_context.org_id]
 
         default_policy = org.default_policy
         for rule in org.policy_rules:
-            if not self._matches_logical_condition(rule.when, user_context, source_documents):
+            if not self._matches_policy_logical_condition(rule.when, user_context):
                 continue
-            if rule.effect == DENY_RULE_EFFECT_DENY:
+            if rule.effect == POLICY_RULE_EFFECT_DENY:
                 if audit_context is not None:
                     audit_context.log_event(
                         "request.denied",
@@ -136,10 +161,10 @@ class GovernanceRegistry:
         expected_value = condition.value
         operator = condition.operator
 
-        if operator == DENY_RULE_OPERATOR_EXISTS:
+        if operator == OPERATOR_EXISTS:
             return has_field
 
-        if operator == DENY_RULE_OPERATOR_EQUALS:
+        if operator == OPERATOR_EQUALS:
             return bool(actual_value == expected_value)
 
         if expected_value is None:
@@ -150,17 +175,17 @@ class GovernanceRegistry:
                 expected_value, (int, float)
             ):
                 return False
-            if operator == DENY_RULE_OPERATOR_LT:
+            if operator == OPERATOR_LT:
                 return actual_value < expected_value
-            if operator == DENY_RULE_OPERATOR_LTE:
+            if operator == OPERATOR_LTE:
                 return actual_value <= expected_value
-            if operator == DENY_RULE_OPERATOR_GT:
+            if operator == OPERATOR_GT:
                 return actual_value > expected_value
-            if operator == DENY_RULE_OPERATOR_GTE:
+            if operator == OPERATOR_GTE:
                 return actual_value >= expected_value
             return actual_value >= expected_value
 
-        if operator == DENY_RULE_OPERATOR_INTERSECTS:
+        if operator == OPERATOR_INTERSECTS:
             if isinstance(actual_value, (list, set, tuple)):
                 return expected_value in actual_value
             if isinstance(actual_value, str) and isinstance(expected_value, str):
@@ -214,10 +239,10 @@ class GovernanceRegistry:
         expected_value = condition.value
         operator = condition.operator
 
-        if operator == DENY_RULE_OPERATOR_EXISTS:
+        if operator == OPERATOR_EXISTS:
             return has_field
 
-        if operator == DENY_RULE_OPERATOR_EQUALS:
+        if operator == OPERATOR_EQUALS:
             return bool(actual_value == expected_value)
 
         if expected_value is None:
@@ -228,17 +253,17 @@ class GovernanceRegistry:
                 expected_value, (int, float)
             ):
                 return False
-            if operator == DENY_RULE_OPERATOR_LT:
+            if operator == OPERATOR_LT:
                 return actual_value < expected_value
-            if operator == DENY_RULE_OPERATOR_LTE:
+            if operator == OPERATOR_LTE:
                 return actual_value <= expected_value
-            if operator == DENY_RULE_OPERATOR_GT:
+            if operator == OPERATOR_GT:
                 return actual_value > expected_value
-            if operator == DENY_RULE_OPERATOR_GTE:
+            if operator == OPERATOR_GTE:
                 return actual_value >= expected_value
             return actual_value >= expected_value
 
-        if operator == DENY_RULE_OPERATOR_INTERSECTS:
+        if operator == OPERATOR_INTERSECTS:
             if isinstance(actual_value, (list, set, tuple)):
                 return expected_value in actual_value
             if isinstance(actual_value, str) and isinstance(expected_value, str):
