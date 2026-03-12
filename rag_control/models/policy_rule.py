@@ -36,4 +36,4 @@ class PolicyRule(BaseModel):
     description: str | None = None
     priority: int
     when: LogicalCondition
-    apply_policy: str | None = None
+    apply_policy: str 
