@@ -20,7 +20,7 @@ from .filter import (
 from .filter import Condition as FilterCondition
 from .org import OrgConfig
 from .policy import Policy
-from .rule import (
+from .access_rule import (
     RULE_NUMERIC_OPERATORS,
     RULE_OPERATOR_EQUALS,
     RULE_OPERATOR_EXISTS,

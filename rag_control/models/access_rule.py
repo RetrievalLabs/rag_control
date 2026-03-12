@@ -43,10 +43,9 @@ class LogicalCondition(BaseModel):
     any: List[Condition] | None = None
 
 
-class PolicyRule(BaseModel):
+class AccessRule(BaseModel):
     name: str
     description: str | None = None
     priority: int
     effect: Literal["allow", "deny"]
-    apply_policy: str | None = None
     when: LogicalCondition

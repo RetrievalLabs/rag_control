@@ -10,7 +10,7 @@ from rag_control.exceptions.governance import (
 )
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.org import OrgConfig
-from rag_control.models.rule import (
+from rag_control.models.access_rule import (
     RULE_EFFECT_DENY,
     RULE_NUMERIC_OPERATORS,
     RULE_OPERATOR_EQUALS,

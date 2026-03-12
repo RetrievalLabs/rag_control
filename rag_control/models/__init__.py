@@ -18,8 +18,8 @@ from .llm import (
 from .org import DocumentPolicy, OrgConfig
 from .policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
 from .query_embedding import QueryEmbeddingMetadata, QueryEmbeddingResponse
-from .rule import Condition as RuleCondition
-from .rule import LogicalCondition, PolicyRule
+from .access_rule import Condition as RuleCondition
+from .access_rule import LogicalCondition, PolicyRule
 from .run import RunResponse, StreamResponse
 from .user_context import UserContext
 from .vector_store import (

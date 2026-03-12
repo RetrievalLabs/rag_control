@@ -30,7 +30,7 @@ from rag_control.models.llm import (
     LLMUsage,
 )
 from rag_control.models.policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
-from rag_control.models.rule import Condition, LogicalCondition
+from rag_control.models.access_rule import Condition, LogicalCondition
 from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import VectorStoreRecord
 from rag_control.observability import audit_logger as audit_logger_module
