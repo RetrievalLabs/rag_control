@@ -2,19 +2,18 @@ from typing import List, Literal
 
 from pydantic import BaseModel, StrictFloat, StrictInt
 
-POLICY_RULE_OPERATOR_EQUALS = "equals"
-POLICY_RULE_OPERATOR_LT = "lt"
-POLICY_RULE_OPERATOR_LTE = "lte"
-POLICY_RULE_OPERATOR_GT = "gt"
-POLICY_RULE_OPERATOR_GTE = "gte"
-POLICY_RULE_OPERATOR_INTERSECTS = "intersects"
-POLICY_RULE_OPERATOR_EXISTS = "exists"
+from .operator import (
+    OPERATOR_LT,
+    OPERATOR_LTE,
+    OPERATOR_GT,
+    OPERATOR_GTE,
+)
 
 POLICY_RULE_NUMERIC_OPERATORS = {
-    POLICY_RULE_OPERATOR_LT,
-    POLICY_RULE_OPERATOR_LTE,
-    POLICY_RULE_OPERATOR_GT,
-    POLICY_RULE_OPERATOR_GTE,
+    OPERATOR_LT,
+    OPERATOR_LTE,
+    OPERATOR_GT,
+    OPERATOR_GTE,
 }
 
 PolicyRuleOperator = Literal["equals", "lt", "lte", "gt", "gte", "intersects", "exists"]

@@ -12,11 +12,6 @@ from pydantic import BaseModel, model_validator
 from rag_control.exceptions import ControlPlaneConfigValidationError
 
 from .filter import (
-    FILTER_NUMERIC_OPERATORS,
-    FILTER_OPERATOR_EQUALS,
-    FILTER_OPERATOR_EXISTS,
-    FILTER_OPERATOR_IN,
-    FILTER_OPERATOR_INTERSECTS,
     Filter,
 )
 from .filter import Condition as FilterCondition

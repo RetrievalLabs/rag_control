@@ -7,19 +7,18 @@ from typing import List, Literal
 
 from pydantic import BaseModel, StrictFloat, StrictInt
 
-DENY_RULE_OPERATOR_EQUALS = "equals"
-DENY_RULE_OPERATOR_LT = "lt"
-DENY_RULE_OPERATOR_LTE = "lte"
-DENY_RULE_OPERATOR_GT = "gt"
-DENY_RULE_OPERATOR_GTE = "gte"
-DENY_RULE_OPERATOR_INTERSECTS = "intersects"
-DENY_RULE_OPERATOR_EXISTS = "exists"
+from .operator import (
+    OPERATOR_LT,
+    OPERATOR_LTE,
+    OPERATOR_GT,
+    OPERATOR_GTE,
+)
 
 DENY_RULE_NUMERIC_OPERATORS = {
-    DENY_RULE_OPERATOR_LT,
-    DENY_RULE_OPERATOR_LTE,
-    DENY_RULE_OPERATOR_GT,
-    DENY_RULE_OPERATOR_GTE,
+    OPERATOR_LT,
+    OPERATOR_LTE,
+    OPERATOR_GT,
+    OPERATOR_GTE,
 }
 
 DenyRuleOperator = Literal["equals", "lt", "lte", "gt", "gte", "intersects", "exists"]
