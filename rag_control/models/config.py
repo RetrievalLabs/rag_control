@@ -11,23 +11,28 @@ from pydantic import BaseModel, model_validator
 
 from rag_control.exceptions import ControlPlaneConfigValidationError
 
+from .operator import (
+    OPERATOR_EQUALS,
+    OPERATOR_IN,
+    OPERATOR_INTERSECTS,
+    OPERATOR_EXISTS,
+)
 from .filter import (
     Filter,
+    FilterCondition,
+    FILTER_NUMERIC_OPERATORS
 )
-from .filter import Condition as FilterCondition
 from .org import OrgConfig
 from .policy import Policy
 from .deny_rule import (
-    DENY_RULE_NUMERIC_OPERATORS,
-    DENY_RULE_OPERATOR_EQUALS,
-    DENY_RULE_OPERATOR_EXISTS,
-    DENY_RULE_OPERATOR_INTERSECTS,
     DenyRuleCondition ,
     DenyRuleLogicalCondition,
+    DENY_RULE_NUMERIC_OPERATORS,
 )
 from .policy_rule import (
     PolicyRuleCondition,
     PolicyRuleLogicalCondition,
+    POLICY_RULE_NUMERIC_OPERATORS
 )
 
 
@@ -139,10 +144,10 @@ class ControlPlaneConfig(BaseModel):
                 "document_match is only supported when source is 'documents'"
             )
 
-        if condition.operator == DENY_RULE_OPERATOR_EXISTS:
+        if condition.operator == OPERATOR_EXISTS:
             return
 
-        if condition.operator == DENY_RULE_OPERATOR_EQUALS:
+        if condition.operator == OPERATOR_EQUALS:
             if condition.value is None:
                 raise ControlPlaneConfigValidationError(
                     f"org '{org_id}' rule '{rule_name}': value is required for 'equals' operator"
@@ -157,7 +162,7 @@ class ControlPlaneConfig(BaseModel):
                 )
             return
 
-        if condition.operator == DENY_RULE_OPERATOR_INTERSECTS and condition.value is None:
+        if condition.operator == OPERATOR_INTERSECTS and condition.value is None:
             raise ControlPlaneConfigValidationError(
                 f"org '{org_id}' rule '{rule_name}': value is required for 'intersects' operator"
             )
@@ -202,10 +207,10 @@ class ControlPlaneConfig(BaseModel):
 
     @staticmethod
     def _validate_filter_condition(filter_name: str, path: str, condition: FilterCondition) -> None:
-        if condition.operator == FILTER_OPERATOR_EXISTS:
+        if condition.operator == OPERATOR_EXISTS:
             return
 
-        if condition.operator == FILTER_OPERATOR_IN:
+        if condition.operator == OPERATOR_IN:
             if not isinstance(condition.value, list):
                 raise ControlPlaneConfigValidationError(
                     f"filter '{filter_name}' at '{path}': value must be a list for 'in' operator"
@@ -216,7 +221,7 @@ class ControlPlaneConfig(BaseModel):
                 )
             return
 
-        if condition.operator == FILTER_OPERATOR_EQUALS:
+        if condition.operator == OPERATOR_EQUALS:
             if condition.value is None:
                 raise ControlPlaneConfigValidationError(
                     f"filter '{filter_name}' at '{path}': value is required for 'equals' operator"
@@ -231,7 +236,7 @@ class ControlPlaneConfig(BaseModel):
                 )
             return
 
-        if condition.operator == FILTER_OPERATOR_INTERSECTS and condition.value is None:
+        if condition.operator == OPERATOR_INTERSECTS and condition.value is None:
             raise ControlPlaneConfigValidationError(
                 f"filter '{filter_name}' at '{path}': value is required for 'intersects' operator"
             )

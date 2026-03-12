@@ -79,9 +79,9 @@ def _build_governance_config() -> ControlPlaneConfig:
                         priority=80,
                         effect="allow",
                         apply_policy="premium_policy",
-                        when=LogicalCondition(
+                        when=DenyRuleLogicalCondition(
                             any=[
-                                Condition(
+                                DenyRuleCondition(
                                     field="plan",
                                     operator="equals",
                                     value="gold",
@@ -95,9 +95,9 @@ def _build_governance_config() -> ControlPlaneConfig:
                         priority=85,
                         effect="allow",
                         apply_policy="research_policy",
-                        when=LogicalCondition(
+                        when=DenyRuleLogicalCondition(
                             any=[
-                                Condition(
+                                DenyRuleCondition(
                                     field="session_id",
                                     operator="exists",
                                     source="user",
@@ -109,9 +109,9 @@ def _build_governance_config() -> ControlPlaneConfig:
                         name="deny_banned_user",
                         priority=100,
                         effect="deny",
-                        when=LogicalCondition(
+                        when=DenyRuleLogicalCondition(
                             any=[
-                                Condition(
+                                DenyRuleCondition(
                                     field="user_status",
                                     operator="equals",
                                     value="banned",
@@ -125,15 +125,15 @@ def _build_governance_config() -> ControlPlaneConfig:
                         priority=90,
                         effect="allow",
                         apply_policy="research_policy",
-                        when=LogicalCondition(
+                        when=DenyRuleLogicalCondition(
                             all=[
-                                Condition(
+                                DenyRuleCondition(
                                     field="role",
                                     operator="equals",
                                     value="analyst",
                                     source="user",
                                 ),
-                                Condition(
+                                DenyRuleCondition(
                                     field="risk_score",
                                     operator="lte",
                                     value=50,
@@ -147,9 +147,9 @@ def _build_governance_config() -> ControlPlaneConfig:
                         priority=70,
                         effect="allow",
                         apply_policy="premium_policy",
-                        when=LogicalCondition(
+                        when=DenyRuleLogicalCondition(
                             any=[
-                                Condition(
+                                DenyRuleCondition(
                                     field="trust_score",
                                     operator="gte",
                                     value=90,
@@ -163,9 +163,9 @@ def _build_governance_config() -> ControlPlaneConfig:
                         priority=65,
                         effect="allow",
                         apply_policy="research_policy",
-                        when=LogicalCondition(
+                        when=DenyRuleLogicalCondition(
                             any=[
-                                Condition(
+                                DenyRuleCondition(
                                     field="attributes.department",
                                     operator="equals",
                                     value="finance",
@@ -178,9 +178,9 @@ def _build_governance_config() -> ControlPlaneConfig:
                         name="allow_eu_default",
                         priority=60,
                         effect="allow",
-                        when=LogicalCondition(
+                        when=DenyRuleLogicalCondition(
                             any=[
-                                Condition(
+                                DenyRuleCondition(
                                     field="region",
                                     operator="intersects",
                                     value="eu",
@@ -392,9 +392,9 @@ def test_governance_registry_resolve_policy_with_source_document_match_modes() -
                             priority=90,
                             effect="allow",
                             apply_policy="all_docs_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="metadata.classification",
                                         operator="equals",
                                         value="public",
@@ -409,9 +409,9 @@ def test_governance_registry_resolve_policy_with_source_document_match_modes() -
                             priority=80,
                             effect="allow",
                             apply_policy="any_doc_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="metadata.classification",
                                         operator="equals",
                                         value="public",
@@ -533,9 +533,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=60,
                             effect="allow",
                             apply_policy="region_status_top_scope_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="region.status.top",
                                         operator="equals",
                                         value="green",
@@ -549,9 +549,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=50,
                             effect="allow",
                             apply_policy="region_status_scope_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="region.status",
                                         operator="equals",
                                         value="active",
@@ -565,9 +565,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=40,
                             effect="allow",
                             apply_policy="department_scope_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="department",
                                         operator="equals",
                                         value="finance",
@@ -581,9 +581,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=30,
                             effect="allow",
                             apply_policy="user_id_scope_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="user_id",
                                         operator="equals",
                                         value="vip-user",
@@ -597,9 +597,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=20,
                             effect="allow",
                             apply_policy="profile_scope_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="profile.department",
                                         operator="equals",
                                         value="security",
@@ -613,9 +613,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=10,
                             effect="allow",
                             apply_policy="org_scope_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="org_id",
                                         operator="equals",
                                         value="special_org",
@@ -721,9 +721,9 @@ def test_governance_registry_resolve_policy_with_nested_document_paths() -> None
                             priority=20,
                             effect="allow",
                             apply_policy="doc_status_top_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="metadata.region.status.top",
                                         operator="equals",
                                         value="green",
@@ -738,9 +738,9 @@ def test_governance_registry_resolve_policy_with_nested_document_paths() -> None
                             priority=10,
                             effect="allow",
                             apply_policy="doc_status_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="metadata.region.status",
                                         operator="equals",
                                         value="active",
@@ -821,9 +821,9 @@ def test_governance_registry_document_missing_field_falls_back_to_default() -> N
                             priority=10,
                             effect="allow",
                             apply_policy="doc_exists_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="metadata.classification",
                                         operator="exists",
                                         source="documents",
@@ -888,9 +888,9 @@ def test_governance_registry_document_wrong_type_falls_back_to_default() -> None
                             priority=20,
                             effect="allow",
                             apply_policy="doc_numeric_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="metadata.risk_score",
                                         operator="gte",
                                         value=80,
@@ -905,9 +905,9 @@ def test_governance_registry_document_wrong_type_falls_back_to_default() -> None
                             priority=10,
                             effect="allow",
                             apply_policy="doc_intersects_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="metadata.region",
                                         operator="intersects",
                                         value="eu",
@@ -979,15 +979,15 @@ def test_governance_registry_resolve_policy_with_mixed_user_and_document_conditi
                             priority=10,
                             effect="allow",
                             apply_policy="mixed_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 all=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="user_role",
                                         operator="equals",
                                         value="analyst",
                                         source="user",
                                     ),
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="metadata.classification",
                                         operator="equals",
                                         value="public",
@@ -1095,9 +1095,9 @@ def test_governance_registry_user_context_missing_and_wrong_types_fall_back_to_d
                             priority=30,
                             effect="allow",
                             apply_policy="profile_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="profile.department",
                                         operator="exists",
                                         source="user",
@@ -1110,9 +1110,9 @@ def test_governance_registry_user_context_missing_and_wrong_types_fall_back_to_d
                             priority=20,
                             effect="allow",
                             apply_policy="risk_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="risk.score",
                                         operator="gte",
                                         value=80,
@@ -1126,9 +1126,9 @@ def test_governance_registry_user_context_missing_and_wrong_types_fall_back_to_d
                             priority=10,
                             effect="allow",
                             apply_policy="region_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="region",
                                         operator="intersects",
                                         value="eu",
@@ -1250,9 +1250,9 @@ def test_governance_registry_logical_condition_requires_all_and_any_when_both_pr
                             priority=10,
                             effect="allow",
                             apply_policy="combined_policy",
-                            when=LogicalCondition(
+                            when=DenyRuleLogicalCondition(
                                 all=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="department",
                                         operator="equals",
                                         value="finance",
@@ -1260,7 +1260,7 @@ def test_governance_registry_logical_condition_requires_all_and_any_when_both_pr
                                     )
                                 ],
                                 any=[
-                                    Condition(
+                                    DenyRuleCondition(
                                         field="region",
                                         operator="equals",
                                         value="eu",

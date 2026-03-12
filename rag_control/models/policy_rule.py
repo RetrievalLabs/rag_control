@@ -23,6 +23,7 @@ class PolicyRuleCondition(BaseModel):
     field: str
     operator: PolicyRuleOperator
     value: str | StrictInt | StrictFloat | None = None
+    source: Literal["user"] = "user"
 
 
 class PolicyRuleLogicalCondition(BaseModel):

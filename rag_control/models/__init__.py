@@ -6,7 +6,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from rag_control.adapters.llm import ChatMessage, PromptInput
 
 from .config import ControlPlaneConfig
-from .filter import Condition as FilterCondition
+from .filter import FilterCondition
 from .filter import Filter
 from .llm import (
     LLMMetadata,
@@ -18,8 +18,7 @@ from .llm import (
 from .org import DocumentPolicy, OrgConfig
 from .policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
 from .query_embedding import QueryEmbeddingMetadata, QueryEmbeddingResponse
-from .deny_rule import DenyRuleCondition 
-from .deny_rule import DenyRuleLogicalCondition, DenyRule
+from .deny_rule import DenyRuleLogicalCondition, DenyRule, DenyRuleCondition
 from .policy_rule import PolicyRule
 from .run import RunResponse, StreamResponse
 from .user_context import UserContext

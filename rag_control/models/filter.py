@@ -23,7 +23,6 @@ FILTER_NUMERIC_OPERATORS = {
 
 FilterOperator = Literal["equals", "in", "intersects", "lt", "lte", "gt", "gte", "exists"]
 
-
 class FilterCondition(BaseModel):
     field: str
     operator: FilterOperator
