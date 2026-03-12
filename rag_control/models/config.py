@@ -21,10 +21,10 @@ from .filter import Condition as FilterCondition
 from .org import OrgConfig
 from .policy import Policy
 from .access_rule import (
-    ACCESS_ACCESS_RULE_NUMERIC_OPERATORS,
-    ACCESS_ACCESS_RULE_OPERATOR_EQUALS,
-    ACCESS_ACCESS_RULE_OPERATOR_EXISTS,
-    ACCESS_ACCESS_RULE_OPERATOR_INTERSECTS,
+    ACCESS_RULE_NUMERIC_OPERATORS,
+    ACCESS_RULE_OPERATOR_EQUALS,
+    ACCESS_RULE_OPERATOR_EXISTS,
+    ACCESS_RULE_OPERATOR_INTERSECTS,
     Condition,
     LogicalCondition,
 )

@@ -11,15 +11,15 @@ from rag_control.exceptions.governance import (
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.org import OrgConfig
 from rag_control.models.access_rule import (
-    ACCESS_ACCESS_RULE_EFFECT_DENY,
-    ACCESS_ACCESS_RULE_NUMERIC_OPERATORS,
-    ACCESS_ACCESS_RULE_OPERATOR_EQUALS,
-    ACCESS_ACCESS_RULE_OPERATOR_EXISTS,
-    ACCESS_ACCESS_RULE_OPERATOR_GT,
-    ACCESS_ACCESS_ACCESS_RULE_OPERATOR_GTE,
-    ACCESS_ACCESS_RULE_OPERATOR_INTERSECTS,
-    ACCESS_ACCESS_RULE_OPERATOR_LT,
-    ACCESS_ACCESS_ACCESS_RULE_OPERATOR_LTE,
+    ACCESS_RULE_EFFECT_DENY,
+    ACCESS_RULE_NUMERIC_OPERATORS,
+    ACCESS_RULE_OPERATOR_EQUALS,
+    ACCESS_RULE_OPERATOR_EXISTS,
+    ACCESS_RULE_OPERATOR_GT,
+    ACCESS_RULE_OPERATOR_GTE,
+    ACCESS_RULE_OPERATOR_INTERSECTS,
+    ACCESS_RULE_OPERATOR_LT,
+    ACCESS_RULE_OPERATOR_LTE,
     Condition,
     LogicalCondition,
 )
@@ -150,11 +150,11 @@ class GovernanceRegistry:
                 return False
             if operator == ACCESS_RULE_OPERATOR_LT:
                 return actual_value < expected_value
-            if operator == ACCESS_ACCESS_RULE_OPERATOR_LTE:
+            if operator == ACCESS_RULE_OPERATOR_LTE:
                 return actual_value <= expected_value
             if operator == ACCESS_RULE_OPERATOR_GT:
                 return actual_value > expected_value
-            if operator == ACCESS_ACCESS_RULE_OPERATOR_GTE:
+            if operator == ACCESS_RULE_OPERATOR_GTE:
                 return actual_value >= expected_value
             return actual_value >= expected_value
 
@@ -228,11 +228,11 @@ class GovernanceRegistry:
                 return False
             if operator == ACCESS_RULE_OPERATOR_LT:
                 return actual_value < expected_value
-            if operator == ACCESS_ACCESS_RULE_OPERATOR_LTE:
+            if operator == ACCESS_RULE_OPERATOR_LTE:
                 return actual_value <= expected_value
             if operator == ACCESS_RULE_OPERATOR_GT:
                 return actual_value > expected_value
-            if operator == ACCESS_ACCESS_RULE_OPERATOR_GTE:
+            if operator == ACCESS_RULE_OPERATOR_GTE:
                 return actual_value >= expected_value
             return actual_value >= expected_value
 
