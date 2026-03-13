@@ -24,6 +24,8 @@ from rag_control.exceptions import (
 from rag_control.filter.filter import FilterRegistry
 from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
+from rag_control.models.org import OrgConfig
+from rag_control.models.policy import Policy
 from rag_control.models.run import RunResponse, StreamResponse
 from rag_control.models.user_context import UserContext
 from rag_control.observability import (
@@ -145,7 +147,7 @@ class RAGControl:
             trace_span.event("transition.request.received")
             trace_span.event("transition.org_lookup.started")
 
-            def _resolve_org() -> Any:
+            def _resolve_org() -> OrgConfig:
                 if org_id is None:
                     error = GovernanceUserContextOrgIDRequiredError()
                     audit_context.log_event(
@@ -183,8 +185,7 @@ class RAGControl:
                 engine._trace_stage_span_name(mode, "org_lookup"),
                 _resolve_org,
                 success_fields=lambda resolved_org: {
-                    "filter_name": resolved_org.document_policy.filter_name,
-                    "retrieval_top_k": resolved_org.document_policy.top_k,
+                    "org_id": resolved_org.org_id,
                 },
                 metrics_labels={"mode": mode, "stage": "org_lookup", "org_id": org_id or ""},
                 org_id=org_id,
@@ -192,18 +193,37 @@ class RAGControl:
 
             audit_context.log_event(
                 "org.resolved",
-                filter_name=org.document_policy.filter_name,
-                retrieval_top_k=org.document_policy.top_k,
-            )
-            trace_span.event(
-                "transition.org_lookup.completed",
-                filter_name=org.document_policy.filter_name,
-                retrieval_top_k=org.document_policy.top_k,
+                org_id=org.org_id,
             )
 
+            trace_span.event(
+                "transition.org_lookup.completed",
+                org_id=org.org_id,
+            )
+
+            def _resolve_policy() -> Policy:
+                policy_name = engine.governance_registry.resolve_policy(
+                    user_context=user_context,
+                    source_documents=[],
+                    audit_context=audit_context,
+                )
+                policy = engine.policy_registry.get(policy_name)
+                audit_context.logging_level = policy.logging.level
+            
+            policy = engine._run_stage(
+                trace_span,
+                engine._trace_stage_span_name(mode, "policy_lookup"),
+                _resolve_policy,
+                success_fields=lambda resolved_policy: {
+                    "policy_name": resolved_policy.name,
+                },
+                metrics_labels={"mode": mode, "stage": "policy_lookup", "policy_name": policy_name or ""},
+                policy_name=policy_name,
+            )
+                
             retrieval_filter = (
-                engine.filter_registry.get(org.document_policy.filter_name)
-                if org.document_policy.filter_name is not None
+                engine.filter_registry.get(policy.document_policy.filter_name)
+                if policy.document_policy.filter_name is not None
                 else None
             )
 
