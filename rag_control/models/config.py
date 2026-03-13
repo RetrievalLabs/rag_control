@@ -61,29 +61,14 @@ class ControlPlaneConfig(BaseModel):
             raise ControlPlaneConfigValidationError("orgs must have unique org_id values")
 
         policy_name_set = set(policy_names)
-        filter_name_set = set(filter_names)
 
         for flt in self.filters:
             self._validate_filter(flt.name, flt)
 
         for org in self.orgs:
-            if org.document_policy.top_k <= 0:
-                raise ControlPlaneConfigValidationError(
-                    f"org '{org.org_id}': document_policy.top_k must be greater than 0"
-                )
-
             if org.default_policy not in policy_name_set:
                 raise ControlPlaneConfigValidationError(
                     f"org '{org.org_id}' default_policy '{org.default_policy}' does not exist"
-                )
-
-            if (
-                org.document_policy.filter_name is not None
-                and org.document_policy.filter_name not in filter_name_set
-            ):
-                raise ControlPlaneConfigValidationError(
-                    f"org '{org.org_id}' document_policy.filter_name "
-                    f"'{org.document_policy.filter_name}' does not exist"
                 )
 
             rule_names = [rule.name for rule in org.policy_rules]
@@ -110,23 +95,23 @@ class ControlPlaneConfig(BaseModel):
                         f"'{rule.apply_policy}' does not exist"
                     )
 
-            access_rule_names = [rule.name for rule in org.access_rules]
-            if len(access_rule_names) != len(set(access_rule_names)):
+            deny_rule_names = [rule.name for rule in org.deny_rules]
+            if len(deny_rule_names) != len(set(deny_rule_names)):
                 raise ControlPlaneConfigValidationError(
-                    f"org '{org.org_id}' access_rules must have unique names"
+                    f"org '{org.org_id}' deny_rules must have unique names"
                 )
 
-            access_rule_priorities = [rule.priority for rule in org.access_rules]
-            if any(priority <= 0 for priority in access_rule_priorities):
+            deny_rule_priorities = [rule.priority for rule in org.deny_rules]
+            if any(priority <= 0 for priority in deny_rule_priorities):
                 raise ControlPlaneConfigValidationError(
-                    f"org '{org.org_id}' access_rules priorities must be greater than 0"
+                    f"org '{org.org_id}' deny_rules priorities must be greater than 0"
                 )
-            if len(access_rule_priorities) != len(set(access_rule_priorities)):
+            if len(deny_rule_priorities) != len(set(deny_rule_priorities)):
                 raise ControlPlaneConfigValidationError(
-                    f"org '{org.org_id}' access_rules priorities must be unique"
+                    f"org '{org.org_id}' deny_rules priorities must be unique"
                 )
 
-            for rule in org.access_rules:
+            for rule in org.deny_rules:
                 self._validate_rule_conditions(org.org_id, rule.name, rule.when, is_deny_rule=True)
 
         return self
