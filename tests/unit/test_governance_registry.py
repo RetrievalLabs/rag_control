@@ -2216,9 +2216,7 @@ def test_governance_registry_deny_condition_exists_operator_on_user_context() ->
     condition_exists = DenyRuleCondition.model_construct(
         field="department", operator="exists", source="user"
     )
-    result_found = GovernanceRegistry._matches_deny_condition(
-        condition_exists, user_with_field
-    )
+    result_found = GovernanceRegistry._matches_deny_condition(condition_exists, user_with_field)
     assert result_found is True
 
     # Test OPERATOR_EXISTS returns False when field is missing
@@ -2258,7 +2256,7 @@ def test_governance_registry_document_condition_numeric_operator_on_non_numeric_
 
 
 def test_governance_registry_string_intersects_operator() -> None:
-    """Test OPERATOR_INTERSECTS with string values in both deny conditions and document conditions."""
+    """Test OPERATOR_INTERSECTS with string values in deny and document conditions."""
     # Test string INTERSECTS in _matches_deny_condition (user context)
     user_with_tags = UserContext(
         org_id="test_org",
@@ -2269,9 +2267,7 @@ def test_governance_registry_string_intersects_operator() -> None:
     condition_string_intersects = DenyRuleCondition.model_construct(
         field="tags", operator="intersects", value="python", source="user"
     )
-    result = GovernanceRegistry._matches_deny_condition(
-        condition_string_intersects, user_with_tags
-    )
+    result = GovernanceRegistry._matches_deny_condition(condition_string_intersects, user_with_tags)
     assert result is True
 
     # Test string INTERSECTS in _matches_condition_for_document
