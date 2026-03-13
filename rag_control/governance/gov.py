@@ -44,6 +44,11 @@ class GovernanceRegistry:
                         org.policy_rules,
                         key=lambda policy_rule: policy_rule.priority,
                         reverse=True,
+                    ),
+                    "deny_rules": sorted(
+                        org.deny_rules,
+                        key=lambda deny_rule: deny_rule.priority,
+                        reverse=True,
                     )
                 }
             )
