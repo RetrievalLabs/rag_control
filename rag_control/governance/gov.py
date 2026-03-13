@@ -109,7 +109,6 @@ class GovernanceRegistry:
                 raise GovernancePolicyDeniedError(user_context, rule.name)
             if rule.apply_policy is not None:
                 return rule.apply_policy
-            return default_policy
 
         return default_policy
 
