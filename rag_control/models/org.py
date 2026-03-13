@@ -9,6 +9,7 @@ from .policy_rule import PolicyRule
 from .document import DocumentPolicy
 from .deny_rule import DenyRule
 
+
 class OrgConfig(BaseModel):
     org_id: str
     description: str | None = None
@@ -16,6 +17,3 @@ class OrgConfig(BaseModel):
     document_policy: DocumentPolicy = Field(default_factory=DocumentPolicy)
     policy_rules: list[PolicyRule]
     deny_rules: list[DenyRule]
-    
-    
-

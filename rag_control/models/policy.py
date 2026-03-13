@@ -36,5 +36,3 @@ class Policy(BaseModel):
     logging: LoggingPolicy
     enforcement: EnforcementPolicy
     document_policy: DocumentPolicy = Field(default_factory=DocumentPolicy)
-
-    

@@ -15,22 +15,18 @@ from .operator import (
     OPERATOR_INTERSECTS,
     OPERATOR_EXISTS,
 )
-from .filter import (
-    Filter,
-    FilterCondition,
-    FILTER_NUMERIC_OPERATORS
-)
+from .filter import Filter, FilterCondition, FILTER_NUMERIC_OPERATORS
 from .org import OrgConfig
 from .policy import Policy
 from .deny_rule import (
-    DenyRuleCondition ,
+    DenyRuleCondition,
     DenyRuleLogicalCondition,
     DENY_RULE_NUMERIC_OPERATORS,
 )
 from .policy_rule import (
     PolicyRuleCondition,
     PolicyRuleLogicalCondition,
-    POLICY_RULE_NUMERIC_OPERATORS
+    POLICY_RULE_NUMERIC_OPERATORS,
 )
 
 
@@ -136,17 +132,36 @@ class ControlPlaneConfig(BaseModel):
         return self
 
     @staticmethod
-    def _validate_rule_conditions(org_id: str, rule_name: str, when: DenyRuleLogicalCondition | PolicyRuleLogicalCondition, is_deny_rule: bool = True) -> None:
+    def _validate_rule_conditions(
+        org_id: str,
+        rule_name: str,
+        when: DenyRuleLogicalCondition | PolicyRuleLogicalCondition,
+        is_deny_rule: bool = True,
+    ) -> None:
         if when.all is not None:
             for condition in when.all:
-                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition, is_deny_rule)
+                ControlPlaneConfig._validate_rule_condition(
+                    org_id, rule_name, condition, is_deny_rule
+                )
         if when.any is not None:
             for condition in when.any:
-                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition, is_deny_rule)
+                ControlPlaneConfig._validate_rule_condition(
+                    org_id, rule_name, condition, is_deny_rule
+                )
 
     @staticmethod
-    def _validate_rule_condition(org_id: str, rule_name: str, condition: DenyRuleCondition | PolicyRuleCondition, is_deny_rule: bool = True) -> None:
-        if is_deny_rule and hasattr(condition, 'document_match') and condition.document_match is not None and condition.source != "documents":
+    def _validate_rule_condition(
+        org_id: str,
+        rule_name: str,
+        condition: DenyRuleCondition | PolicyRuleCondition,
+        is_deny_rule: bool = True,
+    ) -> None:
+        if (
+            is_deny_rule
+            and hasattr(condition, "document_match")
+            and condition.document_match is not None
+            and condition.source != "documents"
+        ):
             raise ControlPlaneConfigValidationError(
                 f"org '{org_id}' rule '{rule_name}': "
                 "document_match is only supported when source is 'documents'"
@@ -169,7 +184,7 @@ class ControlPlaneConfig(BaseModel):
                     "value must be an int or float for numeric operators: lt/lte/gt/gte"
                 )
             return
-        
+
         if not is_deny_rule and condition.operator in POLICY_RULE_NUMERIC_OPERATORS:
             if not isinstance(condition.value, (int, float)) or isinstance(condition.value, bool):
                 raise ControlPlaneConfigValidationError(

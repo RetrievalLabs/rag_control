@@ -227,7 +227,9 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
 
     assert (
         GovernanceRegistry._matches_condition(
-            DenyRuleCondition.model_construct(field="score", operator="gt", value=None, source="user"),
+            DenyRuleCondition.model_construct(
+                field="score", operator="gt", value=None, source="user"
+            ),
             user_context,
         )
         is False
@@ -246,7 +248,9 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition(
-            DenyRuleCondition.model_construct(field="score", operator="lt", value=10, source="user"),
+            DenyRuleCondition.model_construct(
+                field="score", operator="lt", value=10, source="user"
+            ),
             user_context,
         )
         is True
@@ -272,16 +276,22 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     )
     assert (
         GovernanceRegistry._matches_condition(
-            DenyRuleCondition.model_construct(field="score", operator="unknown", value=1, source="user"),
+            DenyRuleCondition.model_construct(
+                field="score", operator="unknown", value=1, source="user"
+            ),
             user_context,
         )
         is False
     )
 
-    monkeypatch.setattr(gov_module, "DENY_RULE_NUMERIC_OPERATORS", ("lt", "lte", "gt", "gte", "mystery"))
+    monkeypatch.setattr(
+        gov_module, "DENY_RULE_NUMERIC_OPERATORS", ("lt", "lte", "gt", "gte", "mystery")
+    )
     assert (
         GovernanceRegistry._matches_condition(
-            DenyRuleCondition.model_construct(field="score", operator="mystery", value=5, source="user"),
+            DenyRuleCondition.model_construct(
+                field="score", operator="mystery", value=5, source="user"
+            ),
             user_context,
         )
         is True

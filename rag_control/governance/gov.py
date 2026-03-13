@@ -8,7 +8,12 @@ from typing import Any
 from rag_control.exceptions.governance import (
     GovernancePolicyDeniedError,
 )
-from rag_control.models.policy_rule import PolicyRuleLogicalCondition, POLICY_RULE_EFFECT_DENY, POLICY_RULE_NUMERIC_OPERATORS
+from rag_control.models.policy_rule import (
+    PolicyRuleLogicalCondition,
+    PolicyRuleCondition,
+    POLICY_RULE_EFFECT_DENY,
+    POLICY_RULE_NUMERIC_OPERATORS,
+)
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.org import OrgConfig
 from rag_control.models.operator import (
@@ -57,7 +62,7 @@ class GovernanceRegistry:
         org = self.org_map[user_context.org_id]
 
         for rule in org.deny_rules:
-            if not self._matches_logical_condition(rule.when, user_context, source_documents):
+            if not self._matches_deny_logical_condition(rule.when, user_context, source_documents):
                 continue
 
             if audit_context is not None:
@@ -72,8 +77,7 @@ class GovernanceRegistry:
                     ),
                 )
             raise GovernancePolicyDeniedError(user_context, rule.name)
- 
-    
+
     def resolve_policy(
         self,
         user_context: UserContext,
@@ -105,7 +109,7 @@ class GovernanceRegistry:
         return default_policy
 
     @staticmethod
-    def _matches_logical_condition(
+    def _matches_deny_logical_condition(
         logical_condition: DenyRuleLogicalCondition,
         user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
@@ -122,7 +126,9 @@ class GovernanceRegistry:
         all_match = (
             len(all_conditions) > 0
             and all(
-                GovernanceRegistry._matches_condition(condition, user_context, source_documents)
+                GovernanceRegistry._matches_deny_condition(
+                    condition, user_context, source_documents
+                )
                 for condition in all_conditions
             )
             if all_conditions is not None
@@ -145,7 +151,90 @@ class GovernanceRegistry:
         return all_match if has_all else any_match
 
     @staticmethod
-    def _matches_condition(
+    def _matches_policy_logical_condition(
+        logical_condition: PolicyRuleLogicalCondition,
+        user_context: UserContext,
+    ) -> bool:
+        all_conditions = logical_condition.all
+        any_conditions = logical_condition.any
+
+        has_all = all_conditions is not None
+        has_any = any_conditions is not None
+
+        if not has_all and not has_any:
+            return False
+
+        all_match = (
+            len(all_conditions) > 0
+            and all(
+                GovernanceRegistry._matches_policy_condition(condition, user_context)
+                for condition in all_conditions
+            )
+            if all_conditions is not None
+            else False
+        )
+
+        any_match = (
+            len(any_conditions) > 0
+            and any(
+                GovernanceRegistry._matches_policy_condition(condition, user_context)
+                for condition in any_conditions
+            )
+            if any_conditions is not None
+            else False
+        )
+
+        if has_all and has_any:
+            return all_match and any_match
+
+        return all_match if has_all else any_match
+
+    @staticmethod
+    def _matches_policy_condition(
+        condition: PolicyRuleCondition,
+        user_context: UserContext,
+    ) -> bool:
+        has_field, actual_value = GovernanceRegistry._resolve_user_value(
+            user_context, condition.field
+        )
+        expected_value = condition.value
+        operator = condition.operator
+
+        if operator == OPERATOR_EXISTS:
+            return has_field
+
+        if operator == OPERATOR_EQUALS:
+            return bool(actual_value == expected_value)
+
+        if expected_value is None:
+            return False
+
+        if operator in POLICY_RULE_NUMERIC_OPERATORS:
+            if not isinstance(actual_value, (int, float)) or not isinstance(
+                expected_value, (int, float)
+            ):
+                return False
+            if operator == OPERATOR_LT:
+                return actual_value < expected_value
+            if operator == OPERATOR_LTE:
+                return actual_value <= expected_value
+            if operator == OPERATOR_GT:
+                return actual_value > expected_value
+            if operator == OPERATOR_GTE:
+                return actual_value >= expected_value
+            return actual_value >= expected_value
+
+        if operator == OPERATOR_INTERSECTS:
+            if isinstance(actual_value, (list, set, tuple)):
+                return expected_value in actual_value
+            if isinstance(actual_value, str) and isinstance(expected_value, str):
+                return expected_value in actual_value
+            return False
+
+        return False
+
+    @staticmethod
+    def _matches_deny_condition(
         condition: DenyRuleCondition,
         user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,

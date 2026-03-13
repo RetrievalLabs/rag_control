@@ -16,7 +16,11 @@ from rag_control.models.policy import (
     Policy,
 )
 from rag_control.models.deny_rule import DenyRule, DenyRuleCondition, DenyRuleLogicalCondition
-from rag_control.models.policy_rule import PolicyRule, PolicyRuleCondition, PolicyRuleLogicalCondition
+from rag_control.models.policy_rule import (
+    PolicyRule,
+    PolicyRuleCondition,
+    PolicyRuleLogicalCondition,
+)
 
 
 @pytest.fixture

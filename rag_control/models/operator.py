@@ -1,4 +1,3 @@
-
 OPERATOR_EQUALS = "equals"
 OPERATOR_LT = "lt"
 OPERATOR_LTE = "lte"
