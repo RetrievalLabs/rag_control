@@ -89,8 +89,8 @@ def test_rag_control_run_emits_audit_lifecycle_events(
     assert event_names == [
         "request.received",
         "org.resolved",
-        "retrieval.completed",
         "policy.resolved",
+        "retrieval.completed",
         "enforcement.passed",
         "request.completed",
     ]
@@ -105,7 +105,7 @@ def test_rag_control_run_emits_audit_lifecycle_events(
         assert event["sdk_name"] == "rag_control"
         assert event["sdk_version"] == __version__
         assert event["company_name"] == "RetrievalLabs"
-    retrieval_event = audit_logger.events[2]
+    retrieval_event = audit_logger.events[3]
     assert retrieval_event["retrieved_doc_ids"] == ["doc-audit-001"]
     assert retrieval_event["retrieved_count"] == 1
     completed_event = audit_logger.events[-1]
@@ -275,8 +275,8 @@ def test_rag_control_stream_emits_llm_details_in_request_completed_audit_event(
     assert [event["event"] for event in audit_logger.events] == [
         "request.received",
         "org.resolved",
-        "retrieval.completed",
         "policy.resolved",
+        "retrieval.completed",
         "enforcement.attached",
         "request.completed",
     ]
@@ -322,7 +322,7 @@ def test_rag_control_run_emits_audit_denied_event_from_governance_registry(
     ]
     denied_event = audit_logger.events[-1]
     assert denied_event["level"] == "warning"
-    assert denied_event["rule_name"] == "allow_enterprise"
+    assert denied_event["rule_name"] == "apply_default"
     assert denied_event["error_type"] == "GovernancePolicyDeniedError"
     assert denied_event["request_id"] == audit_logger.events[0]["request_id"]
 

@@ -40,4 +40,4 @@ class PolicyRule(BaseModel):
     priority: int
     effect: Literal["allow", "deny"] = "allow"
     when: PolicyRuleLogicalCondition
-    apply_policy: str
+    apply_policy: str | None = None

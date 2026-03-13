@@ -43,13 +43,6 @@ def test_control_plane_config_validate_reference_error_branches(
             "default_policy 'missing' does not exist",
         ),
         (
-            "org_filter_name_missing",
-            lambda payload: payload["orgs"][0]["document_policy"].update(
-                {"filter_name": "missing"}
-            ),
-            "document_policy.filter_name 'missing' does not exist",
-        ),
-        (
             "duplicate_rule_names",
             lambda payload: payload["orgs"][0]["policy_rules"].append(
                 payload["orgs"][0]["policy_rules"][0].copy()
@@ -100,7 +93,9 @@ def test_control_plane_config_validate_reference_error_branches(
         payload["orgs"][0]["policy_rules"] = [
             rule.copy() for rule in base["orgs"][0]["policy_rules"]
         ]
-        payload["orgs"][0]["document_policy"] = base["orgs"][0]["document_policy"].copy()
+        payload["orgs"][0]["deny_rules"] = [
+            rule.copy() for rule in base["orgs"][0].get("deny_rules", [])
+        ]
         mutate_payload(payload)
         with pytest.raises(ValidationError, match=expected_error):
             ControlPlaneConfig.model_validate(payload)

@@ -31,6 +31,8 @@ policies:
     generation: {}
     logging: {}
     enforcement: {}
+    document_policy:
+      filter_name: default_filter
 filters:
   - name: default_filter
     condition:
@@ -41,8 +43,6 @@ filters:
 orgs:
   - org_id: test_org
     default_policy: default_policy
-    document_policy:
-      filter_name: default_filter
     policy_rules:
       - name: allow_enterprise
         priority: 1
@@ -54,6 +54,7 @@ orgs:
               operator: equals
               value: enterprise
               source: user
+    deny_rules: []
 """.strip(),
         encoding="utf-8",
     )
@@ -85,9 +86,8 @@ filters:
 orgs:
   - org_id: test_org
     default_policy: default_policy
-    document_policy:
-      filter_name: default_filter
     policy_rules: []
+    deny_rules: []
 """.strip(),
         encoding="utf-8",
     )
@@ -105,9 +105,8 @@ filters:
 orgs:
   - org_id: test_org
     default_policy: default_policy
-    document_policy:
-      filter_name: default_filter
     policy_rules: []
+    deny_rules: []
 """.strip(),
         encoding="utf-8",
     )
@@ -137,9 +136,8 @@ filters:
 orgs:
   - org_id: test_org
     default_policy: default_policy
-    document_policy:
-      filter_name: default_filter
     policy_rules: []
+    deny_rules: []
 """.strip(),
         encoding="utf-8",
     )

@@ -77,20 +77,18 @@ def _build_governance_config() -> ControlPlaneConfig:
             OrgConfig(
                 org_id="test_org",
                 default_policy="default_policy",
-                document_policy=DocumentPolicy(filter_name="default_filter"),
                 policy_rules=[
                     PolicyRule(
                         name="allow_gold_plan",
                         priority=80,
                         effect="allow",
                         apply_policy="premium_policy",
-                        when=DenyRuleLogicalCondition(
+                        when=PolicyRuleLogicalCondition(
                             any=[
-                                DenyRuleCondition(
+                                PolicyRuleCondition(
                                     field="plan",
                                     operator="equals",
                                     value="gold",
-                                    source="user",
                                 )
                             ]
                         ),
@@ -100,12 +98,11 @@ def _build_governance_config() -> ControlPlaneConfig:
                         priority=85,
                         effect="allow",
                         apply_policy="research_policy",
-                        when=DenyRuleLogicalCondition(
+                        when=PolicyRuleLogicalCondition(
                             any=[
-                                DenyRuleCondition(
+                                PolicyRuleCondition(
                                     field="session_id",
                                     operator="exists",
-                                    source="user",
                                 )
                             ]
                         ),
@@ -114,13 +111,12 @@ def _build_governance_config() -> ControlPlaneConfig:
                         name="deny_banned_user",
                         priority=100,
                         effect="deny",
-                        when=DenyRuleLogicalCondition(
+                        when=PolicyRuleLogicalCondition(
                             any=[
-                                DenyRuleCondition(
+                                PolicyRuleCondition(
                                     field="user_status",
                                     operator="equals",
                                     value="banned",
-                                    source="user",
                                 )
                             ]
                         ),
@@ -130,19 +126,17 @@ def _build_governance_config() -> ControlPlaneConfig:
                         priority=90,
                         effect="allow",
                         apply_policy="research_policy",
-                        when=DenyRuleLogicalCondition(
+                        when=PolicyRuleLogicalCondition(
                             all=[
-                                DenyRuleCondition(
+                                PolicyRuleCondition(
                                     field="role",
                                     operator="equals",
                                     value="analyst",
-                                    source="user",
                                 ),
-                                DenyRuleCondition(
+                                PolicyRuleCondition(
                                     field="risk_score",
                                     operator="lte",
                                     value=50,
-                                    source="user",
                                 ),
                             ]
                         ),
@@ -152,13 +146,12 @@ def _build_governance_config() -> ControlPlaneConfig:
                         priority=70,
                         effect="allow",
                         apply_policy="premium_policy",
-                        when=DenyRuleLogicalCondition(
+                        when=PolicyRuleLogicalCondition(
                             any=[
-                                DenyRuleCondition(
+                                PolicyRuleCondition(
                                     field="trust_score",
                                     operator="gte",
                                     value=90,
-                                    source="user",
                                 )
                             ]
                         ),
@@ -168,13 +161,12 @@ def _build_governance_config() -> ControlPlaneConfig:
                         priority=65,
                         effect="allow",
                         apply_policy="research_policy",
-                        when=DenyRuleLogicalCondition(
+                        when=PolicyRuleLogicalCondition(
                             any=[
-                                DenyRuleCondition(
+                                PolicyRuleCondition(
                                     field="attributes.department",
                                     operator="equals",
                                     value="finance",
-                                    source="user",
                                 )
                             ]
                         ),
@@ -183,18 +175,18 @@ def _build_governance_config() -> ControlPlaneConfig:
                         name="allow_eu_default",
                         priority=60,
                         effect="allow",
-                        when=DenyRuleLogicalCondition(
+                        when=PolicyRuleLogicalCondition(
                             any=[
-                                DenyRuleCondition(
+                                PolicyRuleCondition(
                                     field="region",
                                     operator="intersects",
                                     value="eu",
-                                    source="user",
                                 )
                             ]
                         ),
                     ),
                 ],
+                deny_rules=[],
             )
         ],
     )
@@ -363,123 +355,6 @@ def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
             assert error.user_context == case["user_context"], case["name"]
 
 
-def test_governance_registry_resolve_policy_with_source_document_match_modes() -> None:
-    registry = GovernanceRegistry(
-        ControlPlaneConfig(
-            policies=[
-                Policy(
-                    name="default_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-                Policy(
-                    name="any_doc_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-                Policy(
-                    name="all_docs_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-            ],
-            filters=[],
-            orgs=[
-                OrgConfig(
-                    org_id="doc_org",
-                    default_policy="default_policy",
-                    policy_rules=[
-                        PolicyRule(
-                            name="allow_all_docs_public",
-                            priority=90,
-                            effect="allow",
-                            apply_policy="all_docs_policy",
-                            when=DenyRuleLogicalCondition(
-                                any=[
-                                    DenyRuleCondition(
-                                        field="metadata.classification",
-                                        operator="equals",
-                                        value="public",
-                                        source="documents",
-                                        document_match="all",
-                                    )
-                                ]
-                            ),
-                        ),
-                        PolicyRule(
-                            name="allow_any_doc_public",
-                            priority=80,
-                            effect="allow",
-                            apply_policy="any_doc_policy",
-                            when=DenyRuleLogicalCondition(
-                                any=[
-                                    DenyRuleCondition(
-                                        field="metadata.classification",
-                                        operator="equals",
-                                        value="public",
-                                        source="documents",
-                                        document_match="any",
-                                    )
-                                ]
-                            ),
-                        ),
-                    ],
-                )
-            ],
-        )
-    )
-    user_context = UserContext(user_id="u-docs", org_id="doc_org", attributes={})
-
-    all_public_docs = [
-        VectorStoreRecord(
-            id="doc-1",
-            content="alpha",
-            score=0.95,
-            metadata={"classification": "public"},
-        ),
-        VectorStoreRecord(
-            id="doc-2",
-            content="beta",
-            score=0.91,
-            metadata={"classification": "public"},
-        ),
-    ]
-    mixed_docs = [
-        VectorStoreRecord(
-            id="doc-3",
-            content="gamma",
-            score=0.93,
-            metadata={"classification": "public"},
-        ),
-        VectorStoreRecord(
-            id="doc-4",
-            content="delta",
-            score=0.89,
-            metadata={"classification": "internal"},
-        ),
-    ]
-    no_public_docs = [
-        VectorStoreRecord(
-            id="doc-5",
-            content="epsilon",
-            score=0.85,
-            metadata={"classification": "internal"},
-        )
-    ]
-
-    assert (
-        registry.resolve_policy(user_context, source_documents=all_public_docs) == "all_docs_policy"
-    )
-    assert registry.resolve_policy(user_context, source_documents=mixed_docs) == "any_doc_policy"
-    assert (
-        registry.resolve_policy(user_context, source_documents=no_public_docs) == "default_policy"
-    )
-    assert registry.resolve_policy(user_context, source_documents=[]) == "default_policy"
-
-
 def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fields() -> None:
     registry = GovernanceRegistry(
         ControlPlaneConfig(
@@ -538,9 +413,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=60,
                             effect="allow",
                             apply_policy="region_status_top_scope_policy",
-                            when=DenyRuleLogicalCondition(
+                            when=PolicyRuleLogicalCondition(
                                 any=[
-                                    DenyRuleCondition(
+                                    PolicyRuleCondition(
                                         field="region.status.top",
                                         operator="equals",
                                         value="green",
@@ -554,9 +429,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=50,
                             effect="allow",
                             apply_policy="region_status_scope_policy",
-                            when=DenyRuleLogicalCondition(
+                            when=PolicyRuleLogicalCondition(
                                 any=[
-                                    DenyRuleCondition(
+                                    PolicyRuleCondition(
                                         field="region.status",
                                         operator="equals",
                                         value="active",
@@ -570,9 +445,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=40,
                             effect="allow",
                             apply_policy="department_scope_policy",
-                            when=DenyRuleLogicalCondition(
+                            when=PolicyRuleLogicalCondition(
                                 any=[
-                                    DenyRuleCondition(
+                                    PolicyRuleCondition(
                                         field="department",
                                         operator="equals",
                                         value="finance",
@@ -586,9 +461,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=30,
                             effect="allow",
                             apply_policy="user_id_scope_policy",
-                            when=DenyRuleLogicalCondition(
+                            when=PolicyRuleLogicalCondition(
                                 any=[
-                                    DenyRuleCondition(
+                                    PolicyRuleCondition(
                                         field="user_id",
                                         operator="equals",
                                         value="vip-user",
@@ -602,9 +477,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=20,
                             effect="allow",
                             apply_policy="profile_scope_policy",
-                            when=DenyRuleLogicalCondition(
+                            when=PolicyRuleLogicalCondition(
                                 any=[
-                                    DenyRuleCondition(
+                                    PolicyRuleCondition(
                                         field="profile.department",
                                         operator="equals",
                                         value="security",
@@ -618,9 +493,9 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             priority=10,
                             effect="allow",
                             apply_policy="org_scope_policy",
-                            when=DenyRuleLogicalCondition(
+                            when=PolicyRuleLogicalCondition(
                                 any=[
-                                    DenyRuleCondition(
+                                    PolicyRuleCondition(
                                         field="org_id",
                                         operator="equals",
                                         value="special_org",
@@ -630,6 +505,7 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
                             ),
                         ),
                     ],
+                    deny_rules=[],
                 )
             ],
         )
@@ -692,374 +568,6 @@ def test_governance_registry_resolve_policy_with_user_context_root_and_extra_fie
     )
 
 
-def test_governance_registry_resolve_policy_with_nested_document_paths() -> None:
-    registry = GovernanceRegistry(
-        ControlPlaneConfig(
-            policies=[
-                Policy(
-                    name="default_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-                Policy(
-                    name="doc_status_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-                Policy(
-                    name="doc_status_top_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-            ],
-            filters=[],
-            orgs=[
-                OrgConfig(
-                    org_id="doc_nested_org",
-                    default_policy="default_policy",
-                    policy_rules=[
-                        PolicyRule(
-                            name="allow_doc_region_status_top",
-                            priority=20,
-                            effect="allow",
-                            apply_policy="doc_status_top_policy",
-                            when=DenyRuleLogicalCondition(
-                                any=[
-                                    DenyRuleCondition(
-                                        field="metadata.region.status.top",
-                                        operator="equals",
-                                        value="green",
-                                        source="documents",
-                                        document_match="any",
-                                    )
-                                ]
-                            ),
-                        ),
-                        PolicyRule(
-                            name="allow_doc_region_status",
-                            priority=10,
-                            effect="allow",
-                            apply_policy="doc_status_policy",
-                            when=DenyRuleLogicalCondition(
-                                any=[
-                                    DenyRuleCondition(
-                                        field="metadata.region.status",
-                                        operator="equals",
-                                        value="active",
-                                        source="documents",
-                                        document_match="any",
-                                    )
-                                ]
-                            ),
-                        ),
-                    ],
-                )
-            ],
-        )
-    )
-    user_context = UserContext(user_id="u-doc-nested", org_id="doc_nested_org", attributes={})
-
-    top_nested_docs = [
-        VectorStoreRecord(
-            id="doc-n1",
-            content="nested-top",
-            score=0.91,
-            metadata={"region": {"status": {"top": "green"}}},
-        )
-    ]
-    mid_nested_docs = [
-        VectorStoreRecord(
-            id="doc-n2",
-            content="nested-mid",
-            score=0.87,
-            metadata={"region": {"status": "active"}},
-        )
-    ]
-    no_match_docs = [
-        VectorStoreRecord(
-            id="doc-n3",
-            content="nested-none",
-            score=0.73,
-            metadata={"region": {"status": "inactive"}},
-        )
-    ]
-
-    assert (
-        registry.resolve_policy(user_context, source_documents=top_nested_docs)
-        == "doc_status_top_policy"
-    )
-    assert (
-        registry.resolve_policy(user_context, source_documents=mid_nested_docs)
-        == "doc_status_policy"
-    )
-    assert registry.resolve_policy(user_context, source_documents=no_match_docs) == "default_policy"
-
-
-def test_governance_registry_document_missing_field_falls_back_to_default() -> None:
-    registry = GovernanceRegistry(
-        ControlPlaneConfig(
-            policies=[
-                Policy(
-                    name="default_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-                Policy(
-                    name="doc_exists_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-            ],
-            filters=[],
-            orgs=[
-                OrgConfig(
-                    org_id="doc_missing_org",
-                    default_policy="default_policy",
-                    policy_rules=[
-                        PolicyRule(
-                            name="allow_when_classification_exists_on_any_doc",
-                            priority=10,
-                            effect="allow",
-                            apply_policy="doc_exists_policy",
-                            when=DenyRuleLogicalCondition(
-                                any=[
-                                    DenyRuleCondition(
-                                        field="metadata.classification",
-                                        operator="exists",
-                                        source="documents",
-                                        document_match="any",
-                                    )
-                                ]
-                            ),
-                        )
-                    ],
-                )
-            ],
-        )
-    )
-    user_context = UserContext(user_id="u-doc-missing", org_id="doc_missing_org", attributes={})
-
-    docs_with_missing_field = [
-        VectorStoreRecord(
-            id="doc-m1",
-            content="missing-classification",
-            score=0.74,
-            metadata={"source": "kb"},
-        )
-    ]
-
-    assert (
-        registry.resolve_policy(user_context, source_documents=docs_with_missing_field)
-        == "default_policy"
-    )
-
-
-def test_governance_registry_document_wrong_type_falls_back_to_default() -> None:
-    registry = GovernanceRegistry(
-        ControlPlaneConfig(
-            policies=[
-                Policy(
-                    name="default_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-                Policy(
-                    name="doc_numeric_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-                Policy(
-                    name="doc_intersects_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-            ],
-            filters=[],
-            orgs=[
-                OrgConfig(
-                    org_id="doc_type_org",
-                    default_policy="default_policy",
-                    policy_rules=[
-                        PolicyRule(
-                            name="allow_numeric_doc_score",
-                            priority=20,
-                            effect="allow",
-                            apply_policy="doc_numeric_policy",
-                            when=DenyRuleLogicalCondition(
-                                any=[
-                                    DenyRuleCondition(
-                                        field="metadata.risk_score",
-                                        operator="gte",
-                                        value=80,
-                                        source="documents",
-                                        document_match="any",
-                                    )
-                                ]
-                            ),
-                        ),
-                        PolicyRule(
-                            name="allow_doc_region_intersects",
-                            priority=10,
-                            effect="allow",
-                            apply_policy="doc_intersects_policy",
-                            when=DenyRuleLogicalCondition(
-                                any=[
-                                    DenyRuleCondition(
-                                        field="metadata.region",
-                                        operator="intersects",
-                                        value="eu",
-                                        source="documents",
-                                        document_match="any",
-                                    )
-                                ]
-                            ),
-                        ),
-                    ],
-                )
-            ],
-        )
-    )
-    user_context = UserContext(user_id="u-doc-type", org_id="doc_type_org", attributes={})
-
-    docs_with_wrong_numeric_type = [
-        VectorStoreRecord(
-            id="doc-t1",
-            content="risk-as-string",
-            score=0.8,
-            metadata={"risk_score": "high"},
-        )
-    ]
-    docs_with_wrong_intersects_type = [
-        VectorStoreRecord(
-            id="doc-t2",
-            content="region-as-number",
-            score=0.81,
-            metadata={"region": 123},
-        )
-    ]
-
-    assert (
-        registry.resolve_policy(user_context, source_documents=docs_with_wrong_numeric_type)
-        == "default_policy"
-    )
-    assert (
-        registry.resolve_policy(user_context, source_documents=docs_with_wrong_intersects_type)
-        == "default_policy"
-    )
-
-
-def test_governance_registry_resolve_policy_with_mixed_user_and_document_conditions() -> None:
-    registry = GovernanceRegistry(
-        ControlPlaneConfig(
-            policies=[
-                Policy(
-                    name="default_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-                Policy(
-                    name="mixed_policy",
-                    generation=GenerationPolicy(),
-                    logging=LoggingPolicy(),
-                    enforcement=EnforcementPolicy(),
-                ),
-            ],
-            filters=[],
-            orgs=[
-                OrgConfig(
-                    org_id="mixed_org",
-                    default_policy="default_policy",
-                    policy_rules=[
-                        PolicyRule(
-                            name="allow_analyst_with_public_docs",
-                            priority=10,
-                            effect="allow",
-                            apply_policy="mixed_policy",
-                            when=DenyRuleLogicalCondition(
-                                all=[
-                                    DenyRuleCondition(
-                                        field="user_role",
-                                        operator="equals",
-                                        value="analyst",
-                                        source="user",
-                                    ),
-                                    DenyRuleCondition(
-                                        field="metadata.classification",
-                                        operator="equals",
-                                        value="public",
-                                        source="documents",
-                                        document_match="any",
-                                    ),
-                                ]
-                            ),
-                        )
-                    ],
-                )
-            ],
-        )
-    )
-
-    matching_docs = [
-        VectorStoreRecord(
-            id="mix-doc-1",
-            content="public-doc",
-            score=0.9,
-            metadata={"classification": "public"},
-        )
-    ]
-    non_matching_docs = [
-        VectorStoreRecord(
-            id="mix-doc-2",
-            content="internal-doc",
-            score=0.7,
-            metadata={"classification": "internal"},
-        )
-    ]
-
-    assert (
-        registry.resolve_policy(
-            UserContext(
-                user_id="m-1",
-                org_id="mixed_org",
-                attributes={"user_role": "analyst"},
-            ),
-            source_documents=matching_docs,
-        )
-        == "mixed_policy"
-    )
-    assert (
-        registry.resolve_policy(
-            UserContext(
-                user_id="m-2",
-                org_id="mixed_org",
-                attributes={"user_role": "viewer"},
-            ),
-            source_documents=matching_docs,
-        )
-        == "default_policy"
-    )
-    assert (
-        registry.resolve_policy(
-            UserContext(
-                user_id="m-3",
-                org_id="mixed_org",
-                attributes={"user_role": "analyst"},
-            ),
-            source_documents=non_matching_docs,
-        )
-        == "default_policy"
-    )
-
-
 def test_governance_registry_user_context_missing_and_wrong_types_fall_back_to_default() -> None:
     registry = GovernanceRegistry(
         ControlPlaneConfig(
@@ -1100,9 +608,9 @@ def test_governance_registry_user_context_missing_and_wrong_types_fall_back_to_d
                             priority=30,
                             effect="allow",
                             apply_policy="profile_policy",
-                            when=DenyRuleLogicalCondition(
+                            when=PolicyRuleLogicalCondition(
                                 any=[
-                                    DenyRuleCondition(
+                                    PolicyRuleCondition(
                                         field="profile.department",
                                         operator="exists",
                                         source="user",
@@ -1115,9 +623,9 @@ def test_governance_registry_user_context_missing_and_wrong_types_fall_back_to_d
                             priority=20,
                             effect="allow",
                             apply_policy="risk_policy",
-                            when=DenyRuleLogicalCondition(
+                            when=PolicyRuleLogicalCondition(
                                 any=[
-                                    DenyRuleCondition(
+                                    PolicyRuleCondition(
                                         field="risk.score",
                                         operator="gte",
                                         value=80,
@@ -1131,9 +639,9 @@ def test_governance_registry_user_context_missing_and_wrong_types_fall_back_to_d
                             priority=10,
                             effect="allow",
                             apply_policy="region_policy",
-                            when=DenyRuleLogicalCondition(
+                            when=PolicyRuleLogicalCondition(
                                 any=[
-                                    DenyRuleCondition(
+                                    PolicyRuleCondition(
                                         field="region",
                                         operator="intersects",
                                         value="eu",
@@ -1143,6 +651,7 @@ def test_governance_registry_user_context_missing_and_wrong_types_fall_back_to_d
                             ),
                         ),
                     ],
+                    deny_rules=[],
                 )
             ],
         )
@@ -1255,9 +764,9 @@ def test_governance_registry_logical_condition_requires_all_and_any_when_both_pr
                             priority=10,
                             effect="allow",
                             apply_policy="combined_policy",
-                            when=DenyRuleLogicalCondition(
+                            when=PolicyRuleLogicalCondition(
                                 all=[
-                                    DenyRuleCondition(
+                                    PolicyRuleCondition(
                                         field="department",
                                         operator="equals",
                                         value="finance",
@@ -1265,7 +774,7 @@ def test_governance_registry_logical_condition_requires_all_and_any_when_both_pr
                                     )
                                 ],
                                 any=[
-                                    DenyRuleCondition(
+                                    PolicyRuleCondition(
                                         field="region",
                                         operator="equals",
                                         value="eu",
@@ -1275,6 +784,7 @@ def test_governance_registry_logical_condition_requires_all_and_any_when_both_pr
                             ),
                         )
                     ],
+                    deny_rules=[],
                 )
             ],
         )

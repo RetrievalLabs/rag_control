@@ -223,10 +223,10 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
     doc = VectorStoreRecord(id="d", content="c", score=0.5, metadata={"score": 9, "region": ["eu"]})
 
     empty_logical = DenyRuleLogicalCondition.model_construct(all=None, any=None)
-    assert GovernanceRegistry._matches_logical_condition(empty_logical, user_context) is False
+    assert GovernanceRegistry._matches_deny_logical_condition(empty_logical, user_context) is False
 
     assert (
-        GovernanceRegistry._matches_condition(
+        GovernanceRegistry._matches_deny_condition(
             DenyRuleCondition.model_construct(
                 field="score", operator="gt", value=None, source="user"
             ),
@@ -235,7 +235,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
         is False
     )
     assert (
-        GovernanceRegistry._matches_condition(
+        GovernanceRegistry._matches_deny_condition(
             DenyRuleCondition.model_construct(
                 field="region",
                 operator="intersects",
@@ -247,7 +247,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
         is True
     )
     assert (
-        GovernanceRegistry._matches_condition(
+        GovernanceRegistry._matches_deny_condition(
             DenyRuleCondition.model_construct(
                 field="score", operator="lt", value=10, source="user"
             ),
@@ -256,14 +256,14 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
         is True
     )
     assert (
-        GovernanceRegistry._matches_condition(
+        GovernanceRegistry._matches_deny_condition(
             DenyRuleCondition.model_construct(field="score", operator="gt", value=1, source="user"),
             user_context,
         )
         is True
     )
     assert (
-        GovernanceRegistry._matches_condition(
+        GovernanceRegistry._matches_deny_condition(
             DenyRuleCondition.model_construct(
                 field="word",
                 operator="intersects",
@@ -275,7 +275,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
         is True
     )
     assert (
-        GovernanceRegistry._matches_condition(
+        GovernanceRegistry._matches_deny_condition(
             DenyRuleCondition.model_construct(
                 field="score", operator="unknown", value=1, source="user"
             ),
@@ -288,7 +288,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
         gov_module, "DENY_RULE_NUMERIC_OPERATORS", ("lt", "lte", "gt", "gte", "mystery")
     )
     assert (
-        GovernanceRegistry._matches_condition(
+        GovernanceRegistry._matches_deny_condition(
             DenyRuleCondition.model_construct(
                 field="score", operator="mystery", value=5, source="user"
             ),
