@@ -284,6 +284,17 @@ class RAGControl:
                 retrieved_doc_ids=retrieved_doc_ids,
             )
 
+            engine._run_stage(
+                trace_span,
+                engine._trace_stage_span_name(mode, "resolve_deny"),
+                lambda: engine.governance_registry.resolve_deny(
+                    user_context=user_context,
+                    source_documents=docs,
+                    audit_context=audit_context,
+                ),
+                metrics_labels={"mode": mode, "stage": "resolve_deny", "org_id": org_id or ""},
+            )
+
             messages = engine._run_stage(
                 trace_span,
                 engine._trace_stage_span_name(mode, "prompt.build"),
