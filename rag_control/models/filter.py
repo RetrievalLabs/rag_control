@@ -8,10 +8,10 @@ from typing import List, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from .operator import (
-    OPERATOR_LT,
-    OPERATOR_LTE,
     OPERATOR_GT,
     OPERATOR_GTE,
+    OPERATOR_LT,
+    OPERATOR_LTE,
 )
 
 FILTER_NUMERIC_OPERATORS = {

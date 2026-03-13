@@ -8,10 +8,10 @@ from typing import List, Literal
 from pydantic import BaseModel, StrictFloat, StrictInt
 
 from .operator import (
-    OPERATOR_LT,
-    OPERATOR_LTE,
     OPERATOR_GT,
     OPERATOR_GTE,
+    OPERATOR_LT,
+    OPERATOR_LTE,
 )
 
 POLICY_RULE_NUMERIC_OPERATORS = {

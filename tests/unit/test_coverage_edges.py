@@ -22,6 +22,7 @@ from rag_control.exceptions.governance import GovernanceOrgNotFoundError
 from rag_control.governance import gov as gov_module
 from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
+from rag_control.models.deny_rule import DenyRuleCondition, DenyRuleLogicalCondition
 from rag_control.models.llm import (
     LLMMetadata,
     LLMResponse,
@@ -30,7 +31,6 @@ from rag_control.models.llm import (
     LLMUsage,
 )
 from rag_control.models.policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
-from rag_control.models.deny_rule import DenyRuleCondition, DenyRuleLogicalCondition
 from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import VectorStoreRecord
 from rag_control.observability import audit_logger as audit_logger_module

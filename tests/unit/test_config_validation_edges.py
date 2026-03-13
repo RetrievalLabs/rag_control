@@ -13,8 +13,7 @@ from pydantic import ValidationError
 
 from rag_control.exceptions import ControlPlaneConfigValidationError
 from rag_control.models.config import ControlPlaneConfig
-from rag_control.models.filter import FilterCondition
-from rag_control.models.filter import Filter
+from rag_control.models.filter import Filter, FilterCondition
 
 
 def test_control_plane_config_validate_reference_error_branches(
@@ -85,9 +84,7 @@ def test_control_plane_config_validate_reference_error_branches(
         ),
         (
             "allow_rule_without_apply_policy",
-            lambda payload: payload["orgs"][0]["policy_rules"][0].update(
-                {"apply_policy": None}
-            ),
+            lambda payload: payload["orgs"][0]["policy_rules"][0].update({"apply_policy": None}),
             "effect='allow' must specify apply_policy",
         ),
         (
@@ -247,21 +244,25 @@ def test_deny_rule_condition_with_document_match_and_wrong_source() -> None:
                         "name": "invalid_doc_match",
                         "priority": 100,
                         "when": {
-                            "any": [{
-                                "field": "x",
-                                "operator": "equals",
-                                "value": "y",
-                                "source": "user",  # user source, not documents
-                                "document_match": "any"  # Invalid with user source
-                            }]
-                        }
+                            "any": [
+                                {
+                                    "field": "x",
+                                    "operator": "equals",
+                                    "value": "y",
+                                    "source": "user",  # user source, not documents
+                                    "document_match": "any",  # Invalid with user source
+                                }
+                            ]
+                        },
                     }
                 ],
             }
         ],
     }
 
-    with pytest.raises(ValidationError, match="document_match is only supported when source is 'documents'"):
+    with pytest.raises(
+        ValidationError, match="document_match is only supported when source is 'documents'"
+    ):
         ControlPlaneConfig.model_validate(config_dict)
 
 
@@ -289,20 +290,24 @@ def test_deny_rule_numeric_operator_validation() -> None:
                         "name": "invalid_numeric",
                         "priority": 100,
                         "when": {
-                            "any": [{
-                                "field": "score",
-                                "operator": "gt",
-                                "value": "not_a_number",  # Invalid: string for numeric operator
-                                "source": "user"
-                            }]
-                        }
+                            "any": [
+                                {
+                                    "field": "score",
+                                    "operator": "gt",
+                                    "value": "not_a_number",  # Invalid: string for numeric operator
+                                    "source": "user",
+                                }
+                            ]
+                        },
                     }
                 ],
             }
         ],
     }
 
-    with pytest.raises(ValidationError, match="value must be an int or float for numeric operators"):
+    with pytest.raises(
+        ValidationError, match="value must be an int or float for numeric operators"
+    ):
         ControlPlaneConfig.model_validate(config_dict)
 
 
@@ -325,10 +330,12 @@ def test_deny_rule_validation(fake_config: ControlPlaneConfig) -> None:
 
     # Test duplicate deny rule priorities
     config_dict = fake_config.model_dump()
-    config_dict["orgs"][0]["deny_rules"].append({
-        "name": "deny_duplicate",
-        "priority": config_dict["orgs"][0]["deny_rules"][0]["priority"],
-        "when": {"any": [{"field": "x", "operator": "equals", "value": "y", "source": "user"}]}
-    })
+    config_dict["orgs"][0]["deny_rules"].append(
+        {
+            "name": "deny_duplicate",
+            "priority": config_dict["orgs"][0]["deny_rules"][0]["priority"],
+            "when": {"any": [{"field": "x", "operator": "equals", "value": "y", "source": "user"}]},
+        }
+    )
     with pytest.raises(ValidationError, match="deny_rules priorities must be unique"):
         ControlPlaneConfig.model_validate(config_dict)

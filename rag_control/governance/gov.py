@@ -8,14 +8,12 @@ from typing import Any
 from rag_control.exceptions.governance import (
     GovernancePolicyDeniedError,
 )
-from rag_control.models.policy_rule import (
-    PolicyRuleLogicalCondition,
-    PolicyRuleCondition,
-    POLICY_RULE_EFFECT_DENY,
-    POLICY_RULE_NUMERIC_OPERATORS,
-)
 from rag_control.models.config import ControlPlaneConfig
-from rag_control.models.org import OrgConfig
+from rag_control.models.deny_rule import (
+    DENY_RULE_NUMERIC_OPERATORS,
+    DenyRuleCondition,
+    DenyRuleLogicalCondition,
+)
 from rag_control.models.operator import (
     OPERATOR_EQUALS,
     OPERATOR_EXISTS,
@@ -25,10 +23,12 @@ from rag_control.models.operator import (
     OPERATOR_LT,
     OPERATOR_LTE,
 )
-from rag_control.models.deny_rule import (
-    DENY_RULE_NUMERIC_OPERATORS,
-    DenyRuleCondition,
-    DenyRuleLogicalCondition,
+from rag_control.models.org import OrgConfig
+from rag_control.models.policy_rule import (
+    POLICY_RULE_EFFECT_DENY,
+    POLICY_RULE_NUMERIC_OPERATORS,
+    PolicyRuleCondition,
+    PolicyRuleLogicalCondition,
 )
 from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import VectorStoreRecord
@@ -49,7 +49,7 @@ class GovernanceRegistry:
                         org.deny_rules,
                         key=lambda deny_rule: deny_rule.priority,
                         reverse=True,
-                    )
+                    ),
                 }
             )
             for org in config.orgs
@@ -143,7 +143,9 @@ class GovernanceRegistry:
         any_match = (
             len(any_conditions) > 0
             and any(
-                GovernanceRegistry._matches_deny_condition(condition, user_context, source_documents)
+                GovernanceRegistry._matches_deny_condition(
+                    condition, user_context, source_documents
+                )
                 for condition in any_conditions
             )
             if any_conditions is not None

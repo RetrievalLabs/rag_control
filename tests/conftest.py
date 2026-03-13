@@ -6,17 +6,16 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 import pytest
 
 from rag_control.models.config import ControlPlaneConfig
-from rag_control.models.filter import FilterCondition
-from rag_control.models.filter import Filter
-from rag_control.models.org import OrgConfig
+from rag_control.models.deny_rule import DenyRule, DenyRuleCondition, DenyRuleLogicalCondition
 from rag_control.models.document import DocumentPolicy
+from rag_control.models.filter import Filter, FilterCondition
+from rag_control.models.org import OrgConfig
 from rag_control.models.policy import (
     EnforcementPolicy,
     GenerationPolicy,
     LoggingPolicy,
     Policy,
 )
-from rag_control.models.deny_rule import DenyRule, DenyRuleCondition, DenyRuleLogicalCondition
 from rag_control.models.policy_rule import (
     PolicyRule,
     PolicyRuleCondition,

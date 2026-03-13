@@ -221,8 +221,13 @@ class RAGControl:
             )
 
             policy_name = policy.name
-            audit_context.log_event("policy.resolved", policy_name=policy_name, top_k=policy.document_policy.top_k, filter_name=policy.document_policy.filter_name)
-                
+            audit_context.log_event(
+                "policy.resolved",
+                policy_name=policy_name,
+                top_k=policy.document_policy.top_k,
+                filter_name=policy.document_policy.filter_name,
+            )
+
             retrieval_filter = (
                 engine.filter_registry.get(policy.document_policy.filter_name)
                 if policy.document_policy.filter_name is not None

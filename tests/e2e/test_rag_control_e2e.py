@@ -10,7 +10,6 @@ from rag_control.exceptions import (
     EnforcementPolicyViolationError,
     GovernanceRegistryOrgNotFoundError,
     GovernanceUserContextOrgIDRequiredError,
-    GovernancePolicyDeniedError,
 )
 from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.user_context import UserContext

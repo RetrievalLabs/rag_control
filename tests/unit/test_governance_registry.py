@@ -12,8 +12,8 @@ from rag_control.exceptions.governance import (
 )
 from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
-from rag_control.models.filter import FilterCondition
-from rag_control.models.filter import Filter
+from rag_control.models.deny_rule import DenyRule, DenyRuleCondition, DenyRuleLogicalCondition
+from rag_control.models.filter import Filter, FilterCondition
 from rag_control.models.org import OrgConfig
 from rag_control.models.policy import (
     EnforcementPolicy,
@@ -21,7 +21,6 @@ from rag_control.models.policy import (
     LoggingPolicy,
     Policy,
 )
-from rag_control.models.deny_rule import DenyRule, DenyRuleCondition, DenyRuleLogicalCondition
 from rag_control.models.policy_rule import (
     PolicyRule,
     PolicyRuleCondition,
@@ -1164,9 +1163,7 @@ def test_governance_registry_with_audit_logging_context() -> None:
     # Test resolve_deny() with audit logging
     logged_events.clear()
     audit_context = MockAuditContext()
-    user_high_risk = UserContext(
-        user_id="u-risk", org_id="audit_org", attributes={"risk": "high"}
-    )
+    user_high_risk = UserContext(user_id="u-risk", org_id="audit_org", attributes={"risk": "high"})
 
     with pytest.raises(GovernancePolicyDeniedError):
         registry.resolve_deny(user_high_risk, audit_context=audit_context)
@@ -1751,9 +1748,7 @@ def test_governance_registry_document_condition_all_operators() -> None:
     with pytest.raises(GovernancePolicyDeniedError) as exc_info:
         registry.resolve_deny(
             user,
-            source_documents=[
-                VectorStoreRecord(id="d1", content="c", score=0.3, metadata={})
-            ],
+            source_documents=[VectorStoreRecord(id="d1", content="c", score=0.3, metadata={})],
         )
     assert exc_info.value.rule_name == "deny_if_doc_score_lt_threshold"
 
@@ -1761,9 +1756,7 @@ def test_governance_registry_document_condition_all_operators() -> None:
     with pytest.raises(GovernancePolicyDeniedError) as exc_info:
         registry.resolve_deny(
             user,
-            source_documents=[
-                VectorStoreRecord(id="d1", content="c", score=0.5, metadata={})
-            ],
+            source_documents=[VectorStoreRecord(id="d1", content="c", score=0.5, metadata={})],
         )
     assert exc_info.value.rule_name == "deny_if_doc_score_lte"
 
@@ -1771,9 +1764,7 @@ def test_governance_registry_document_condition_all_operators() -> None:
     with pytest.raises(GovernancePolicyDeniedError) as exc_info:
         registry.resolve_deny(
             user,
-            source_documents=[
-                VectorStoreRecord(id="d1", content="c", score=0.95, metadata={})
-            ],
+            source_documents=[VectorStoreRecord(id="d1", content="c", score=0.95, metadata={})],
         )
     assert exc_info.value.rule_name == "deny_if_doc_score_gt"
 
@@ -1781,9 +1772,7 @@ def test_governance_registry_document_condition_all_operators() -> None:
     with pytest.raises(GovernancePolicyDeniedError) as exc_info:
         registry.resolve_deny(
             user,
-            source_documents=[
-                VectorStoreRecord(id="d1", content="c", score=0.9, metadata={})
-            ],
+            source_documents=[VectorStoreRecord(id="d1", content="c", score=0.9, metadata={})],
         )
     assert exc_info.value.rule_name == "deny_if_doc_score_gte"
 
@@ -2061,16 +2050,14 @@ def test_governance_registry_document_condition_with_empty_source_documents() ->
 
 def test_governance_registry_unknown_numeric_operator_fallback(monkeypatch: Any) -> None:
     """Test fallback behavior when numeric operator isn't explicitly handled."""
-    from rag_control.models import policy_rule, deny_rule
+    from rag_control.models import deny_rule, policy_rule
 
     user = UserContext(user_id="u-1", org_id="test_org", attributes={"score": 85})
     doc = VectorStoreRecord(id="d1", content="c", score=0.9, metadata={})
 
     # Test policy condition with unknown numeric operator
     monkeypatch.setattr(
-        policy_rule,
-        "POLICY_RULE_NUMERIC_OPERATORS",
-        ("lt", "lte", "gt", "gte", "unknown_numeric")
+        policy_rule, "POLICY_RULE_NUMERIC_OPERATORS", ("lt", "lte", "gt", "gte", "unknown_numeric")
     )
     condition = PolicyRuleCondition.model_construct(
         field="score", operator="unknown_numeric", value=85
@@ -2080,9 +2067,7 @@ def test_governance_registry_unknown_numeric_operator_fallback(monkeypatch: Any)
 
     # Test deny condition with unknown numeric operator
     monkeypatch.setattr(
-        deny_rule,
-        "DENY_RULE_NUMERIC_OPERATORS",
-        ("lt", "lte", "gt", "gte", "mystery_op")
+        deny_rule, "DENY_RULE_NUMERIC_OPERATORS", ("lt", "lte", "gt", "gte", "mystery_op")
     )
     deny_condition = DenyRuleCondition.model_construct(
         field="score", operator="mystery_op", value=85, source="user"
@@ -2100,7 +2085,9 @@ def test_governance_registry_unknown_numeric_operator_fallback(monkeypatch: Any)
 
 def test_governance_registry_intersects_operator_with_wrong_types() -> None:
     """Test intersects operator when actual_value is not list/string."""
-    user = UserContext(user_id="u-1", org_id="test_org", attributes={"tags": 123})  # int instead of list/string
+    user = UserContext(
+        user_id="u-1", org_id="test_org", attributes={"tags": 123}
+    )  # int instead of list/string
 
     # Policy condition with intersects on non-list/string value
     condition = PolicyRuleCondition.model_construct(
@@ -2118,7 +2105,10 @@ def test_governance_registry_intersects_operator_with_wrong_types() -> None:
 
     # Document condition with intersects on non-list/string metadata value
     doc = VectorStoreRecord(
-        id="d1", content="c", score=0.9, metadata={"tags": 123}  # int instead of list/string
+        id="d1",
+        content="c",
+        score=0.9,
+        metadata={"tags": 123},  # int instead of list/string
     )
     doc_condition = DenyRuleCondition.model_construct(
         field="metadata.tags", operator="intersects", value="tag", source="documents"
@@ -2145,9 +2135,7 @@ def test_governance_registry_intersects_with_list_value_not_found() -> None:
     assert result is False
 
     # Document condition with intersects on list where value not found
-    doc = VectorStoreRecord(
-        id="d1", content="c", score=0.9, metadata={"tags": ["doc1", "doc2"]}
-    )
+    doc = VectorStoreRecord(id="d1", content="c", score=0.9, metadata={"tags": ["doc1", "doc2"]})
     doc_condition = DenyRuleCondition.model_construct(
         field="metadata.tags", operator="intersects", value="doc3", source="documents"
     )
@@ -2165,9 +2153,7 @@ def test_governance_registry_edge_cases_with_model_construct() -> None:
     assert result is False
 
     # Test _matches_policy_condition with expected_value=None and equals operator
-    condition = PolicyRuleCondition.model_construct(
-        field="score", operator="equals", value=None
-    )
+    condition = PolicyRuleCondition.model_construct(field="score", operator="equals", value=None)
     result = GovernanceRegistry._matches_policy_condition(condition, user)
     assert result is False
 
@@ -2211,5 +2197,3 @@ def test_governance_registry_edge_cases_with_model_construct() -> None:
     )
     result = GovernanceRegistry._matches_condition_for_document(doc_numeric, doc)
     assert result is False
-
-

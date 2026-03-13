@@ -9,24 +9,24 @@ from pydantic import BaseModel, model_validator
 
 from rag_control.exceptions import ControlPlaneConfigValidationError
 
-from .operator import (
-    OPERATOR_EQUALS,
-    OPERATOR_IN,
-    OPERATOR_INTERSECTS,
-    OPERATOR_EXISTS,
-)
-from .filter import Filter, FilterCondition, FILTER_NUMERIC_OPERATORS
-from .org import OrgConfig
-from .policy import Policy
 from .deny_rule import (
+    DENY_RULE_NUMERIC_OPERATORS,
     DenyRuleCondition,
     DenyRuleLogicalCondition,
-    DENY_RULE_NUMERIC_OPERATORS,
 )
+from .filter import FILTER_NUMERIC_OPERATORS, Filter, FilterCondition
+from .operator import (
+    OPERATOR_EQUALS,
+    OPERATOR_EXISTS,
+    OPERATOR_IN,
+    OPERATOR_INTERSECTS,
+)
+from .org import OrgConfig
+from .policy import Policy
 from .policy_rule import (
+    POLICY_RULE_NUMERIC_OPERATORS,
     PolicyRuleCondition,
     PolicyRuleLogicalCondition,
-    POLICY_RULE_NUMERIC_OPERATORS,
 )
 
 
@@ -58,9 +58,13 @@ class ControlPlaneConfig(BaseModel):
                 raise ControlPlaneConfigValidationError(
                     f"policy '{policy.name}' document_policy.top_k must be greater than 0"
                 )
-            if policy.document_policy.filter_name is not None and policy.document_policy.filter_name not in filter_name_set:
+            if (
+                policy.document_policy.filter_name is not None
+                and policy.document_policy.filter_name not in filter_name_set
+            ):
                 raise ControlPlaneConfigValidationError(
-                    f"policy '{policy.name}' document_policy.filter_name '{policy.document_policy.filter_name}' does not exist"
+                    f"policy '{policy.name}' document_policy.filter_name "
+                    f"'{policy.document_policy.filter_name}' does not exist"
                 )
 
         if len(org_ids) != len(set(org_ids)):
@@ -97,7 +101,8 @@ class ControlPlaneConfig(BaseModel):
                 self._validate_rule_conditions(org.org_id, rule.name, rule.when, is_deny_rule=False)
                 if rule.effect == "allow" and rule.apply_policy is None:
                     raise ControlPlaneConfigValidationError(
-                        f"org '{org.org_id}' rule '{rule.name}' with effect='allow' must specify apply_policy"
+                        f"org '{org.org_id}' rule '{rule.name}' with "
+                        f"effect='allow' must specify apply_policy"
                     )
                 if rule.apply_policy is not None and rule.apply_policy not in policy_name_set:
                     raise ControlPlaneConfigValidationError(
