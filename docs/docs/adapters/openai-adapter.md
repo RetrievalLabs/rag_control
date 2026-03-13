@@ -33,7 +33,7 @@ uv pip install openai-adapter
 ## Version Compatibility
 
 - **Current Stable Version:** v0.1.0
-- **Compatible with:** rag-control v0.1.3
+- **Compatible with:** rag-control v0.2.0
 
 ## Quick Start
 

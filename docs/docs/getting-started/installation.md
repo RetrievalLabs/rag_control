@@ -14,7 +14,7 @@ description: How to install and set up rag_control
 ## Install from PyPI
 
 ```bash
-pip install rag_control==0.1.3
+pip install rag_control==0.2.0
 ```
 
 ## Verify Installation
