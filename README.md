@@ -31,10 +31,11 @@ RAG systems are powerful but can be risky in production:
 - Apply context-aware fallback strategies
 
 ### 🔐 Governance & Security
-- Organization-level access control
+- Organization-level access control with deny rules
 - Retrieval filtering by data classification and metadata
 - User context validation
 - Policy resolution based on org rules and data sensitivity
+- Mixed user and document-based access control enforcement
 
 ### 📊 Observability
 - **Audit Logging**: Full request/response lifecycle tracking
@@ -101,17 +102,34 @@ filters:
       operator: equals
       value: enterprise
       source: user
+
 orgs:
   - org_id: acme_corp
     description: Acme Corporation with strict citation requirements
     default_policy: strict_citations
     document_policy:
-      top_k: 8
+      top_k: 10
+      filter_name: enterprise_only
+
+    # Policy rules - determine which policy to apply (user context only)
     policy_rules:
+      - name: allow_enterprise_strict
+        description: Apply strict policy for enterprise users
+        priority: 50
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          all:
+            - field: org_tier
+              operator: equals
+              value: enterprise
+              source: user
+
+    # Deny rules - block requests at runtime (user + document context)
+    deny_rules:
       - name: deny_untrusted_document_source
-        description: Deny if any retrieved document comes from untrusted source
+        description: Deny if any doc comes from untrusted source
         priority: 60
-        effect: deny
         when:
           any:
             - field: metadata.source
@@ -119,17 +137,21 @@ orgs:
               value: public-web
               source: documents
               document_match: any
-      - name: enforce_strict_citations
-        description: Enforce strict citations for enterprise queries
-        priority: 50
-        effect: enforce
+
+      - name: deny_external_users_restricted_docs
+        description: Deny external users from restricted documents
+        priority: 48
         when:
           all:
-            - field: org_tier
+            - field: user_type
               operator: equals
-              value: enterprise
+              value: external
               source: user
-        policy: strict_citations
+            - field: metadata.classification
+              operator: equals
+              value: restricted
+              source: documents
+              document_match: any
 
 ```
 
@@ -290,6 +312,7 @@ Quick links to spec documents:
 - **[Metrics Contract](rag_control/spec/metrics_contract.md)**: Metrics specification
 - **[Tracing Contract](rag_control/spec/tracing_contract.md)**: Tracing specification
 - **[Control Plane Config Contract](rag_control/spec/control_plane_config_contract.md)**: Configuration specification
+- **[Governance Contract](rag_control/spec/governance_contract.md)**: Governance rules and access control specification
 
 ## Examples
 
