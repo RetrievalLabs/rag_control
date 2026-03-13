@@ -44,6 +44,11 @@ class ControlPlaneConfig(BaseModel):
         if len(policy_names) != len(set(policy_names)):
             raise ControlPlaneConfigValidationError("policies must have unique names")
 
+        if len(filter_names) != len(set(filter_names)):
+            raise ControlPlaneConfigValidationError("filters must have unique names")
+
+        filter_name_set = set(filter_names)
+
         for policy in self.policies:
             if not (0.0 <= policy.generation.temperature <= 2.0):
                 raise ControlPlaneConfigValidationError(
@@ -53,9 +58,10 @@ class ControlPlaneConfig(BaseModel):
                 raise ControlPlaneConfigValidationError(
                     f"policy '{policy.name}' document_policy.top_k must be greater than 0"
                 )
-
-        if len(filter_names) != len(set(filter_names)):
-            raise ControlPlaneConfigValidationError("filters must have unique names")
+            if policy.document_policy.filter_name is not None and policy.document_policy.filter_name not in filter_name_set:
+                raise ControlPlaneConfigValidationError(
+                    f"policy '{policy.name}' document_policy.filter_name '{policy.document_policy.filter_name}' does not exist"
+                )
 
         if len(org_ids) != len(set(org_ids)):
             raise ControlPlaneConfigValidationError("orgs must have unique org_id values")
