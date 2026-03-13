@@ -28,7 +28,8 @@ Organizations are the fundamental unit of governance. Each organization has:
 - A unique identifier
 - A default policy (used when no rules match)
 - Document retrieval settings
-- Policy rules that determine which policy to apply
+- Deny rules that enforce access control (evaluated first)
+- Policy rules that determine which policy to apply (evaluated after deny rules)
 
 ```yaml
 orgs:
@@ -37,43 +38,98 @@ orgs:
     default_policy: standard
     document_policy:
       top_k: 10
-      filters: [internal_only]
+      filter_name: internal_only
+    deny_rules:
+      # Access control rules (evaluated first)
     policy_rules:
-      # Rules specific to this organization
+      # Policy selection rules (evaluated after deny rules)
 ```
+
+### Deny Rules vs Policy Rules
+
+rag_control has two types of governance rules, evaluated in sequence:
+
+| Aspect | Deny Rules | Policy Rules |
+|--------|-----------|--------------|
+| **Purpose** | Access control / blocking | Policy selection |
+| **Execution** | Evaluated FIRST, before policy lookup | Evaluated AFTER deny rules |
+| **Conditions** | User context + document properties | User context only |
+| **Effect** | Block request immediately | Select policy to apply |
+| **Use Case** | Enforce restrictions | Choose enforcement level |
+| **Sources** | Mixed (user AND documents) | User only |
+
+### Deny Rules
+
+Deny rules provide fine-grained access control by blocking requests based on combined user and document context. They execute before policy rules and stop processing immediately when matched.
+
+```yaml
+deny_rules:
+  - name: deny_untrusted_sources
+    description: Block documents from untrusted sources
+    priority: 100                    # Higher = evaluated first
+    when:
+      all:                           # All conditions must match (AND)
+        - field: metadata.source
+          operator: equals
+          value: public-web
+          source: documents
+          document_match: any        # any or all (documents only)
+
+  - name: deny_external_users_sensitive_docs
+    description: Block external users from accessing sensitive data
+    priority: 95
+    when:
+      all:
+        - field: user_type
+          operator: equals
+          value: external
+          source: user
+        - field: metadata.classification
+          operator: in
+          value: [sensitive, confidential]
+          source: documents
+          document_match: any
+```
+
+**Key characteristics:**
+- Can mix user context and document metadata in a single rule
+- Support nested AND/OR logic with `all` and `any`
+- `document_match: any` denies if any document matches the condition
+- `document_match: all` denies only if all documents match the condition
+- When matched, raise `GovernanceDenyRuleError` and stop processing
 
 ### Policy Rules
 
-Policy rules are the decision engine of governance. They evaluate conditions and determine the outcome:
+Policy rules determine which policy to apply to a request. They evaluate conditions and determine the outcome:
 
 - **enforce**: Apply a specific policy to the request
-- **deny**: Block the request entirely
+- **deny**: Block the request (rarely used; prefer deny_rules for access control)
 
 Rules are evaluated in **priority order** (highest first), and the first rule that matches determines the outcome.
 
 ```yaml
 policy_rules:
-  - name: block_external_data_in_compliance_mode
+  - name: apply_strict_citations
     priority: 100
-    effect: deny
+    effect: enforce
     when:
       all:
-        - field: compliance_mode
+        - field: org_tier
           operator: equals
-          value: "true"
+          value: enterprise
           source: user
-        - field: source
-          operator: in
-          value: [public-web, external]
-          source: documents
-          document_match: any
+    apply_policy: strict_citations
 ```
 
 ### Rule Conditions
 
-Conditions in the `when` clause determine when a rule applies. They can check:
+Conditions in the `when` clause determine when a rule applies. For policy rules, they check:
 
 - **User context** - Who is making the request (org_id, tier, role, custom fields)
+
+For deny rules, conditions can check:
+
+- **User context** - Who is making the request
 - **Document metadata** - What documents were retrieved (classification, source, sensitivity)
 
 Multiple conditions can be combined with `all` (AND) or `any` (OR) logic.
@@ -82,13 +138,14 @@ Multiple conditions can be combined with `all` (AND) or `any` (OR) logic.
 
 ### Organization Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `org_id` | string | Unique organization identifier (e.g., `acme_corp`, `startup_xyz`) |
-| `description` | string | Human-readable description for documentation |
-| `default_policy` | string | Policy used if no rule matches |
-| `document_policy` | object | Document retrieval settings (top_k, filters) |
-| `policy_rules` | array | Rules that determine policy enforcement |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `org_id` | string | Yes | Unique organization identifier (e.g., `acme_corp`, `startup_xyz`) |
+| `description` | string | No | Human-readable description for documentation |
+| `default_policy` | string | Yes | Policy used if no deny/policy rule matches |
+| `document_policy` | object | Yes | Document retrieval settings (top_k, filter_name) |
+| `deny_rules` | array | No | Access control rules evaluated first (can be empty) |
+| `policy_rules` | array | Yes | Policy selection rules (can be empty) |
 
 ### Complete Organization Example
 
@@ -99,7 +156,37 @@ orgs:
     default_policy: standard
     document_policy:
       top_k: 10
-      filters: [internal_only, approved_sources]
+      filter_name: internal_only
+
+    # Access control rules (evaluated first)
+    deny_rules:
+      - name: deny_untrusted_sources
+        description: Block untrusted data sources
+        priority: 100
+        when:
+          all:
+            - field: metadata.source
+              operator: in
+              value: [public-web, unverified]
+              source: documents
+              document_match: any
+
+      - name: deny_external_users_pii
+        description: Block external users from PII documents
+        priority: 95
+        when:
+          all:
+            - field: user_type
+              operator: equals
+              value: external
+              source: user
+            - field: metadata.classification
+              operator: equals
+              value: pii
+              source: documents
+              document_match: any
+
+    # Policy selection rules (evaluated after deny rules)
     policy_rules:
       - name: enforce_strict_for_sensitive
         priority: 100
@@ -108,10 +195,10 @@ orgs:
           any:
             - field: metadata.classification
               operator: in
-              value: [sensitive, confidential, pii]
+              value: [sensitive, confidential]
               source: documents
               document_match: any
-        policy: strict_citations
+        apply_policy: strict_citations
 
       - name: enforce_exploratory_for_research
         priority: 50
@@ -126,62 +213,49 @@ orgs:
               operator: equals
               value: researcher
               source: user
-        policy: exploratory
-
-      - name: deny_public_sources_in_production
-        priority: 80
-        effect: deny
-        when:
-          all:
-            - field: environment
-              operator: equals
-              value: production
-              source: user
-            - field: source
-              operator: in
-              value: [public-web]
-              source: documents
-              document_match: any
+        apply_policy: exploratory
 ```
 
 ## Policy Rules
 
+Policy rules determine which policy applies to a request. They execute **after** deny rules.
+
 ### Rule Structure
 
-Every rule has:
+Every policy rule has:
 
 - **name**: Unique identifier for the rule
 - **description**: Human-readable explanation (recommended for audit trails)
 - **priority**: Execution order (higher = evaluated first)
-- **effect**: Either `enforce` (apply policy) or `deny` (block request)
-- **when**: Conditions that must match
-- **policy**: (enforce only) Which policy to apply
+- **effect**: `allow` (permit and optionally apply policy) or rarely `deny` (use deny_rules instead)
+- **when**: Conditions that must match (user context only)
+- **apply_policy**: (optional) Which policy to apply when rule matches
 
 ```yaml
 - name: rule_name
   description: What this rule does and why
   priority: 75
-  effect: enforce
+  effect: allow
   when:
     all:
       - field: org_tier
         operator: equals
         value: enterprise
         source: user
-  policy: strict_citations
+  apply_policy: strict_citations
 ```
 
-### Rule Effects
+### Policy Rule Effects
 
-#### Enforce: Apply a Policy
+#### Allow: Apply a Policy
 
-When `effect: enforce`, the rule applies a specific policy to the request:
+When `effect: allow`, the rule permits the request and optionally applies a specific policy:
 
 ```yaml
 - name: enforce_strict_for_enterprise
   description: Enterprise customers always use strict citation policy
   priority: 100
-  effect: enforce
+  effect: allow
   when:
     all:
       - field: org_id
@@ -192,58 +266,27 @@ When `effect: enforce`, the rule applies a specific policy to the request:
         operator: equals
         value: enterprise
         source: user
-  policy: strict_citations
+  apply_policy: strict_citations
 ```
 
 **Behavior:**
-- Request proceeds with the specified policy
-- Metrics record which policy was applied
-- Metrics include a `policy.resolved_by_name` counter
+- Request proceeds with the specified policy (if `apply_policy` provided)
+- Metrics record which policy was applied with `policy.resolved_by_name` counter
+- If no `apply_policy`, organization's `default_policy` is used
 
-#### Deny: Block the Request
+### Deny Rules for Access Control
 
-When `effect: deny`, the request is rejected entirely:
+**Note:** For access control and blocking requests, use deny_rules instead of policy rules with `effect: deny`. Deny rules support mixed user and document conditions and execute earlier in the request flow.
 
-```yaml
-- name: deny_untrusted_sources_in_production
-  description: Block requests that use untrusted/unvetted data sources
-  priority: 90
-  effect: deny
-  when:
-    all:
-      - field: environment
-        operator: equals
-        value: production
-        source: user
-      - field: source
-        operator: equals
-        value: untrusted
-        source: documents
-        document_match: any
-```
+See [Deny Rules](#deny-rules) section above for detailed access control patterns.
 
-**Behavior:**
-- Request is blocked and `GovernancePolicyDeniedError` exception is raised
-- No policy is applied
-- Metrics record the denial with appropriate error categorization
-- Error category is `governance` or `enforcement` depending on context
+### Deny Rule Error Handling
 
-**Exception Details:**
+When a deny rule matches, it raises an exception that can be caught:
 
 ```python
 from rag_control.exceptions.governance import GovernancePolicyDeniedError
-
-# Exception is raised with:
-# - user_context: The UserContext that triggered the denial
-# - rule_name: Name of the deny rule that matched
-# - Message: "governance policy denied for org 'org_id' by rule 'rule_name'"
-```
-
-**Catching and Handling Denials:**
-
-```python
-from rag_control.exceptions.governance import GovernancePolicyDeniedError
-from rag_control.core.engine import Engine
+from rag_control.core.engine import RAGControl
 
 try:
     result = engine.run(user_context=user_context, query=query)
@@ -260,30 +303,49 @@ except GovernancePolicyDeniedError as e:
 
 #### Condition Structure
 
+For policy rules (user context only):
+
 ```yaml
 when:
   all:                              # all or any
-    - field: user.role
+    - field: org_tier
       operator: equals
-      value: analyst
-      source: user                  # user or documents
+      value: enterprise
+      source: user                  # user only for policy rules
+```
+
+For deny rules (user and/or documents):
+
+```yaml
+when:
+  all:                              # all or any
+    - field: user_clearance_level
+      operator: gte
+      value: 3
+      source: user
+    - field: metadata.classification
+      operator: equals
+      value: confidential
+      source: documents
       document_match: any           # any or all (documents only)
 ```
 
 #### Operators
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `equals` | Exact match | `value: "enterprise"` |
-| `not_equals` | Not equal | `value: "free"` |
-| `contains` | String contains | `value: "sensitive"` |
-| `not_contains` | Does not contain | `value: "deprecated"` |
-| `in` | Value in list | `value: [admin, manager]` |
-| `not_in` | Value not in list | `value: [restricted, archived]` |
+| Operator | Supported Values | Description |
+|----------|------------------|-------------|
+| `equals` | Any | Exact match |
+| `lt` | Number | Less than |
+| `lte` | Number | Less than or equal to |
+| `gt` | Number | Greater than |
+| `gte` | Number | Greater than or equal to |
+| `in` | List | Field value is in provided list |
+| `intersects` | List | Field array intersects with provided list |
+| `exists` | N/A | Field exists (no value needed) |
 
 #### Sources
 
-**User source** - Check fields from user context:
+**User source** - Check fields from user context (policy rules and deny rules):
 
 ```yaml
 - field: org_tier
@@ -292,9 +354,9 @@ when:
   source: user
 ```
 
-Available user fields: `org_id`, `user_id`, `org_tier`, `role`, and custom fields.
+Available user fields: `org_id`, `user_id`, `org_tier`, `role`, `environment`, and custom fields.
 
-**Documents source** - Check metadata from retrieved documents:
+**Documents source** - Check metadata from retrieved documents (deny rules only):
 
 ```yaml
 - field: metadata.classification
@@ -304,36 +366,36 @@ Available user fields: `org_id`, `user_id`, `org_tier`, `role`, and custom field
   document_match: any
 ```
 
-Document matching (required when `source: documents`):
+Document matching (required when `source: documents` in deny rules):
 
-- `any`: Rule matches if **any document** matches the condition
-- `all`: Rule matches only if **all documents** match the condition
+- `any`: Deny if **any document** matches the condition (block on first match)
+- `all`: Deny only if **all documents** match the condition (allow if any escapes)
 
-Example: Deny if **any** untrusted source is in results:
-
-```yaml
-- field: source
-  operator: equals
-  value: untrusted
-  source: documents
-  document_match: any          # Match if ANY doc is untrusted
-```
-
-Example: Apply strict policy only if **all** documents are sensitive:
+Example: Deny if **any** document is confidential:
 
 ```yaml
 - field: metadata.classification
   operator: equals
   value: confidential
   source: documents
-  document_match: all          # Match only if ALL docs are confidential
+  document_match: any          # Block if ANY doc is confidential
+```
+
+Example: Deny only if **all** documents are experimental:
+
+```yaml
+- field: metadata.status
+  operator: equals
+  value: experimental
+  source: documents
+  document_match: all          # Only block if ALL docs are experimental
 ```
 
 ## Practical Examples
 
 ### Example 1: Enterprise Customer with Tiered Policies
 
-An enterprise customer needs different policies based on user role:
+An enterprise customer needs different policies based on user role, with access control for untrusted sources:
 
 ```yaml
 - org_id: enterprise_acme
@@ -341,12 +403,26 @@ An enterprise customer needs different policies based on user role:
   default_policy: standard
   document_policy:
     top_k: 20
-    filters: [verified_sources]
+    filter_name: verified_sources
+
+  # Block untrusted sources for all users
+  deny_rules:
+    - name: deny_untrusted_sources
+      priority: 100
+      when:
+        all:
+          - field: metadata.source
+            operator: in
+            value: [public-web, unverified]
+            source: documents
+            document_match: any
+
+  # Select policy based on role
   policy_rules:
     # Analysts get exploratory access
     - name: analysts_use_exploratory
       priority: 100
-      effect: enforce
+      effect: allow
       when:
         all:
           - field: role
@@ -357,12 +433,12 @@ An enterprise customer needs different policies based on user role:
             operator: equals
             value: enterprise_acme
             source: user
-      policy: exploratory
+      apply_policy: exploratory
 
     # Executives see only strict citations
     - name: executives_strict_only
       priority: 95
-      effect: enforce
+      effect: allow
       when:
         all:
           - field: role
@@ -373,221 +449,315 @@ An enterprise customer needs different policies based on user role:
             operator: equals
             value: enterprise_acme
             source: user
-      policy: strict_citations
+      apply_policy: strict_citations
 
     # Everyone else gets standard policy
     - name: default_to_standard
       priority: 10
-      effect: enforce
+      effect: allow
       when:
         all:
           - field: org_id
             operator: equals
             value: enterprise_acme
             source: user
-      policy: standard
+      apply_policy: standard
 ```
 
 ### Example 2: Compliance and Data Classification
 
-Handle requests based on document sensitivity:
+Handle requests based on document sensitivity with access control and policy selection:
 
 ```yaml
-policy_rules:
-  # PII and secrets require strictest policy
-  - name: block_pii_handling
-    priority: 100
-    effect: deny
-    when:
-      any:
-        - field: metadata.classification
-          operator: equals
-          value: pii
-          source: documents
-          document_match: any
-        - field: metadata.contains_secrets
-          operator: equals
-          value: "true"
-          source: documents
-          document_match: any
+orgs:
+  - org_id: compliance_org
+    default_policy: standard
 
-  # Confidential documents require strict citations
-  - name: strict_for_confidential
-    priority: 90
-    effect: enforce
-    when:
-      any:
-        - field: metadata.classification
-          operator: equals
-          value: confidential
-          source: documents
-          document_match: any
-    policy: strict_citations
+    # Access control - deny certain combinations
+    deny_rules:
+      # Block PII access entirely
+      - name: block_pii_access
+        priority: 100
+        when:
+          all:
+            - field: metadata.classification
+              operator: equals
+              value: pii
+              source: documents
+              document_match: any
 
-  # Internal documents allow exploratory access
-  - name: exploratory_for_internal
-    priority: 50
-    effect: enforce
-    when:
-      all:
-        - field: metadata.classification
-          operator: equals
-          value: internal
-          source: documents
-          document_match: all
-    policy: exploratory
+      # Block external users from confidential documents
+      - name: deny_external_users_confidential
+        priority: 95
+        when:
+          all:
+            - field: user_type
+              operator: equals
+              value: external
+              source: user
+            - field: metadata.classification
+              operator: equals
+              value: confidential
+              source: documents
+              document_match: any
+
+    # Policy selection based on document sensitivity
+    policy_rules:
+      # Confidential documents require strict citations
+      - name: strict_for_confidential
+        priority: 90
+        effect: allow
+        when:
+          any:
+            - field: metadata.classification
+              operator: equals
+              value: confidential
+              source: documents
+              document_match: any
+        apply_policy: strict_citations
+
+      # Internal documents allow exploratory access
+      - name: exploratory_for_internal
+        priority: 50
+        effect: allow
+        when:
+          all:
+            - field: metadata.classification
+              operator: equals
+              value: internal
+              source: documents
+              document_match: all
+        apply_policy: exploratory
 ```
 
 ### Example 3: Environment-Based Policies
 
-Different rules for development vs. production:
+Different rules for development vs. production, with stricter access control in production:
 
 ```yaml
-policy_rules:
-  # Production: strict and safe
-  - name: production_strict
-    priority: 100
-    effect: enforce
-    when:
-      all:
-        - field: environment
-          operator: equals
-          value: production
-          source: user
-    policy: strict_citations
+orgs:
+  - org_id: multi_env
+    default_policy: standard
 
-  # Development: allow exploratory access
-  - name: development_exploratory
-    priority: 90
-    effect: enforce
-    when:
-      all:
-        - field: environment
-          operator: equals
-          value: development
-          source: user
-    policy: exploratory
+    # Production-only access control
+    deny_rules:
+      # In production: deny unverified sources
+      - name: deny_unverified_production
+        priority: 100
+        when:
+          all:
+            - field: environment
+              operator: equals
+              value: production
+              source: user
+            - field: metadata.is_verified
+              operator: equals
+              value: false
+              source: documents
+              document_match: any
 
-  # Staging: standard policy by default
-  - name: staging_standard
-    priority: 80
-    effect: enforce
-    when:
-      all:
-        - field: environment
-          operator: equals
-          value: staging
-          source: user
-    policy: standard
+    # Environment-based policy selection
+    policy_rules:
+      # Production: strict and safe
+      - name: production_strict
+        priority: 100
+        effect: allow
+        when:
+          all:
+            - field: environment
+              operator: equals
+              value: production
+              source: user
+        apply_policy: strict_citations
+
+      # Development: allow exploratory access
+      - name: development_exploratory
+        priority: 90
+        effect: allow
+        when:
+          all:
+            - field: environment
+              operator: equals
+              value: development
+              source: user
+        apply_policy: exploratory
+
+      # Staging: standard policy by default
+      - name: staging_standard
+        priority: 80
+        effect: allow
+        when:
+          all:
+            - field: environment
+              operator: equals
+              value: staging
+              source: user
+        apply_policy: standard
 ```
 
-### Example 4: Deny Rules with Multiple Organizations
+### Example 4: Multiple Organizations with Different Access Control
 
-Different denial policies for different customer tiers:
+Different access control and policies for different customer tiers:
 
 ```yaml
 orgs:
   - org_id: free_tier_startup
     default_policy: exploratory
-    policy_rules:
+
+    # Free tier: strict access control
+    deny_rules:
       # Free tier: deny access to premium data
       - name: free_tier_no_premium
         priority: 100
-        effect: deny
         when:
-          any:
+          all:
             - field: metadata.tier
               operator: equals
               value: premium
               source: documents
               document_match: any
 
-      # Free tier: deny large result sets
-      - name: free_tier_max_results
-        priority: 90
-        effect: deny
-        when:
-          all:
-            - field: result_count
-              operator: not_equals
-              value: "null"
-              source: user
-            # Note: This is a simplified example; actual implementation
-            # would need to check against a numeric threshold
-      policy: exploratory
+    policy_rules: []
 
   - org_id: professional_tier
     default_policy: standard
-    policy_rules:
-      # Professional tier: only deny clearly unvetted sources
+
+    # Professional tier: moderate access control
+    deny_rules:
+      # Professional tier: deny clearly unvetted sources
       - name: professional_unvetted_only
         priority: 100
-        effect: deny
         when:
           any:
-            - field: source
-              operator: equals
-              value: unvetted-web
+            - field: metadata.source
+              operator: in
+              value: [unvetted-web, suspicious]
               source: documents
               document_match: any
-      policy: standard
+
+    policy_rules: []
 
   - org_id: enterprise_tier
     default_policy: strict_citations
+
+    # Enterprise: permissive access control, policy-driven
+    deny_rules:
+      # Enterprise: only deny PII
+      - name: enterprise_block_pii
+        priority: 100
+        when:
+          all:
+            - field: metadata.classification
+              operator: equals
+              value: pii
+              source: documents
+              document_match: any
+
     policy_rules:
-      # Enterprise: no automatic denials, only policy enforcement
-      # All requests pass through to policy system
+      # Enterprise users can request specific policies
+      - name: enforce_strict_when_requested
+        priority: 50
+        effect: allow
+        when:
+          all:
+            - field: request_strict_policy
+              operator: equals
+              value: true
+              source: user
+        apply_policy: strict_citations
 ```
 
 ### Example 5: Complex Multi-Condition Rules
 
-Combining multiple conditions with AND/OR logic:
+Combining multiple conditions with AND/OR logic in deny and policy rules:
 
 ```yaml
-policy_rules:
-  # Deny if BOTH sensitive docs AND external user
-  - name: deny_sensitive_external_user
-    priority: 100
-    effect: deny
-    when:
-      all:
-        # Must be external user
-        - field: org_id
-          operator: equals
-          value: external
-          source: user
-        # AND must have sensitive docs
-        - field: metadata.classification
-          operator: in
-          value: [sensitive, confidential, pii]
-          source: documents
-          document_match: any
+orgs:
+  - org_id: complex_rules_org
+    default_policy: standard
 
-  # Enforce strict policy if ANY of these conditions
-  - name: enforce_strict_if_any_risk
-    priority: 80
-    effect: enforce
-    when:
-      any:
-        # Old documents
-        - field: metadata.age_days
-          operator: not_equals
-          value: "null"
-          source: documents
-          document_match: any
-        # Outdated sources
-        - field: metadata.is_deprecated
-          operator: equals
-          value: "true"
-          source: documents
-          document_match: any
-        # Unknown sources
-        - field: source
-          operator: not_equals
-          value: verified
-          source: documents
-          document_match: any
-    policy: strict_citations
+    # Complex deny rules with mixed conditions
+    deny_rules:
+      # Deny if BOTH sensitive docs AND external user
+      - name: deny_sensitive_external_user
+        priority: 100
+        when:
+          all:
+            # Must be external user
+            - field: user_type
+              operator: equals
+              value: external
+              source: user
+            # AND must have sensitive docs
+            - field: metadata.classification
+              operator: in
+              value: [sensitive, confidential]
+              source: documents
+              document_match: any
+
+      # Deny if ANY of these risky conditions
+      - name: deny_risky_documents
+        priority: 95
+        when:
+          any:
+            # Unverified sources
+            - field: metadata.is_verified
+              operator: equals
+              value: false
+              source: documents
+              document_match: any
+            # Very old documents
+            - field: metadata.age_days
+              operator: gt
+              value: 1095
+              source: documents
+              document_match: any
+            # Deprecated content
+            - field: metadata.is_deprecated
+              operator: equals
+              value: true
+              source: documents
+              document_match: any
+
+    # Complex policy rules
+    policy_rules:
+      # Enforce strict policy if ANY risk indicator present
+      - name: enforce_strict_if_risk
+        priority: 80
+        effect: allow
+        when:
+          any:
+            # Sensitive classification
+            - field: metadata.classification
+              operator: equals
+              value: confidential
+              source: documents
+              document_match: any
+            # Recent/active content (needs strict handling)
+            - field: metadata.is_active
+              operator: equals
+              value: true
+              source: documents
+              document_match: all
+        apply_policy: strict_citations
+
+      # Use exploratory only for safe, verified content
+      - name: exploratory_for_verified_internal
+        priority: 70
+        effect: allow
+        when:
+          all:
+            - field: metadata.is_verified
+              operator: equals
+              value: true
+              source: documents
+              document_match: all
+            - field: metadata.classification
+              operator: equals
+              value: internal
+              source: documents
+              document_match: all
+        apply_policy: exploratory
 ```
 
 ## Rule Priority and Evaluation
@@ -707,18 +877,25 @@ When a request arrives, governance executes this flow:
            ↓
 2. Validate organization exists (user_context.org_id)
            ↓
-3. Evaluate policy_rules in priority order (highest first)
+3. Retrieve documents from vector store
            ↓
-4. For each rule:
-   - Evaluate ALL conditions in the 'when' clause
-   - If conditions match:
-     ├─ effect: deny → Block request, return error
-     └─ effect: enforce → Apply policy, continue
+4. Evaluate deny_rules in priority order (highest first)
+           ├─ For each deny rule:
+           │  - Evaluate conditions (can use user context + document metadata)
+           │  - If conditions match:
+           │    └─ Block request, raise GovernancePolicyDeniedError
            ↓
-5. If no rule matched:
+5. If no deny rule matched, evaluate policy_rules in priority order
+           ├─ For each policy rule:
+           │  - Evaluate conditions (user context only)
+           │  - If conditions match:
+           │    ├─ effect: allow → Apply specified policy, continue
+           │    └─ effect: deny → (rare) Block request
+           ↓
+6. If no policy rule matched:
    - Apply organization's default_policy
            ↓
-6. Execute request with chosen policy
+7. Execute request with chosen policy
 ```
 
 ### Example Execution
@@ -729,29 +906,34 @@ Given this configuration:
 orgs:
   - org_id: acme_corp
     default_policy: standard
-    policy_rules:
-      - name: deny_untrusted
+
+    deny_rules:
+      - name: deny_untrusted_external
         priority: 100
-        effect: deny
         when:
-          any:
+          all:
+            - field: user_type
+              operator: equals
+              value: external
+              source: user
             - field: source
               operator: equals
               value: untrusted
               source: documents
               document_match: any
 
+    policy_rules:
       - name: enforce_strict_sensitive
         priority: 50
-        effect: enforce
+        effect: allow
         when:
-          any:
+          all:
             - field: metadata.classification
               operator: equals
               value: confidential
               source: documents
               document_match: any
-        policy: strict_citations
+        apply_policy: strict_citations
 ```
 
 And this request:
@@ -760,6 +942,7 @@ And this request:
 UserContext(
     org_id="acme_corp",
     user_id="user-1",
+    user_type="internal",
     role="analyst",
 )
 # Documents retrieved: [
@@ -771,14 +954,15 @@ UserContext(
 **Execution:**
 
 1. ✓ Org exists: `acme_corp`
-2. ✓ Priority 100 rule (`deny_untrusted`):
-   - Check if ANY document has `source == untrusted`
-   - Both documents have `source: internal` → No match
-3. ✓ Priority 50 rule (`enforce_strict_sensitive`):
+2. ✓ Retrieve documents from vector store
+3. ✓ Evaluate deny rules (priority 100):
+   - Check if `user_type == external` AND ANY document has `source == untrusted`
+   - User is `internal`, documents are from `internal` source → No match
+4. ✓ Evaluate policy rules (priority 50):
    - Check if ANY document has `classification == confidential`
    - First document has `classification: confidential` → Match!
    - Apply `strict_citations` policy
-4. Request proceeds with `strict_citations` policy
+5. Request proceeds with `strict_citations` policy
 
 ## Error Handling and Denial Reporting
 
@@ -897,145 +1081,249 @@ except Exception as e:
 
 ## Best Practices
 
-### 1. Organize Rules by Priority Tiers
+### 1. Separate Deny Rules from Policy Rules
 
+Use deny rules for access control and blocking, use policy rules for policy selection:
+
+```yaml
+orgs:
+  - org_id: example
+    default_policy: standard
+
+    # Deny rules: Access control
+    deny_rules:
+      # Priority 100+: Critical blocks (PII, security)
+      - name: block_pii
+        priority: 110
+
+      # Priority 80-99: Compliance blocks
+      - name: deny_external_confidential
+        priority: 95
+
+    # Policy rules: Policy selection
+    policy_rules:
+      # Priority 100+: Critical enforcement
+      - name: enforce_strict_for_sensitive
+        priority: 100
+        effect: allow
+
+      # Priority 50-99: Standard business rules
+      - name: enforce_exploratory_for_research
+        priority: 60
+        effect: allow
+
+      # Priority 10-49: Defaults
+      - name: apply_default_policy
+        priority: 10
+        effect: allow
+```
+
+### 2. Organize Rules by Priority Tiers
+
+Within deny rules and policy rules, use consistent priority bands:
+
+**Deny Rules:**
+```yaml
+deny_rules:
+  # Tier 1: Critical Security (100+)
+  - priority: 110      # Block PII
+  - priority: 105      # Block secrets
+
+  # Tier 2: Compliance (90-99)
+  - priority: 95       # Restrict by role
+  - priority: 90       # Verify sources
+
+  # Tier 3: Business Rules (50-89)
+  - priority: 70       # Custom restrictions
+```
+
+**Policy Rules:**
 ```yaml
 policy_rules:
-  # Tier 1: Security (100-109)
-  - name: block_pii
-    priority: 109
+  # Tier 1: Critical Policies (100+)
+  - priority: 100      # Force strict policy
 
-  # Tier 2: Compliance (80-99)
-  - name: enforce_strict_for_confidential
-    priority: 95
+  # Tier 2: Standard Rules (50-99)
+  - priority: 75       # Role-based policies
+  - priority: 60       # Tier-based policies
 
-  # Tier 3: Business Rules (50-79)
-  - name: enforce_exploratory_for_research
-    priority: 60
-
-  # Tier 4: Defaults (10-49)
-  - name: enforce_default_policy
-    priority: 10
+  # Tier 3: Defaults (10-49)
+  - priority: 10       # Default enforcement
 ```
 
-### 2. Use Descriptive Names and Descriptions
+### 3. Use Descriptive Names and Descriptions
 
 ```yaml
-- name: deny_pii_external_users    # Clear what it does
-  description: |
-    Block external users from accessing PII-containing documents.
-    Required for GDPR compliance. See GDPR requirements in wiki.
-  priority: 100
-  effect: deny
+deny_rules:
+  - name: deny_pii_external_users    # Clear what it does
+    description: |
+      Block external users from accessing PII-containing documents.
+      Required for GDPR compliance. See GDPR requirements in wiki.
+    priority: 100
+
+policy_rules:
+  - name: enforce_strict_for_sensitive
+    description: |
+      Enforce strict citation policy for sensitive documents.
+      Ensures all claims are properly sourced. See policies.md for details.
+    priority: 100
+    effect: allow
 ```
 
-### 3. Test Conditions Against Real Data
+### 4. Test Conditions Against Real Data
 
 Before deploying, verify conditions work with actual user contexts and documents:
 
 ```python
-# Test that rules match expected conditions
-test_cases = [
+# Test deny rules
+deny_test_cases = [
     {
         "name": "external_user_with_pii",
-        "user_context": UserContext(org_id="external", role="contractor"),
+        "user_context": UserContext(org_id="example", user_type="external"),
         "documents": [{"metadata": {"classification": "pii"}}],
         "expected_rule": "deny_pii_external_users",
-        "expected_effect": "deny",
+        "should_be_denied": True,
+    },
+]
+
+# Test policy rules
+policy_test_cases = [
+    {
+        "name": "analyst_with_confidential",
+        "user_context": UserContext(org_id="example", role="analyst"),
+        "documents": [{"metadata": {"classification": "confidential"}}],
+        "expected_rule": "enforce_strict_for_sensitive",
+        "expected_policy": "strict_citations",
     },
 ]
 ```
 
-### 4. Document Rules for Audit Trails
+### 5. Document Rules for Audit Trails
 
-Include rationale and references:
+Include rationale and references for both deny and policy rules:
 
 ```yaml
-- name: enforce_strict_for_regulated_data
-  description: |
-    Enforce strict policy for regulated data (HIPAA, GDPR, SOC2).
+deny_rules:
+  - name: block_regulated_data
+    description: |
+      Block access to regulated data (HIPAA, GDPR, SOC2).
 
-    Applies to:
-    - Customer health information (HIPAA)
-    - EU resident personal data (GDPR)
-    - SOC2-classified data
+      Applies to:
+      - Customer health information (HIPAA)
+      - EU resident personal data (GDPR)
+      - SOC2-classified data
 
-    See governance policy document v2.1
-    Owner: compliance-team@company.com
-  priority: 100
-  effect: enforce
+      See governance policy document v2.1
+      Owner: compliance-team@company.com
+    priority: 110
+
+policy_rules:
+  - name: enforce_strict_for_regulated_data
+    description: |
+      Enforce strict policy for regulated data when access is permitted.
+
+      Ensures strong citation validation and external knowledge prevention.
+      See governance policy document v2.1
+      Owner: compliance-team@company.com
+    priority: 100
+    effect: allow
+    apply_policy: strict_citations
 ```
 
-### 5. Avoid Overlapping Rules
+### 6. Use Document Matching Strategically
+
+In deny rules, choose matching mode based on security posture:
+
+- `document_match: any` → Deny if **any** document matches (conservative, safer)
+- `document_match: all` → Deny only if **all** documents match (permissive, less safe)
+
+```yaml
+deny_rules:
+  # Conservative: deny if ANY untrusted source
+  - name: deny_any_untrusted
+    priority: 100
+    when:
+      - field: metadata.source
+        operator: equals
+        value: untrusted
+        source: documents
+        document_match: any   # Safer: blocks on first match
+
+  # Permissive: deny only if ALL documents are experimental
+  - name: deny_all_experimental
+    priority: 90
+    when:
+      - field: metadata.status
+        operator: equals
+        value: experimental
+        source: documents
+        document_match: all   # Less safe: requires all to match
+
+policy_rules:
+  # Use any for stricter policy enforcement
+  - name: enforce_strict_if_any_sensitive
+    priority: 100
+    effect: allow
+    when:
+      - field: metadata.classification
+        operator: equals
+        value: confidential
+        source: documents
+        document_match: any
+    apply_policy: strict_citations
+```
+
+### 7. Avoid Overlapping Rules
 
 If possible, make rule conditions mutually exclusive:
 
 ```yaml
 # Instead of overlapping rules:
-- name: rule_a
-  priority: 100
-  when:
-    - field: org_tier
-      operator: equals
-      value: enterprise
+deny_rules:
+  - name: deny_rule_a
+    priority: 100
+    when:
+      - field: user_type
+        operator: equals
+        value: external
+        source: user
 
-- name: rule_b
-  priority: 90
-  when:
-    - field: org_tier
-      operator: equals
-      value: enterprise  # Same condition!
+  - name: deny_rule_b
+    priority: 90
+    when:
+      - field: user_type
+        operator: equals
+        value: external  # Same condition!
 
 # Use clear non-overlapping conditions:
-- name: enterprise_strict
-  priority: 100
-  when:
-    all:
-      - field: org_tier
-        operator: equals
-        value: enterprise
-      - field: role
-        operator: equals
-        value: executive
+deny_rules:
+  - name: deny_external_with_pii
+    priority: 100
+    when:
+      all:
+        - field: user_type
+          operator: equals
+          value: external
+          source: user
+        - field: metadata.classification
+          operator: equals
+          value: pii
+          source: documents
+          document_match: any
 
-- name: enterprise_exploratory
-  priority: 90
-  when:
-    all:
-      - field: org_tier
-        operator: equals
-        value: enterprise
-      - field: role
-        operator: equals
-        value: analyst
-```
-
-### 6. Use Document Matching Strategically
-
-- `document_match: any` → Deny/enforce if **any** document matches (conservative)
-- `document_match: all` → Enforce only if **all** documents match (permissive)
-
-```yaml
-# Conservative: deny if ANY untrusted source
-- name: deny_any_untrusted
-  effect: deny
-  when:
-    - field: source
-      operator: equals
-      value: untrusted
-      source: documents
-      document_match: any   # Stricter
-
-# Permissive: enforce strict only if ALL are confidential
-- name: enforce_all_confidential
-  effect: enforce
-  when:
-    - field: metadata.classification
-      operator: equals
-      value: confidential
-      source: documents
-      document_match: all   # Stricter requires all
-  policy: strict_citations
+  - name: deny_external_with_confidential
+    priority: 90
+    when:
+      all:
+        - field: user_type
+          operator: equals
+          value: external
+          source: user
+        - field: metadata.classification
+          operator: equals
+          value: confidential
+          source: documents
+          document_match: any
 ```
 
 ## Integration with Policies
@@ -1063,39 +1351,59 @@ See [Policies](/concepts/policies) for detailed policy configuration.
 
 ### Pattern: Tier-Based Access
 
-Different policies for different customer tiers:
+Different policies for different customer tiers with access control:
 
 ```yaml
-policy_rules:
-  - name: free_tier_exploratory
-    priority: 100
-    effect: enforce
-    when:
-      - field: org_tier
-        operator: equals
-        value: free
-        source: user
-    policy: exploratory
+orgs:
+  - org_id: multi_tier
+    default_policy: exploratory
 
-  - name: standard_tier_standard
-    priority: 90
-    effect: enforce
-    when:
-      - field: org_tier
-        operator: equals
-        value: standard
-        source: user
-    policy: standard
+    deny_rules:
+      # Free tier: block premium data
+      - name: free_tier_no_premium
+        priority: 100
+        when:
+          all:
+            - field: org_tier
+              operator: equals
+              value: free
+              source: user
+            - field: metadata.tier
+              operator: equals
+              value: premium
+              source: documents
+              document_match: any
 
-  - name: enterprise_tier_strict
-    priority: 80
-    effect: enforce
-    when:
-      - field: org_tier
-        operator: equals
-        value: enterprise
-        source: user
-    policy: strict_citations
+    policy_rules:
+      - name: free_tier_exploratory
+        priority: 100
+        effect: allow
+        when:
+          - field: org_tier
+            operator: equals
+            value: free
+            source: user
+        apply_policy: exploratory
+
+      - name: standard_tier_standard
+        priority: 90
+        effect: allow
+        when:
+          - field: org_tier
+            operator: equals
+            value: standard
+            source: user
+        apply_policy: standard
+
+      - name: enterprise_tier_strict
+        priority: 80
+        effect: allow
+        when:
+          - field: org_tier
+            operator: equals
+            value: enterprise
+            source: user
+        apply_policy: strict_citations
 ```
 
 ### Pattern: Role-Based Access
@@ -1103,75 +1411,115 @@ policy_rules:
 Different access for different roles:
 
 ```yaml
-policy_rules:
-  - name: public_analyst_exploratory
-    priority: 100
-    effect: enforce
-    when:
-      - field: role
-        operator: in
-        value: [analyst, data_scientist, researcher]
-        source: user
-    policy: exploratory
+orgs:
+  - org_id: role_based
+    default_policy: standard
 
-  - name: manager_standard
-    priority: 90
-    effect: enforce
-    when:
-      - field: role
-        operator: equals
-        value: manager
-        source: user
-    policy: standard
+    deny_rules:
+      # Only contractors cannot access confidential
+      - name: deny_contractors_confidential
+        priority: 100
+        when:
+          all:
+            - field: role
+              operator: equals
+              value: contractor
+              source: user
+            - field: metadata.classification
+              operator: equals
+              value: confidential
+              source: documents
+              document_match: any
 
-  - name: executive_strict
-    priority: 80
-    effect: enforce
-    when:
-      - field: role
-        operator: equals
-        value: executive
-        source: user
-    policy: strict_citations
+    policy_rules:
+      - name: analyst_exploratory
+        priority: 100
+        effect: allow
+        when:
+          - field: role
+            operator: in
+            value: [analyst, data_scientist, researcher]
+            source: user
+        apply_policy: exploratory
+
+      - name: manager_standard
+        priority: 90
+        effect: allow
+        when:
+          - field: role
+            operator: equals
+            value: manager
+            source: user
+        apply_policy: standard
+
+      - name: executive_strict
+        priority: 80
+        effect: allow
+        when:
+          - field: role
+            operator: equals
+            value: executive
+            source: user
+        apply_policy: strict_citations
 ```
 
 ### Pattern: Data Sensitivity
 
-Rules based on document classification:
+Rules based on document classification with multi-level access control:
 
 ```yaml
-policy_rules:
-  - name: deny_pii
-    priority: 100
-    effect: deny
-    when:
-      - field: metadata.classification
-        operator: equals
-        value: pii
-        source: documents
-        document_match: any
+orgs:
+  - org_id: sensitivity_based
+    default_policy: exploratory
 
-  - name: strict_for_confidential
-    priority: 90
-    effect: enforce
-    when:
-      - field: metadata.classification
-        operator: equals
-        value: confidential
-        source: documents
-        document_match: any
-    policy: strict_citations
+    deny_rules:
+      # Block all access to PII
+      - name: deny_all_pii
+        priority: 100
+        when:
+          - field: metadata.classification
+            operator: equals
+            value: pii
+            source: documents
+            document_match: any
 
-  - name: standard_for_internal
-    priority: 80
-    effect: enforce
-    when:
-      - field: metadata.classification
-        operator: equals
-        value: internal
-        source: documents
-        document_match: all
-    policy: standard
+      # Block external users from confidential
+      - name: deny_external_confidential
+        priority: 95
+        when:
+          all:
+            - field: user_type
+              operator: equals
+              value: external
+              source: user
+            - field: metadata.classification
+              operator: equals
+              value: confidential
+              source: documents
+              document_match: any
+
+    policy_rules:
+      - name: strict_for_confidential
+        priority: 90
+        effect: allow
+        when:
+          - field: metadata.classification
+            operator: equals
+            value: confidential
+            source: documents
+            document_match: any
+        apply_policy: strict_citations
+
+      - name: standard_for_internal
+        priority: 80
+        effect: allow
+        when:
+          - field: metadata.classification
+            operator: equals
+            value: internal
+            source: documents
+            document_match: all
+        apply_policy: standard
 ```
 
 ## Troubleshooting
