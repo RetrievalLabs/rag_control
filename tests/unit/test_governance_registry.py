@@ -2197,3 +2197,95 @@ def test_governance_registry_edge_cases_with_model_construct() -> None:
     )
     result = GovernanceRegistry._matches_condition_for_document(doc_numeric, doc)
     assert result is False
+
+
+def test_governance_registry_deny_condition_exists_operator_on_user_context() -> None:
+    """Test _matches_deny_condition with OPERATOR_EXISTS on user context field."""
+    user_with_field = UserContext(
+        org_id="test_org",
+        user_id="user123",
+        attributes={"department": "engineering"},
+    )
+    user_without_field = UserContext(
+        org_id="test_org",
+        user_id="user456",
+        attributes={},
+    )
+
+    # Test OPERATOR_EXISTS returns True when field is present in attributes
+    condition_exists = DenyRuleCondition.model_construct(
+        field="department", operator="exists", source="user"
+    )
+    result_found = GovernanceRegistry._matches_deny_condition(
+        condition_exists, user_with_field
+    )
+    assert result_found is True
+
+    # Test OPERATOR_EXISTS returns False when field is missing
+    result_not_found = GovernanceRegistry._matches_deny_condition(
+        condition_exists, user_without_field
+    )
+    assert result_not_found is False
+
+
+def test_governance_registry_document_condition_numeric_operator_on_non_numeric_field() -> None:
+    """Test _matches_condition_for_document with numeric operator on non-numeric field."""
+    # Document with string field instead of numeric
+    doc_with_string_field = VectorStoreRecord(
+        id="d1",
+        content="content",
+        score=0.9,
+        metadata={"version": "v1.2.3"},  # string instead of number
+    )
+
+    # Test numeric operator (gt) on non-numeric field returns False
+    condition_numeric = DenyRuleCondition.model_construct(
+        field="metadata.version", operator="gt", value=1, source="documents"
+    )
+    result = GovernanceRegistry._matches_condition_for_document(
+        condition_numeric, doc_with_string_field
+    )
+    assert result is False
+
+    # Test numeric operator (lte) on non-numeric field returns False
+    condition_lte = DenyRuleCondition.model_construct(
+        field="metadata.version", operator="lte", value=2.0, source="documents"
+    )
+    result_lte = GovernanceRegistry._matches_condition_for_document(
+        condition_lte, doc_with_string_field
+    )
+    assert result_lte is False
+
+
+def test_governance_registry_string_intersects_operator() -> None:
+    """Test OPERATOR_INTERSECTS with string values in both deny conditions and document conditions."""
+    # Test string INTERSECTS in _matches_deny_condition (user context)
+    user_with_tags = UserContext(
+        org_id="test_org",
+        user_id="user123",
+        attributes={"tags": "python,golang,rust"},
+    )
+
+    condition_string_intersects = DenyRuleCondition.model_construct(
+        field="tags", operator="intersects", value="python", source="user"
+    )
+    result = GovernanceRegistry._matches_deny_condition(
+        condition_string_intersects, user_with_tags
+    )
+    assert result is True
+
+    # Test string INTERSECTS in _matches_condition_for_document
+    doc_with_tags = VectorStoreRecord(
+        id="d1",
+        content="content",
+        score=0.9,
+        metadata={"tags": "security,privacy,compliance"},
+    )
+
+    condition_doc_string_intersects = DenyRuleCondition.model_construct(
+        field="metadata.tags", operator="intersects", value="security", source="documents"
+    )
+    result_doc = GovernanceRegistry._matches_condition_for_document(
+        condition_doc_string_intersects, doc_with_tags
+    )
+    assert result_doc is True

@@ -294,7 +294,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
             ),
             user_context,
         )
-        is True
+        is False  # Unknown operators that aren't explicitly handled should return False
     )
 
     assert (
@@ -421,7 +421,7 @@ def test_governance_registry_uncovered_condition_branches(monkeypatch: Any) -> N
             ),
             doc,
         )
-        is True
+        is False  # Unknown operators that aren't explicitly handled should return False
     )
 
 

@@ -277,7 +277,6 @@ class GovernanceRegistry:
                 return actual_value > expected_value
             if operator == OPERATOR_GTE:
                 return actual_value >= expected_value
-            return actual_value >= expected_value
 
         if operator == OPERATOR_INTERSECTS:
             if isinstance(actual_value, (list, set, tuple)):
@@ -355,7 +354,6 @@ class GovernanceRegistry:
                 return actual_value > expected_value
             if operator == OPERATOR_GTE:
                 return actual_value >= expected_value
-            return actual_value >= expected_value
 
         if operator == OPERATOR_INTERSECTS:
             if isinstance(actual_value, (list, set, tuple)):
