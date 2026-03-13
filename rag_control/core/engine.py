@@ -217,8 +217,8 @@ class RAGControl:
                 success_fields=lambda resolved_policy: {
                     "policy_name": resolved_policy.name,
                 },
-                metrics_labels={"mode": mode, "stage": "policy_lookup", "policy_name": policy_name or ""},
-                policy_name=policy_name,
+                metrics_labels={"mode": mode, "stage": "policy_lookup", "org_id": org_id or ""},
+                org_id=org_id,
             )
                 
             retrieval_filter = (
@@ -262,7 +262,7 @@ class RAGControl:
                 engine._trace_stage_span_name(mode, "retrieval"),
                 lambda: engine.vector_store.search(
                     query_embedding_res.embedding,
-                    top_k=org.document_policy.top_k,
+                    top_k=policy.document_policy.top_k,
                     user_context=user_context,
                     filter=retrieval_filter,
                 ),
