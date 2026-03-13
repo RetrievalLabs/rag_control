@@ -83,6 +83,20 @@ def test_control_plane_config_validate_reference_error_branches(
             ),
             "apply_policy 'missing' does not exist",
         ),
+        (
+            "allow_rule_without_apply_policy",
+            lambda payload: payload["orgs"][0]["policy_rules"][0].update(
+                {"apply_policy": None}
+            ),
+            "effect='allow' must specify apply_policy",
+        ),
+        (
+            "document_policy_filter_name_missing",
+            lambda payload: payload["policies"][0]["document_policy"].update(
+                {"filter_name": "missing_filter"}
+            ),
+            "document_policy.filter_name 'missing_filter' does not exist",
+        ),
     ]
 
     for _, mutate_payload, expected_error in cases:
