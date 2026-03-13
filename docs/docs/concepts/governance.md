@@ -36,9 +36,6 @@ orgs:
   - org_id: acme_corp
     description: Acme Corporation - Enterprise Customer
     default_policy: standard
-    document_policy:
-      top_k: 10
-      filter_name: internal_only
     deny_rules:
       # Access control rules (evaluated first)
     policy_rules:
@@ -143,7 +140,6 @@ Multiple conditions can be combined with `all` (AND) or `any` (OR) logic.
 | `org_id` | string | Yes | Unique organization identifier (e.g., `acme_corp`, `startup_xyz`) |
 | `description` | string | No | Human-readable description for documentation |
 | `default_policy` | string | Yes | Policy used if no deny/policy rule matches |
-| `document_policy` | object | Yes | Document retrieval settings (top_k, filter_name) |
 | `deny_rules` | array | No | Access control rules evaluated first (can be empty) |
 | `policy_rules` | array | Yes | Policy selection rules (can be empty) |
 
@@ -154,9 +150,6 @@ orgs:
   - org_id: enterprise_acme
     description: Acme Corp Enterprise - Premium tier with strict compliance
     default_policy: standard
-    document_policy:
-      top_k: 10
-      filter_name: internal_only
 
     # Access control rules (evaluated first)
     deny_rules:
@@ -401,9 +394,6 @@ An enterprise customer needs different policies based on user role, with access 
 - org_id: enterprise_acme
   description: Acme Corp - Enterprise with role-based policies
   default_policy: standard
-  document_policy:
-    top_k: 20
-    filter_name: verified_sources
 
   # Block untrusted sources for all users
   deny_rules:
