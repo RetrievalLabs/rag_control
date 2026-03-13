@@ -15,7 +15,6 @@ from rag_control.models.config import ControlPlaneConfig
 from rag_control.models.filter import FilterCondition
 from rag_control.models.filter import Filter
 from rag_control.models.org import OrgConfig
-from rag_control.models.document import DocumentPolicy
 from rag_control.models.policy import (
     EnforcementPolicy,
     GenerationPolicy,
