@@ -89,6 +89,10 @@ class ControlPlaneConfig(BaseModel):
 
             for rule in org.policy_rules:
                 self._validate_rule_conditions(org.org_id, rule.name, rule.when, is_deny_rule=False)
+                if rule.effect == "allow" and rule.apply_policy is None:
+                    raise ControlPlaneConfigValidationError(
+                        f"org '{org.org_id}' rule '{rule.name}' with effect='allow' must specify apply_policy"
+                    )
                 if rule.apply_policy is not None and rule.apply_policy not in policy_name_set:
                     raise ControlPlaneConfigValidationError(
                         f"org '{org.org_id}' rule '{rule.name}' apply_policy "

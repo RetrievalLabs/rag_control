@@ -175,6 +175,7 @@ def _build_governance_config() -> ControlPlaneConfig:
                         name="allow_eu_default",
                         priority=60,
                         effect="allow",
+                        apply_policy="default_policy",
                         when=PolicyRuleLogicalCondition(
                             any=[
                                 PolicyRuleCondition(
