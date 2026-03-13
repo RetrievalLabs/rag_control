@@ -2060,3 +2060,157 @@ def test_governance_registry_document_condition_with_empty_source_documents() ->
     registry.resolve_deny(user, source_documents=None)
 
 
+def test_governance_registry_unknown_numeric_operator_fallback(monkeypatch: Any) -> None:
+    """Test fallback behavior when numeric operator isn't explicitly handled."""
+    from rag_control.models import policy_rule, deny_rule
+
+    user = UserContext(user_id="u-1", org_id="test_org", attributes={"score": 85})
+    doc = VectorStoreRecord(id="d1", content="c", score=0.9, metadata={})
+
+    # Test policy condition with unknown numeric operator
+    monkeypatch.setattr(
+        policy_rule,
+        "POLICY_RULE_NUMERIC_OPERATORS",
+        ("lt", "lte", "gt", "gte", "unknown_numeric")
+    )
+    condition = PolicyRuleCondition.model_construct(
+        field="score", operator="unknown_numeric", value=85
+    )
+    result = GovernanceRegistry._matches_policy_condition(condition, user)
+    assert result is False  # Should return False for unknown operator
+
+    # Test deny condition with unknown numeric operator
+    monkeypatch.setattr(
+        deny_rule,
+        "DENY_RULE_NUMERIC_OPERATORS",
+        ("lt", "lte", "gt", "gte", "mystery_op")
+    )
+    deny_condition = DenyRuleCondition.model_construct(
+        field="score", operator="mystery_op", value=85, source="user"
+    )
+    result = GovernanceRegistry._matches_deny_condition(deny_condition, user)
+    assert result is False
+
+    # Test document condition with unknown operator
+    doc_condition = DenyRuleCondition.model_construct(
+        field="score", operator="unknown_op", value=0.5, source="documents"
+    )
+    result = GovernanceRegistry._matches_condition_for_document(doc_condition, doc)
+    assert result is False
+
+
+def test_governance_registry_intersects_operator_with_wrong_types() -> None:
+    """Test intersects operator when actual_value is not list/string."""
+    user = UserContext(user_id="u-1", org_id="test_org", attributes={"tags": 123})  # int instead of list/string
+
+    # Policy condition with intersects on non-list/string value
+    condition = PolicyRuleCondition.model_construct(
+        field="tags", operator="intersects", value="tag"
+    )
+    result = GovernanceRegistry._matches_policy_condition(condition, user)
+    assert result is False
+
+    # Deny condition with intersects on non-list/string value
+    deny_condition = DenyRuleCondition.model_construct(
+        field="tags", operator="intersects", value="tag", source="user"
+    )
+    result = GovernanceRegistry._matches_deny_condition(deny_condition, user)
+    assert result is False
+
+    # Document condition with intersects on non-list/string metadata value
+    doc = VectorStoreRecord(
+        id="d1", content="c", score=0.9, metadata={"tags": 123}  # int instead of list/string
+    )
+    doc_condition = DenyRuleCondition.model_construct(
+        field="metadata.tags", operator="intersects", value="tag", source="documents"
+    )
+    result = GovernanceRegistry._matches_condition_for_document(doc_condition, doc)
+    assert result is False
+
+
+def test_governance_registry_intersects_with_list_value_not_found() -> None:
+    """Test intersects operator when value is not in the list."""
+    # Policy condition with intersects on list where value not found
+    condition = PolicyRuleCondition.model_construct(
+        field="tags", operator="intersects", value="missing_tag"
+    )
+    user = UserContext(user_id="u-1", org_id="test_org", attributes={"tags": ["tag1", "tag2"]})
+    result = GovernanceRegistry._matches_policy_condition(condition, user)
+    assert result is False  # "missing_tag" not in ["tag1", "tag2"]
+
+    # Deny condition with intersects on list where value not found
+    deny_condition = DenyRuleCondition.model_construct(
+        field="tags", operator="intersects", value="missing_tag", source="user"
+    )
+    result = GovernanceRegistry._matches_deny_condition(deny_condition, user)
+    assert result is False
+
+    # Document condition with intersects on list where value not found
+    doc = VectorStoreRecord(
+        id="d1", content="c", score=0.9, metadata={"tags": ["doc1", "doc2"]}
+    )
+    doc_condition = DenyRuleCondition.model_construct(
+        field="metadata.tags", operator="intersects", value="doc3", source="documents"
+    )
+    result = GovernanceRegistry._matches_condition_for_document(doc_condition, doc)
+    assert result is False
+
+
+def test_governance_registry_edge_cases_with_model_construct() -> None:
+    """Test edge cases using model_construct to bypass validation constraints."""
+    user = UserContext(user_id="u-1", org_id="test_org", attributes={"score": 85})
+
+    # Test _matches_policy_logical_condition with both all and any None (defensive code path)
+    logical_condition = PolicyRuleLogicalCondition.model_construct(all=None, any=None)
+    result = GovernanceRegistry._matches_policy_logical_condition(logical_condition, user)
+    assert result is False
+
+    # Test _matches_policy_condition with expected_value=None and equals operator
+    condition = PolicyRuleCondition.model_construct(
+        field="score", operator="equals", value=None
+    )
+    result = GovernanceRegistry._matches_policy_condition(condition, user)
+    assert result is False
+
+    # Test _matches_policy_condition with None expected value and numeric operator
+    condition_numeric = PolicyRuleCondition.model_construct(
+        field="score", operator="gt", value=None
+    )
+    result = GovernanceRegistry._matches_policy_condition(condition_numeric, user)
+    assert result is False
+
+    # Test _matches_deny_logical_condition with both all and any None
+    deny_logical = DenyRuleLogicalCondition.model_construct(all=None, any=None)
+    result = GovernanceRegistry._matches_deny_logical_condition(deny_logical, user)
+    assert result is False
+
+    # Test _matches_deny_condition with expected_value=None
+    deny_condition = DenyRuleCondition.model_construct(
+        field="score", operator="equals", value=None, source="user"
+    )
+    result = GovernanceRegistry._matches_deny_condition(deny_condition, user)
+    assert result is False
+
+    # Test _matches_deny_condition with None expected value and numeric operator
+    deny_numeric = DenyRuleCondition.model_construct(
+        field="score", operator="gt", value=None, source="user"
+    )
+    result = GovernanceRegistry._matches_deny_condition(deny_numeric, user)
+    assert result is False
+
+    # Test _matches_condition_for_document with expected_value=None
+    doc = VectorStoreRecord(id="d1", content="c", score=0.9, metadata={})
+    doc_condition = DenyRuleCondition.model_construct(
+        field="score", operator="equals", value=None, source="documents"
+    )
+    result = GovernanceRegistry._matches_condition_for_document(doc_condition, doc)
+    assert result is False
+
+    # Test _matches_condition_for_document with None value and numeric operator
+    doc_numeric = DenyRuleCondition.model_construct(
+        field="score", operator="gt", value=None, source="documents"
+    )
+    result = GovernanceRegistry._matches_condition_for_document(doc_numeric, doc)
+    assert result is False
+
+
