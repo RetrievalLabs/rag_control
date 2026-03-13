@@ -204,7 +204,6 @@ class RAGControl:
             def _resolve_policy() -> Policy:
                 policy_name = engine.governance_registry.resolve_policy(
                     user_context=user_context,
-                    source_documents=[],
                     audit_context=audit_context,
                 )
                 policy = engine.policy_registry.get(policy_name)
@@ -212,14 +211,17 @@ class RAGControl:
             
             policy = engine._run_stage(
                 trace_span,
-                engine._trace_stage_span_name(mode, "policy_lookup"),
+                engine._trace_stage_span_name(mode, "policy.resolve"),
                 _resolve_policy,
                 success_fields=lambda resolved_policy: {
                     "policy_name": resolved_policy.name,
                 },
-                metrics_labels={"mode": mode, "stage": "policy_lookup", "org_id": org_id or ""},
+                metrics_labels={"mode": mode, "stage": "policy.resolve", "org_id": org_id or ""},
                 org_id=org_id,
             )
+
+            policy_name = policy.name
+            audit_context.log_event("policy.resolved", policy_name=policy_name, org_id=org_id, top_k=policy.document_policy.top_k, filter_name=policy.document_policy.filter_name)
                 
             retrieval_filter = (
                 engine.filter_registry.get(policy.document_policy.filter_name)
@@ -276,31 +278,11 @@ class RAGControl:
             docs = retrieve_res.records
             retrieved_doc_ids = [doc.id for doc in docs]
 
-            def _resolve_policy() -> tuple[str, Any]:
-                policy_name = engine.governance_registry.resolve_policy(
-                    user_context=user_context,
-                    source_documents=docs,
-                    audit_context=audit_context,
-                )
-                policy = engine.policy_registry.get(policy_name)
-                if policy is not None:
-                    audit_context.logging_level = policy.logging.level
-                return policy_name, policy
-
-            policy_name, policy = engine._run_stage(
-                trace_span,
-                engine._trace_stage_span_name(mode, "policy.resolve"),
-                _resolve_policy,
-                success_fields=lambda policy_res: {"policy_name": policy_res[0]},
-                metrics_labels={"mode": mode, "stage": "policy.resolve", "org_id": org_id or ""},
-            )
-
             audit_context.log_event(
                 "retrieval.completed",
                 retrieved_count=len(docs),
                 retrieved_doc_ids=retrieved_doc_ids,
             )
-            audit_context.log_event("policy.resolved", policy_name=policy_name)
 
             messages = engine._run_stage(
                 trace_span,
