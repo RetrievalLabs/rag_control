@@ -10,17 +10,6 @@ description: How to install and set up rag_control
 - **Python**: 3.10+
 - **Package Manager**: pip, poetry or uv
 
-## Core Dependencies
-
-rag_control comes with the following packages:
-
-```
-pydantic>=2.0         # Data validation
-pyyaml>=6.0           # Configuration parsing
-structlog>=23.0       # Structured logging
-opentelemetry-api>=1.15        # Distributed tracing (optional)
-opentelemetry-sdk>=1.15        # Distributed tracing (optional)
-```
 
 ## Install from PyPI
 
