@@ -6,16 +6,21 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 import pytest
 
 from rag_control.models.config import ControlPlaneConfig
-from rag_control.models.filter import Condition as FilterCondition
-from rag_control.models.filter import Filter
-from rag_control.models.org import DocumentPolicy, OrgConfig
+from rag_control.models.deny_rule import DenyRule, DenyRuleCondition, DenyRuleLogicalCondition
+from rag_control.models.document import DocumentPolicy
+from rag_control.models.filter import Filter, FilterCondition
+from rag_control.models.org import OrgConfig
 from rag_control.models.policy import (
     EnforcementPolicy,
     GenerationPolicy,
     LoggingPolicy,
     Policy,
 )
-from rag_control.models.rule import Condition, LogicalCondition, PolicyRule
+from rag_control.models.policy_rule import (
+    PolicyRule,
+    PolicyRuleCondition,
+    PolicyRuleLogicalCondition,
+)
 
 
 @pytest.fixture
@@ -28,6 +33,7 @@ def fake_config() -> ControlPlaneConfig:
                 generation=GenerationPolicy(),
                 logging=LoggingPolicy(),
                 enforcement=EnforcementPolicy(),
+                document_policy=DocumentPolicy(filter_name="default_filter", top_k=5),
             )
         ],
         filters=[
@@ -49,24 +55,39 @@ def fake_config() -> ControlPlaneConfig:
                 default_policy="default_policy",
                 policy_rules=[
                     PolicyRule(
-                        name="allow_enterprise",
-                        description="Allow enterprise traffic.",
+                        name="apply_default",
+                        description="Apply default policy.",
                         priority=1,
-                        effect="allow",
                         apply_policy="default_policy",
-                        when=LogicalCondition(
+                        when=PolicyRuleLogicalCondition(
                             all=[
-                                Condition(
+                                PolicyRuleCondition(
                                     field="org_tier",
                                     operator="equals",
                                     value="enterprise",
+                                )
+                            ]
+                        ),
+                    )
+                ],
+                deny_rules=[
+                    DenyRule(
+                        name="deny_free_tier",
+                        description="Deny free tier users.",
+                        priority=1,
+                        effect="deny",
+                        when=DenyRuleLogicalCondition(
+                            all=[
+                                DenyRuleCondition(
+                                    field="org_tier",
+                                    operator="equals",
+                                    value="free",
                                     source="user",
                                 )
                             ]
                         ),
                     )
                 ],
-                document_policy=DocumentPolicy(filter_name="default_filter"),
             )
         ],
     )

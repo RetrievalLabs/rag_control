@@ -33,6 +33,9 @@ policies:
       prevent_external_knowledge: true
     logging:
       level: full
+    document_policy:
+      top_k: 5
+      filter_name: enterprise_only
 
   - name: soft_research
     description: Relaxed policy for exploratory research
@@ -48,6 +51,8 @@ policies:
       prevent_external_knowledge: true
     logging:
       level: full
+    document_policy:
+      top_k: 10
 
 filters:
   - name: enterprise_only
@@ -61,8 +66,33 @@ orgs:
   - org_id: default
     description: Default organization
     default_policy: soft_research
-    document_policy:
-      top_k: 5
+
+    # Policy rules determine which policy to apply
+    policy_rules:
+      - name: allow_enterprise_strict
+        description: Enterprise users get strict policy
+        priority: 50
+        effect: allow
+        apply_policy: strict_citations
+        when:
+          all:
+            - field: org_tier
+              operator: equals
+              value: enterprise
+              source: user
+
+    # Deny rules enforce access control
+    deny_rules:
+      - name: deny_untrusted_sources
+        description: Block requests with untrusted document sources
+        priority: 60
+        when:
+          any:
+            - field: metadata.source
+              operator: equals
+              value: public-web
+              source: documents
+              document_match: any
 ```
 
 > **Learn more:** See the [Configuration Guide](/getting-started/configuration) for detailed policy options, filters, and multi-org setups.

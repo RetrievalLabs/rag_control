@@ -80,42 +80,6 @@ def test_condition_validate_value_for_operator_with_multiple_conditions() -> Non
             "should_pass": True,
             "expected_error": None,
         },
-        {
-            "name": "documents_any_is_valid",
-            "payload": {
-                "field": "metadata.source",
-                "operator": "equals",
-                "value": "policy-kb",
-                "source": "documents",
-                "document_match": "any",
-            },
-            "should_pass": True,
-            "expected_error": None,
-        },
-        {
-            "name": "documents_all_is_valid",
-            "payload": {
-                "field": "metadata.source",
-                "operator": "equals",
-                "value": "policy-kb",
-                "source": "documents",
-                "document_match": "all",
-            },
-            "should_pass": True,
-            "expected_error": None,
-        },
-        {
-            "name": "document_match_with_user_source_is_invalid",
-            "payload": {
-                "field": "role",
-                "operator": "equals",
-                "value": "analyst",
-                "source": "user",
-                "document_match": "all",
-            },
-            "should_pass": False,
-            "expected_error": "document_match is only supported when source is 'documents'",
-        },
     ]
 
     def _build_config_payload(condition_payload: dict[str, object]) -> dict[str, object]:
@@ -142,6 +106,7 @@ def test_condition_validate_value_for_operator_with_multiple_conditions() -> Non
                             "when": {"all": [condition_payload]},
                         }
                     ],
+                    "deny_rules": [],
                 }
             ],
         }

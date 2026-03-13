@@ -13,8 +13,7 @@ from pydantic import ValidationError
 
 from rag_control.exceptions import ControlPlaneConfigValidationError
 from rag_control.models.config import ControlPlaneConfig
-from rag_control.models.filter import Condition as FilterCondition
-from rag_control.models.filter import Filter
+from rag_control.models.filter import Filter, FilterCondition
 
 
 def test_control_plane_config_validate_reference_error_branches(
@@ -41,13 +40,6 @@ def test_control_plane_config_validate_reference_error_branches(
             "org_default_policy_missing",
             lambda payload: payload["orgs"][0].update({"default_policy": "missing"}),
             "default_policy 'missing' does not exist",
-        ),
-        (
-            "org_filter_name_missing",
-            lambda payload: payload["orgs"][0]["document_policy"].update(
-                {"filter_name": "missing"}
-            ),
-            "document_policy.filter_name 'missing' does not exist",
         ),
         (
             "duplicate_rule_names",
@@ -90,6 +82,18 @@ def test_control_plane_config_validate_reference_error_branches(
             ),
             "apply_policy 'missing' does not exist",
         ),
+        (
+            "allow_rule_without_apply_policy",
+            lambda payload: payload["orgs"][0]["policy_rules"][0].update({"apply_policy": None}),
+            "effect='allow' must specify apply_policy",
+        ),
+        (
+            "document_policy_filter_name_missing",
+            lambda payload: payload["policies"][0]["document_policy"].update(
+                {"filter_name": "missing_filter"}
+            ),
+            "document_policy.filter_name 'missing_filter' does not exist",
+        ),
     ]
 
     for _, mutate_payload, expected_error in cases:
@@ -100,7 +104,9 @@ def test_control_plane_config_validate_reference_error_branches(
         payload["orgs"][0]["policy_rules"] = [
             rule.copy() for rule in base["orgs"][0]["policy_rules"]
         ]
-        payload["orgs"][0]["document_policy"] = base["orgs"][0]["document_policy"].copy()
+        payload["orgs"][0]["deny_rules"] = [
+            rule.copy() for rule in base["orgs"][0].get("deny_rules", [])
+        ]
         mutate_payload(payload)
         with pytest.raises(ValidationError, match=expected_error):
             ControlPlaneConfig.model_validate(payload)
@@ -194,3 +200,142 @@ def test_validate_filter_branches_and_filter_condition_branches() -> None:
             "root",
             FilterCondition(field="x", operator="intersects", value=None, source="user"),
         )
+
+
+def test_temperature_validation(fake_config: ControlPlaneConfig) -> None:
+    """Test temperature validation bounds."""
+    from pydantic import ValidationError
+
+    config_dict = fake_config.model_dump()
+
+    # Test temperature too high
+    config_dict["policies"][0]["generation"]["temperature"] = 2.5
+    with pytest.raises(ValidationError, match="generation.temperature must be between 0.0 and 2.0"):
+        ControlPlaneConfig.model_validate(config_dict)
+
+    # Test temperature too low
+    config_dict = fake_config.model_dump()
+    config_dict["policies"][0]["generation"]["temperature"] = -0.1
+    with pytest.raises(ValidationError, match="generation.temperature must be between 0.0 and 2.0"):
+        ControlPlaneConfig.model_validate(config_dict)
+
+
+def test_deny_rule_condition_with_document_match_and_wrong_source() -> None:
+    """Test deny rule with document_match but source != documents."""
+    from pydantic import ValidationError
+
+    config_dict = {
+        "policies": [
+            {
+                "name": "default_policy",
+                "generation": {},
+                "logging": {},
+                "enforcement": {},
+            }
+        ],
+        "filters": [],
+        "orgs": [
+            {
+                "org_id": "test_org",
+                "default_policy": "default_policy",
+                "policy_rules": [],
+                "deny_rules": [
+                    {
+                        "name": "invalid_doc_match",
+                        "priority": 100,
+                        "when": {
+                            "any": [
+                                {
+                                    "field": "x",
+                                    "operator": "equals",
+                                    "value": "y",
+                                    "source": "user",  # user source, not documents
+                                    "document_match": "any",  # Invalid with user source
+                                }
+                            ]
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+
+    with pytest.raises(
+        ValidationError, match="document_match is only supported when source is 'documents'"
+    ):
+        ControlPlaneConfig.model_validate(config_dict)
+
+
+def test_deny_rule_numeric_operator_validation() -> None:
+    """Test deny rule numeric operator requires numeric value."""
+    from pydantic import ValidationError
+
+    config_dict = {
+        "policies": [
+            {
+                "name": "default_policy",
+                "generation": {},
+                "logging": {},
+                "enforcement": {},
+            }
+        ],
+        "filters": [],
+        "orgs": [
+            {
+                "org_id": "test_org",
+                "default_policy": "default_policy",
+                "policy_rules": [],
+                "deny_rules": [
+                    {
+                        "name": "invalid_numeric",
+                        "priority": 100,
+                        "when": {
+                            "any": [
+                                {
+                                    "field": "score",
+                                    "operator": "gt",
+                                    "value": "not_a_number",  # Invalid: string for numeric operator
+                                    "source": "user",
+                                }
+                            ]
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+
+    with pytest.raises(
+        ValidationError, match="value must be an int or float for numeric operators"
+    ):
+        ControlPlaneConfig.model_validate(config_dict)
+
+
+def test_deny_rule_validation(fake_config: ControlPlaneConfig) -> None:
+    """Test deny rule validations."""
+    from pydantic import ValidationError
+
+    config_dict = fake_config.model_dump()
+
+    # Test duplicate deny rule names
+    config_dict["orgs"][0]["deny_rules"].append(config_dict["orgs"][0]["deny_rules"][0].copy())
+    with pytest.raises(ValidationError, match="deny_rules must have unique names"):
+        ControlPlaneConfig.model_validate(config_dict)
+
+    # Test deny rule priority zero
+    config_dict = fake_config.model_dump()
+    config_dict["orgs"][0]["deny_rules"][0]["priority"] = 0
+    with pytest.raises(ValidationError, match="deny_rules priorities must be greater than 0"):
+        ControlPlaneConfig.model_validate(config_dict)
+
+    # Test duplicate deny rule priorities
+    config_dict = fake_config.model_dump()
+    config_dict["orgs"][0]["deny_rules"].append(
+        {
+            "name": "deny_duplicate",
+            "priority": config_dict["orgs"][0]["deny_rules"][0]["priority"],
+            "when": {"any": [{"field": "x", "operator": "equals", "value": "y", "source": "user"}]},
+        }
+    )
+    with pytest.raises(ValidationError, match="deny_rules priorities must be unique"):
+        ControlPlaneConfig.model_validate(config_dict)

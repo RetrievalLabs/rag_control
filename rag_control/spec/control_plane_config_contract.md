@@ -6,12 +6,14 @@ Applies To:
 - `rag_control.models.config.ControlPlaneConfig`
 - `rag_control.models.org.OrgConfig`
 - `rag_control.models.policy.Policy`
-- `rag_control.models.rule.PolicyRule`
+- `rag_control.models.policy_rule.PolicyRule`
+- `rag_control.models.deny_rule.DenyRule`
 - `rag_control.models.filter.Filter`
 
 Purpose
 - Define the required schema and validation behavior for control-plane configuration.
 - Ensure policy/filter/rule references are consistent and resolvable at runtime.
+- See `governance_contract.md` for deny-rule evaluation semantics and examples.
 
 Normative Terms
 - MUST: required.
@@ -34,6 +36,9 @@ Top-Level Model: `ControlPlaneConfig`
     - `policy_rules[*].priority` MUST be unique.
     - `policy_rules[*].priority` MUST be greater than `0`.
     - If present, `policy_rules[*].apply_policy` MUST reference an existing `policies[*].name`.
+    - `deny_rules[*].name` MUST be unique.
+    - `deny_rules[*].priority` MUST be unique.
+    - `deny_rules[*].priority` MUST be greater than `0`.
 - Errors:
   - Violations MUST raise `ControlPlaneConfigValidationError`.
 
@@ -43,7 +48,9 @@ Org Model: `OrgConfig`
   - `description: str | None` (optional)
   - `default_policy: str` (required)
   - `policy_rules: list[PolicyRule]` (required)
+  - `deny_rules: list[DenyRule]` (optional, default `[]`)
   - `document_policy: DocumentPolicy` (optional; default values apply)
+- Note: For deny-rule evaluation semantics, see `governance_contract.md`.
 
 Document Policy: `DocumentPolicy`
 - `top_k: int` (default `5`, MUST be `> 0`)
@@ -143,7 +150,11 @@ Reference Files
   - `rag_control/models/config.py`
   - `rag_control/models/org.py`
   - `rag_control/models/policy.py`
-  - `rag_control/models/rule.py`
+  - `rag_control/models/policy_rule.py`
+  - `rag_control/models/deny_rule.py`
   - `rag_control/models/filter.py`
+- Governance:
+  - `rag_control/governance/gov.py`
+  - `rag_control/spec/governance_contract.md`
 - Loader:
   - `rag_control/core/config_loader.py`

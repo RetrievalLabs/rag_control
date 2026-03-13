@@ -5,7 +5,7 @@ description: Runtime Governance, Security, and Execution Control for RAG Systems
 ---
 
 :::info Version
-You are viewing **v0.1.3** documentation. This is the current stable release.
+You are viewing **v0.2.0** documentation. This is the current stable release.
 :::
 
 # Welcome to RAG Control 

@@ -193,6 +193,105 @@ Enforce maximum response length in tokens:
   - Best for: Detailed analysis, research reports
   - Higher cost but more complete answers
 
+## Document Policy
+
+Document policy controls how documents are retrieved during request processing. It is configured at the **organization level** and determines the behavior of document retrieval before policy enforcement.
+
+### Document Policy Fields
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `top_k` | integer | `5` | Number of documents to retrieve. Must be > 0 |
+| `filter_name` | string or null | `null` | Optional filter to apply to document retrieval |
+
+### top_k: Number of Documents
+
+Controls how many documents are retrieved from the vector store:
+
+- **`5` (Default)**: Balanced retrieval
+  - Best for: Most use cases, balanced cost and quality
+  - Good context coverage without excessive token usage
+
+- **`3-4`**: Minimal retrieval
+  - Best for: Cost optimization, focused queries
+  - Faster, lower cost, but limited context
+  - Risk: May miss relevant information
+
+- **`10+`**: Extensive retrieval
+  - Best for: Complex queries, comprehensive research
+  - More comprehensive coverage
+  - Higher cost and latency
+
+### filter_name: Document Filtering
+
+Optional filter to apply during document retrieval:
+
+- **`null` (Default)**: No filtering
+  - Retrieves all matching documents
+  - Best for: Open-ended retrieval, exploratory use
+
+- **`"filter_name"`**: Apply named filter
+  - Restricts retrieval to documents matching filter conditions
+  - Best for: Organization-specific document sets
+  - Must reference a filter defined in the configuration
+  - Examples: `internal_only`, `verified_sources`, `compliance_approved`
+
+### Document Policy Example
+
+```yaml
+# At organization level
+orgs:
+  - org_id: acme_corp
+    default_policy: standard
+
+    # Document retrieval settings
+    document_policy:
+      top_k: 8                    # Retrieve 8 documents
+      filter_name: enterprise_only  # Apply enterprise_only filter
+```
+
+### How Document Policy Works with Policies
+
+Document policy and response policies work together in sequence:
+
+```
+1. Document Policy: Control document retrieval
+   ↓ Retrieve top_k documents, optionally filtered
+   ↓
+2. Governance Rules: Apply deny/policy rules
+   ↓ Check deny rules against documents
+   ↓ Select policy based on policy rules
+   ↓
+3. Response Policy: Enforce constraints on response
+   ↓ Apply generation parameters
+   ↓ Validate response with enforcement checks
+   ↓
+4. Return response to user
+```
+
+### Common Patterns
+
+**Strict Document Retrieval** - For regulated environments:
+```yaml
+document_policy:
+  top_k: 5                    # Conservative retrieval
+  filter_name: verified_only  # Only verified documents
+```
+
+**Exploratory Document Retrieval** - For research:
+```yaml
+document_policy:
+  top_k: 15                   # Extensive retrieval
+  filter_name: null           # No restrictions
+```
+
+**Cost-Optimized Retrieval** - For high-volume queries:
+```yaml
+document_policy:
+  top_k: 3                    # Minimal retrieval
+  filter_name: null           # Efficient filtering
+```
+
 ## Policy Patterns & Examples
 
 Different policies serve different business needs. Choose based on your use case:

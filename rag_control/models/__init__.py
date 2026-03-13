@@ -6,8 +6,9 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from rag_control.adapters.llm import ChatMessage, PromptInput
 
 from .config import ControlPlaneConfig
-from .filter import Condition as FilterCondition
-from .filter import Filter
+from .deny_rule import DenyRule, DenyRuleCondition, DenyRuleLogicalCondition
+from .document import DocumentPolicy
+from .filter import Filter, FilterCondition
 from .llm import (
     LLMMetadata,
     LLMResponse,
@@ -15,11 +16,10 @@ from .llm import (
     LLMStreamResponse,
     LLMUsage,
 )
-from .org import DocumentPolicy, OrgConfig
+from .org import OrgConfig
 from .policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
+from .policy_rule import PolicyRule
 from .query_embedding import QueryEmbeddingMetadata, QueryEmbeddingResponse
-from .rule import Condition as RuleCondition
-from .rule import LogicalCondition, PolicyRule
 from .run import RunResponse, StreamResponse
 from .user_context import UserContext
 from .vector_store import (
@@ -45,8 +45,9 @@ __all__ = [
     "Filter",
     "FilterCondition",
     "PolicyRule",
-    "LogicalCondition",
-    "RuleCondition",
+    "DenyRule",
+    "DenyRuleLogicalCondition",
+    "DenyRuleCondition",
     "PromptInput",
     "RunResponse",
     "StreamResponse",

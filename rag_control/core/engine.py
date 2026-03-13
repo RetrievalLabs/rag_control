@@ -24,6 +24,8 @@ from rag_control.exceptions import (
 from rag_control.filter.filter import FilterRegistry
 from rag_control.governance.gov import GovernanceRegistry
 from rag_control.models.config import ControlPlaneConfig
+from rag_control.models.org import OrgConfig
+from rag_control.models.policy import Policy
 from rag_control.models.run import RunResponse, StreamResponse
 from rag_control.models.user_context import UserContext
 from rag_control.observability import (
@@ -145,7 +147,7 @@ class RAGControl:
             trace_span.event("transition.request.received")
             trace_span.event("transition.org_lookup.started")
 
-            def _resolve_org() -> Any:
+            def _resolve_org() -> OrgConfig:
                 if org_id is None:
                     error = GovernanceUserContextOrgIDRequiredError()
                     audit_context.log_event(
@@ -183,8 +185,7 @@ class RAGControl:
                 engine._trace_stage_span_name(mode, "org_lookup"),
                 _resolve_org,
                 success_fields=lambda resolved_org: {
-                    "filter_name": resolved_org.document_policy.filter_name,
-                    "retrieval_top_k": resolved_org.document_policy.top_k,
+                    "org_id": resolved_org.org_id,
                 },
                 metrics_labels={"mode": mode, "stage": "org_lookup", "org_id": org_id or ""},
                 org_id=org_id,
@@ -192,18 +193,45 @@ class RAGControl:
 
             audit_context.log_event(
                 "org.resolved",
-                filter_name=org.document_policy.filter_name,
-                retrieval_top_k=org.document_policy.top_k,
             )
+
             trace_span.event(
                 "transition.org_lookup.completed",
-                filter_name=org.document_policy.filter_name,
-                retrieval_top_k=org.document_policy.top_k,
+                org_id=org.org_id,
+            )
+
+            def _resolve_policy() -> Policy:
+                policy_name = engine.governance_registry.resolve_policy(
+                    user_context=user_context,
+                    audit_context=audit_context,
+                )
+                policy = engine.policy_registry.get(policy_name)
+                assert policy is not None, f"Policy '{policy_name}' not found"
+                audit_context.logging_level = policy.logging.level
+                return policy
+
+            policy = engine._run_stage(
+                trace_span,
+                engine._trace_stage_span_name(mode, "policy.resolve"),
+                _resolve_policy,
+                success_fields=lambda resolved_policy: {
+                    "policy_name": resolved_policy.name,
+                },
+                metrics_labels={"mode": mode, "stage": "policy.resolve", "org_id": org_id or ""},
+                org_id=org_id,
+            )
+
+            policy_name = policy.name
+            audit_context.log_event(
+                "policy.resolved",
+                policy_name=policy_name,
+                top_k=policy.document_policy.top_k,
+                filter_name=policy.document_policy.filter_name,
             )
 
             retrieval_filter = (
-                engine.filter_registry.get(org.document_policy.filter_name)
-                if org.document_policy.filter_name is not None
+                engine.filter_registry.get(policy.document_policy.filter_name)
+                if policy.document_policy.filter_name is not None
                 else None
             )
 
@@ -242,7 +270,7 @@ class RAGControl:
                 engine._trace_stage_span_name(mode, "retrieval"),
                 lambda: engine.vector_store.search(
                     query_embedding_res.embedding,
-                    top_k=org.document_policy.top_k,
+                    top_k=policy.document_policy.top_k,
                     user_context=user_context,
                     filter=retrieval_filter,
                 ),
@@ -251,36 +279,27 @@ class RAGControl:
                     "returned": search_res.metadata.returned,
                 },
                 metrics_labels={"mode": mode, "stage": "retrieval", "org_id": org_id or ""},
-                top_k=org.document_policy.top_k,
+                top_k=policy.document_policy.top_k,
             )
             docs = retrieve_res.records
             retrieved_doc_ids = [doc.id for doc in docs]
-
-            def _resolve_policy() -> tuple[str, Any]:
-                policy_name = engine.governance_registry.resolve_policy(
-                    user_context=user_context,
-                    source_documents=docs,
-                    audit_context=audit_context,
-                )
-                policy = engine.policy_registry.get(policy_name)
-                if policy is not None:
-                    audit_context.logging_level = policy.logging.level
-                return policy_name, policy
-
-            policy_name, policy = engine._run_stage(
-                trace_span,
-                engine._trace_stage_span_name(mode, "policy.resolve"),
-                _resolve_policy,
-                success_fields=lambda policy_res: {"policy_name": policy_res[0]},
-                metrics_labels={"mode": mode, "stage": "policy.resolve", "org_id": org_id or ""},
-            )
 
             audit_context.log_event(
                 "retrieval.completed",
                 retrieved_count=len(docs),
                 retrieved_doc_ids=retrieved_doc_ids,
             )
-            audit_context.log_event("policy.resolved", policy_name=policy_name)
+
+            engine._run_stage(
+                trace_span,
+                engine._trace_stage_span_name(mode, "resolve_deny"),
+                lambda: engine.governance_registry.resolve_deny(
+                    user_context=user_context,
+                    source_documents=docs,
+                    audit_context=audit_context,
+                ),
+                metrics_labels={"mode": mode, "stage": "resolve_deny", "org_id": org_id or ""},
+            )
 
             messages = engine._run_stage(
                 trace_span,
@@ -507,8 +526,8 @@ class RAGControl:
                     org_id=org_id,
                     user_id=user_context.user_id,
                     trace_id=trace_id,
-                    filter_name=org.document_policy.filter_name,
-                    retrieval_top_k=org.document_policy.top_k,
+                    filter_name=policy.document_policy.filter_name,
+                    retrieval_top_k=policy.document_policy.top_k,
                     retrieved_count=len(docs),
                     enforcement_attached=True,
                     response=enforced_response,
@@ -518,8 +537,8 @@ class RAGControl:
                 org_id=org_id,
                 user_id=user_context.user_id,
                 trace_id=trace_id,
-                filter_name=org.document_policy.filter_name,
-                retrieval_top_k=org.document_policy.top_k,
+                filter_name=policy.document_policy.filter_name,
+                retrieval_top_k=policy.document_policy.top_k,
                 retrieved_count=len(docs),
                 enforcement_passed=True,
                 response=enforced_response,

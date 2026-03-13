@@ -57,6 +57,8 @@ policies:
     logging:
       # Audit logging level
       level: full               # full or minimal
+    document_policy:
+      # See in document_policy section
 ```
 
 ### Generation Parameters
@@ -238,6 +240,236 @@ policy_rules:
 
 > **Learn more:** See [Governance](/concepts/governance) concept guide for policy rule strategies and enforcement patterns.
 
+## Deny Rules
+
+Deny rules provide fine-grained access control by blocking requests based on combined user and document context. Unlike policy rules (which select policies), deny rules enforce access control restrictions and stop processing immediately when matched.
+
+### Deny Rule Definition
+
+```yaml
+deny_rules:
+  - name: rule_name
+    description: Rule description
+    priority: 100                    # Higher = evaluated first (must be unique, > 0)
+    when:
+      all:                           # All conditions must match (AND logic)
+        - field: field_name
+          operator: equals           # equals, lt, lte, gt, gte, intersects, exists
+          value: some_value          # (not needed for 'exists')
+          source: user               # user or documents
+          document_match: any        # any or all (documents only)
+```
+
+### Deny Rule Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Unique name for the rule within the organization |
+| `description` | string | No | Human-readable description of what the rule blocks |
+| `priority` | integer | Yes | Evaluation order: higher = first. Must be unique and > 0 |
+| `when` | object | Yes | Conditions that trigger the denial |
+
+### Deny Rule Condition Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `field` | string | Field to check (supports dot notation: `metadata.classification`, `user_role`) |
+| `operator` | string | Comparison operator (see Deny Rule Operators below) |
+| `value` | any | Expected value. Not needed for `exists` operator |
+| `source` | string | `user` (user context fields) or `documents` (document metadata) |
+| `document_match` | string | `any` (deny if any doc matches) or `all` (deny if all docs match). Only for `documents` source |
+
+### Deny Rule Operators
+
+| Operator | Supported Values | Description |
+|----------|------------------|-------------|
+| `equals` | Any | Exact match |
+| `lt` | Number | Less than |
+| `lte` | Number | Less than or equal to |
+| `gt` | Number | Greater than |
+| `gte` | Number | Greater than or equal to |
+| `intersects` | List | Field array intersects with provided list |
+| `exists` | N/A | Field exists (no value needed) |
+
+### Deny Rule Logic
+
+Deny rules support nested AND/OR logic:
+
+```yaml
+deny_rules:
+  - name: complex_deny_rule
+    priority: 100
+    when:
+      all:
+        - or:
+            - field: metadata.classification
+              operator: equals
+              value: restricted
+              source: documents
+              document_match: any
+            - field: metadata.clearance_required
+              operator: exists
+              source: documents
+              document_match: any
+        - field: user_clearance_level
+          operator: lt
+          value: 3
+          source: user
+```
+
+### Document Matching Modes
+
+When checking document conditions:
+
+- **`any`**: Deny if any retrieved document matches the condition. Use for blocking access to restricted content
+- **`all`**: Deny if all retrieved documents match the condition. Use for stricter policies
+
+```yaml
+deny_rules:
+  # Deny if ANY document is classified as confidential
+  - name: deny_confidential_docs
+    priority: 100
+    when:
+      all:
+        - field: metadata.classification
+          operator: equals
+          value: confidential
+          source: documents
+          document_match: any  # Blocks if any doc is confidential
+
+  # Deny only if ALL documents are experimental
+  - name: deny_all_experimental
+    priority: 90
+    when:
+      all:
+        - field: metadata.status
+          operator: equals
+          value: experimental
+          source: documents
+          document_match: all  # Only blocks if all docs are experimental
+```
+
+### Mixed User and Document Conditions
+
+Deny rules can combine user context and document properties in a single rule:
+
+```yaml
+deny_rules:
+  # Deny external users access to sensitive documents
+  - name: deny_external_users_sensitive_docs
+    priority: 100
+    when:
+      all:
+        - field: user_type
+          operator: equals
+          value: external
+          source: user
+        - field: metadata.classification
+          operator: in
+          value: [sensitive, confidential]
+          source: documents
+          document_match: any
+
+  # Deny junior analysts from accessing recent research
+  - name: deny_junior_analysts_recent_research
+    priority: 95
+    when:
+      all:
+        - field: user_role
+          operator: equals
+          value: analyst
+          source: user
+        - field: user_seniority_level
+          operator: lt
+          value: 3
+          source: user
+        - field: metadata.age_days
+          operator: lt
+          value: 30
+          source: documents
+          document_match: any
+```
+
+### Deny Rule Evaluation
+
+- Rules are evaluated in **priority order** (highest first)
+- First matching deny rule immediately blocks the request
+- All conditions in `all` must be true (AND)
+- Any condition in `any` can be true (OR)
+- Both user context and document metadata can be combined in a single rule
+- Document conditions respect the `document_match` mode
+
+### Deny Rules vs Policy Rules
+
+| Aspect | Deny Rules | Policy Rules |
+|--------|-----------|--------------|
+| **Purpose** | Access control / blocking | Policy selection |
+| **Execution Point** | Before policy evaluation | During policy lookup |
+| **Conditions** | User context + document properties | User context only |
+| **Effect** | Block request immediately | Select policy or deny |
+| **Use Case** | Enforce restrictions | Choose enforcement level |
+
+### Example Deny Rules
+
+**Example 1: Block Low Confidence Documents**
+
+```yaml
+deny_rules:
+  - name: deny_low_confidence
+    description: Deny documents with low retrieval confidence
+    priority: 100
+    when:
+      all:
+        - field: metadata.confidence_score
+          operator: lt
+          value: 0.8
+          source: documents
+          document_match: any
+```
+
+**Example 2: Restrict by User Clearance**
+
+```yaml
+deny_rules:
+  - name: deny_insufficient_clearance
+    description: Deny access to restricted documents for users without proper clearance
+    priority: 95
+    when:
+      all:
+        - field: metadata.required_clearance
+          operator: gt
+          value: 0
+          source: documents
+          document_match: any
+        - field: user_clearance_level
+          operator: lt
+          value: 1
+          source: user
+```
+
+**Example 3: Block Untrusted Sources**
+
+```yaml
+deny_rules:
+  - name: deny_untrusted_sources
+    description: Deny documents from untrusted external sources
+    priority: 90
+    when:
+      any:
+        - field: metadata.source
+          operator: in
+          value: [public-web, unverified-external]
+          source: documents
+          document_match: any
+        - field: metadata.is_verified
+          operator: equals
+          value: false
+          source: documents
+          document_match: any
+```
+
+> **Learn more:** See [Governance](/concepts/governance) concept guide for deny rule strategies and access control patterns.
+
 ## Organizations
 
 Organizations apply organization-specific rules and settings.
@@ -268,6 +500,7 @@ orgs:
 | `default_policy` | string | Yes | Default policy name (must exist in policies) |
 | `document_policy` | object | Yes | Document retrieval configuration (see Document Policy section) |
 | `policy_rules` | list | Yes | List of policy rules (can be empty) |
+| `deny_rules` | list | No | List of deny rules for access control (can be empty) |
 
 ### Example Organization Structure
 
@@ -283,18 +516,6 @@ orgs:
 
     # Organization-specific policy rules
     policy_rules:
-      - name: deny_untrusted_sources
-        description: Deny untrusted sources
-        priority: 60                # Higher priority = evaluated first
-        effect: deny                # deny to block, allow to permit
-        when:
-          any:                      # Match any condition
-            - field: metadata.source
-              operator: equals
-              value: public-web
-              source: documents
-              document_match: any
-
       - name: apply_strict_citations
         description: Apply strict citations policy
         priority: 50
@@ -306,6 +527,30 @@ orgs:
               operator: equals
               value: enterprise
               source: user
+
+    # Access control deny rules
+    deny_rules:
+      - name: deny_untrusted_sources
+        description: Deny documents from untrusted sources
+        priority: 100              # Evaluated before policy rules
+        when:
+          all:
+            - field: metadata.source
+              operator: equals
+              value: public-web
+              source: documents
+              document_match: any
+
+      - name: deny_low_confidence
+        description: Deny low-confidence documents
+        priority: 90
+        when:
+          all:
+            - field: metadata.confidence_score
+              operator: lt
+              value: 0.7
+              source: documents
+              document_match: any
 ```
 
 ### Rule Effects
@@ -389,10 +634,23 @@ orgs:
     document_policy:
       top_k: 5
       filter_name: sensitive_only
-    policy_rules:
-      - name: block_external_knowledge
+
+    # Deny rules for production security
+    deny_rules:
+      - name: deny_unverified_sources
+        description: Deny documents from unverified sources
+        priority: 110
+        when:
+          all:
+            - field: metadata.is_verified
+              operator: equals
+              value: false
+              source: documents
+              document_match: any
+
+      - name: deny_external_knowledge
+        description: Prevent reliance on external knowledge
         priority: 100
-        effect: deny
         when:
           all:
             - field: metadata.is_external
@@ -400,6 +658,19 @@ orgs:
               value: true
               source: documents
               document_match: any
+
+    # Policy rules for production
+    policy_rules:
+      - name: enforce_strict_citations
+        priority: 50
+        effect: allow
+        apply_policy: production
+        when:
+          all:
+            - field: org_tier
+              operator: equals
+              value: production
+              source: user
 ```
 
 ### Multi-Organization Setup
@@ -422,6 +693,19 @@ orgs:
     document_policy:
       top_k: 5
       filter_name: acme_filter
+
+    # Access control for Acme
+    deny_rules:
+      - name: deny_low_confidence_acme
+        priority: 100
+        when:
+          all:
+            - field: metadata.confidence_score
+              operator: lt
+              value: 0.8
+              source: documents
+              document_match: any
+
     policy_rules:
       - name: acme_specific_rule
         priority: 50
@@ -438,6 +722,18 @@ orgs:
     default_policy: moderate
     document_policy:
       top_k: 10
+
+    # Less restrictive access control for standard org
+    deny_rules:
+      - name: deny_highly_restricted
+        priority: 100
+        when:
+          all:
+            - field: metadata.classification
+              operator: equals
+              value: highly_restricted
+              source: documents
+              document_match: any
 ```
 
 ## Validation

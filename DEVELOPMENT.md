@@ -208,6 +208,8 @@ rag_control/
 ├── prompt/                # Prompt management
 └── spec/                  # Contract specifications
     ├── execution_contract.md
+    ├── governance_contract.md
+    ├── control_plane_config_contract.md
     ├── metrics_contract.md
     ├── tracing_contract.md
     ├── audit_log_contract.md
@@ -260,6 +262,16 @@ Records execution flow with OpenTelemetry support. Custom spans added at critica
 3. **Use real implementations** in e2e tests
 4. **Test error cases** - Include tests for exceptions and error handling
 5. **Aim for 100% coverage** - Use `make coverage` to verify
+
+### Governance and Deny Rule Testing
+
+When testing governance features:
+- Test both user-context conditions (`source: "user"`) and document conditions (`source: "documents"`)
+- Verify deny rules with mixed user and document sources work correctly
+- Test rule evaluation order (by priority, descending)
+- Include tests for `document_match: "any"` and `document_match: "all"` modes
+- Test logical condition combinations (`all`, `any`, nested `and`/`or`)
+- See `tests/unit/test_governance_registry.py` for comprehensive examples
 
 ### Example Test Structure
 

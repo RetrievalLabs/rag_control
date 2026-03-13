@@ -9,24 +9,24 @@ from pydantic import BaseModel, model_validator
 
 from rag_control.exceptions import ControlPlaneConfigValidationError
 
-from .filter import (
-    FILTER_NUMERIC_OPERATORS,
-    FILTER_OPERATOR_EQUALS,
-    FILTER_OPERATOR_EXISTS,
-    FILTER_OPERATOR_IN,
-    FILTER_OPERATOR_INTERSECTS,
-    Filter,
+from .deny_rule import (
+    DENY_RULE_NUMERIC_OPERATORS,
+    DenyRuleCondition,
+    DenyRuleLogicalCondition,
 )
-from .filter import Condition as FilterCondition
+from .filter import FILTER_NUMERIC_OPERATORS, Filter, FilterCondition
+from .operator import (
+    OPERATOR_EQUALS,
+    OPERATOR_EXISTS,
+    OPERATOR_IN,
+    OPERATOR_INTERSECTS,
+)
 from .org import OrgConfig
 from .policy import Policy
-from .rule import (
-    RULE_NUMERIC_OPERATORS,
-    RULE_OPERATOR_EQUALS,
-    RULE_OPERATOR_EXISTS,
-    RULE_OPERATOR_INTERSECTS,
-    Condition,
-    LogicalCondition,
+from .policy_rule import (
+    POLICY_RULE_NUMERIC_OPERATORS,
+    PolicyRuleCondition,
+    PolicyRuleLogicalCondition,
 )
 
 
@@ -47,33 +47,38 @@ class ControlPlaneConfig(BaseModel):
         if len(filter_names) != len(set(filter_names)):
             raise ControlPlaneConfigValidationError("filters must have unique names")
 
+        filter_name_set = set(filter_names)
+
+        for policy in self.policies:
+            if not (0.0 <= policy.generation.temperature <= 2.0):
+                raise ControlPlaneConfigValidationError(
+                    f"policy '{policy.name}' generation.temperature must be between 0.0 and 2.0"
+                )
+            if policy.document_policy.top_k <= 0:
+                raise ControlPlaneConfigValidationError(
+                    f"policy '{policy.name}' document_policy.top_k must be greater than 0"
+                )
+            if (
+                policy.document_policy.filter_name is not None
+                and policy.document_policy.filter_name not in filter_name_set
+            ):
+                raise ControlPlaneConfigValidationError(
+                    f"policy '{policy.name}' document_policy.filter_name "
+                    f"'{policy.document_policy.filter_name}' does not exist"
+                )
+
         if len(org_ids) != len(set(org_ids)):
             raise ControlPlaneConfigValidationError("orgs must have unique org_id values")
 
         policy_name_set = set(policy_names)
-        filter_name_set = set(filter_names)
 
         for flt in self.filters:
             self._validate_filter(flt.name, flt)
 
         for org in self.orgs:
-            if org.document_policy.top_k <= 0:
-                raise ControlPlaneConfigValidationError(
-                    f"org '{org.org_id}': document_policy.top_k must be greater than 0"
-                )
-
             if org.default_policy not in policy_name_set:
                 raise ControlPlaneConfigValidationError(
                     f"org '{org.org_id}' default_policy '{org.default_policy}' does not exist"
-                )
-
-            if (
-                org.document_policy.filter_name is not None
-                and org.document_policy.filter_name not in filter_name_set
-            ):
-                raise ControlPlaneConfigValidationError(
-                    f"org '{org.org_id}' document_policy.filter_name "
-                    f"'{org.document_policy.filter_name}' does not exist"
                 )
 
             rule_names = [rule.name for rule in org.policy_rules]
@@ -93,43 +98,88 @@ class ControlPlaneConfig(BaseModel):
                 )
 
             for rule in org.policy_rules:
-                self._validate_rule_conditions(org.org_id, rule.name, rule.when)
+                self._validate_rule_conditions(org.org_id, rule.name, rule.when, is_deny_rule=False)
+                if rule.effect == "allow" and rule.apply_policy is None:
+                    raise ControlPlaneConfigValidationError(
+                        f"org '{org.org_id}' rule '{rule.name}' with "
+                        f"effect='allow' must specify apply_policy"
+                    )
                 if rule.apply_policy is not None and rule.apply_policy not in policy_name_set:
                     raise ControlPlaneConfigValidationError(
                         f"org '{org.org_id}' rule '{rule.name}' apply_policy "
                         f"'{rule.apply_policy}' does not exist"
                     )
 
+            deny_rule_names = [deny_rule.name for deny_rule in org.deny_rules]
+            if len(deny_rule_names) != len(set(deny_rule_names)):
+                raise ControlPlaneConfigValidationError(
+                    f"org '{org.org_id}' deny_rules must have unique names"
+                )
+
+            deny_rule_priorities = [deny_rule.priority for deny_rule in org.deny_rules]
+            if any(priority <= 0 for priority in deny_rule_priorities):
+                raise ControlPlaneConfigValidationError(
+                    f"org '{org.org_id}' deny_rules priorities must be greater than 0"
+                )
+            if len(deny_rule_priorities) != len(set(deny_rule_priorities)):
+                raise ControlPlaneConfigValidationError(
+                    f"org '{org.org_id}' deny_rules priorities must be unique"
+                )
+
+            for deny_rule in org.deny_rules:
+                self._validate_rule_conditions(
+                    org.org_id, deny_rule.name, deny_rule.when, is_deny_rule=True
+                )
+
         return self
 
     @staticmethod
-    def _validate_rule_conditions(org_id: str, rule_name: str, when: LogicalCondition) -> None:
+    def _validate_rule_conditions(
+        org_id: str,
+        rule_name: str,
+        when: DenyRuleLogicalCondition | PolicyRuleLogicalCondition,
+        is_deny_rule: bool = True,
+    ) -> None:
         if when.all is not None:
             for condition in when.all:
-                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition)
+                ControlPlaneConfig._validate_rule_condition(
+                    org_id, rule_name, condition, is_deny_rule
+                )
         if when.any is not None:
             for condition in when.any:
-                ControlPlaneConfig._validate_rule_condition(org_id, rule_name, condition)
+                ControlPlaneConfig._validate_rule_condition(
+                    org_id, rule_name, condition, is_deny_rule
+                )
 
     @staticmethod
-    def _validate_rule_condition(org_id: str, rule_name: str, condition: Condition) -> None:
-        if condition.document_match is not None and condition.source != "documents":
+    def _validate_rule_condition(
+        org_id: str,
+        rule_name: str,
+        condition: DenyRuleCondition | PolicyRuleCondition,
+        is_deny_rule: bool = True,
+    ) -> None:
+        if (
+            is_deny_rule
+            and hasattr(condition, "document_match")
+            and condition.document_match is not None
+            and condition.source != "documents"
+        ):
             raise ControlPlaneConfigValidationError(
                 f"org '{org_id}' rule '{rule_name}': "
                 "document_match is only supported when source is 'documents'"
             )
 
-        if condition.operator == RULE_OPERATOR_EXISTS:
+        if condition.operator == OPERATOR_EXISTS:
             return
 
-        if condition.operator == RULE_OPERATOR_EQUALS:
+        if condition.operator == OPERATOR_EQUALS:
             if condition.value is None:
                 raise ControlPlaneConfigValidationError(
                     f"org '{org_id}' rule '{rule_name}': value is required for 'equals' operator"
                 )
             return
 
-        if condition.operator in RULE_NUMERIC_OPERATORS:
+        if is_deny_rule and condition.operator in DENY_RULE_NUMERIC_OPERATORS:
             if not isinstance(condition.value, (int, float)) or isinstance(condition.value, bool):
                 raise ControlPlaneConfigValidationError(
                     f"org '{org_id}' rule '{rule_name}': "
@@ -137,7 +187,15 @@ class ControlPlaneConfig(BaseModel):
                 )
             return
 
-        if condition.operator == RULE_OPERATOR_INTERSECTS and condition.value is None:
+        if not is_deny_rule and condition.operator in POLICY_RULE_NUMERIC_OPERATORS:
+            if not isinstance(condition.value, (int, float)) or isinstance(condition.value, bool):
+                raise ControlPlaneConfigValidationError(
+                    f"org '{org_id}' rule '{rule_name}': "
+                    "value must be an int or float for numeric operators: lt/lte/gt/gte"
+                )
+            return
+
+        if condition.operator == OPERATOR_INTERSECTS and condition.value is None:
             raise ControlPlaneConfigValidationError(
                 f"org '{org_id}' rule '{rule_name}': value is required for 'intersects' operator"
             )
@@ -182,10 +240,10 @@ class ControlPlaneConfig(BaseModel):
 
     @staticmethod
     def _validate_filter_condition(filter_name: str, path: str, condition: FilterCondition) -> None:
-        if condition.operator == FILTER_OPERATOR_EXISTS:
+        if condition.operator == OPERATOR_EXISTS:
             return
 
-        if condition.operator == FILTER_OPERATOR_IN:
+        if condition.operator == OPERATOR_IN:
             if not isinstance(condition.value, list):
                 raise ControlPlaneConfigValidationError(
                     f"filter '{filter_name}' at '{path}': value must be a list for 'in' operator"
@@ -196,7 +254,7 @@ class ControlPlaneConfig(BaseModel):
                 )
             return
 
-        if condition.operator == FILTER_OPERATOR_EQUALS:
+        if condition.operator == OPERATOR_EQUALS:
             if condition.value is None:
                 raise ControlPlaneConfigValidationError(
                     f"filter '{filter_name}' at '{path}': value is required for 'equals' operator"
@@ -211,7 +269,7 @@ class ControlPlaneConfig(BaseModel):
                 )
             return
 
-        if condition.operator == FILTER_OPERATOR_INTERSECTS and condition.value is None:
+        if condition.operator == OPERATOR_INTERSECTS and condition.value is None:
             raise ControlPlaneConfigValidationError(
                 f"filter '{filter_name}' at '{path}': value is required for 'intersects' operator"
             )

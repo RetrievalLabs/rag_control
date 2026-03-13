@@ -853,3 +853,62 @@ def test_rag_control_run_passes_none_when_no_max_output_tokens(
     assert response.enforcement_passed is True
     assert llm.generate_calls == 1
     assert llm.generate_max_output_tokens[0] is None
+
+
+def test_rag_control_run_resolve_deny_stage_executes_during_request(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+
+    query_embedding.enqueue_response(
+        embedding=[0.11, 0.22, 0.33],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-resolve-deny-001",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-resolve-deny-001",
+                content="Sample content.",
+                score=0.97,
+                metadata={"source": "policy-kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="policy-index",
+        latency_ms=4.0,
+        request_id="search-resolve-deny-001",
+    )
+    llm.enqueue_response(
+        content="Sample answer [DOC 1]",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-resolve-deny-001",
+        prompt_tokens=10,
+        completion_tokens=5,
+    )
+
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+    )
+    user_context = UserContext(
+        user_id="u-resolve-deny-1",
+        org_id="test_org",
+        attributes={},
+    )
+
+    # resolve_deny stage should pass for valid user context
+    response = engine.run("test query", user_context=user_context)
+
+    assert response.policy_name == "default_policy"
+    assert response.enforcement_passed is True
+    assert vector_store.search_calls == 1
+    assert llm.generate_calls == 1

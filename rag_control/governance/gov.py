@@ -9,19 +9,26 @@ from rag_control.exceptions.governance import (
     GovernancePolicyDeniedError,
 )
 from rag_control.models.config import ControlPlaneConfig
+from rag_control.models.deny_rule import (
+    DENY_RULE_NUMERIC_OPERATORS,
+    DenyRuleCondition,
+    DenyRuleLogicalCondition,
+)
+from rag_control.models.operator import (
+    OPERATOR_EQUALS,
+    OPERATOR_EXISTS,
+    OPERATOR_GT,
+    OPERATOR_GTE,
+    OPERATOR_INTERSECTS,
+    OPERATOR_LT,
+    OPERATOR_LTE,
+)
 from rag_control.models.org import OrgConfig
-from rag_control.models.rule import (
-    RULE_EFFECT_DENY,
-    RULE_NUMERIC_OPERATORS,
-    RULE_OPERATOR_EQUALS,
-    RULE_OPERATOR_EXISTS,
-    RULE_OPERATOR_GT,
-    RULE_OPERATOR_GTE,
-    RULE_OPERATOR_INTERSECTS,
-    RULE_OPERATOR_LT,
-    RULE_OPERATOR_LTE,
-    Condition,
-    LogicalCondition,
+from rag_control.models.policy_rule import (
+    POLICY_RULE_EFFECT_DENY,
+    POLICY_RULE_NUMERIC_OPERATORS,
+    PolicyRuleCondition,
+    PolicyRuleLogicalCondition,
 )
 from rag_control.models.user_context import UserContext
 from rag_control.models.vector_store import VectorStoreRecord
@@ -37,7 +44,12 @@ class GovernanceRegistry:
                         org.policy_rules,
                         key=lambda policy_rule: policy_rule.priority,
                         reverse=True,
-                    )
+                    ),
+                    "deny_rules": sorted(
+                        org.deny_rules,
+                        key=lambda deny_rule: deny_rule.priority,
+                        reverse=True,
+                    ),
                 }
             )
             for org in config.orgs
@@ -46,19 +58,43 @@ class GovernanceRegistry:
     def get_org(self, org_id: str) -> OrgConfig | None:
         return self.org_map.get(org_id)
 
-    def resolve_policy(
+    def resolve_deny(
         self,
         user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
+        audit_context: AuditLoggingContext | None = None,
+    ) -> None:
+        org = self.org_map[user_context.org_id]
+
+        for rule in org.deny_rules:
+            if not self._matches_deny_logical_condition(rule.when, user_context, source_documents):
+                continue
+
+            if audit_context is not None:
+                audit_context.log_event(
+                    "request.denied",
+                    level="warning",
+                    rule_name=rule.name,
+                    error_type=GovernancePolicyDeniedError.__name__,
+                    error_message=(
+                        f"governance policy denied for org '{user_context.org_id}' "
+                        f"by rule '{rule.name}'"
+                    ),
+                )
+            raise GovernancePolicyDeniedError(user_context, rule.name)
+
+    def resolve_policy(
+        self,
+        user_context: UserContext,
         audit_context: AuditLoggingContext | None = None,
     ) -> str:
         org = self.org_map[user_context.org_id]
 
         default_policy = org.default_policy
         for rule in org.policy_rules:
-            if not self._matches_logical_condition(rule.when, user_context, source_documents):
+            if not self._matches_policy_logical_condition(rule.when, user_context):
                 continue
-            if rule.effect == RULE_EFFECT_DENY:
+            if rule.effect == POLICY_RULE_EFFECT_DENY:
                 if audit_context is not None:
                     audit_context.log_event(
                         "request.denied",
@@ -73,13 +109,12 @@ class GovernanceRegistry:
                 raise GovernancePolicyDeniedError(user_context, rule.name)
             if rule.apply_policy is not None:
                 return rule.apply_policy
-            return default_policy
 
         return default_policy
 
     @staticmethod
-    def _matches_logical_condition(
-        logical_condition: LogicalCondition,
+    def _matches_deny_logical_condition(
+        logical_condition: DenyRuleLogicalCondition,
         user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
     ) -> bool:
@@ -95,7 +130,9 @@ class GovernanceRegistry:
         all_match = (
             len(all_conditions) > 0
             and all(
-                GovernanceRegistry._matches_condition(condition, user_context, source_documents)
+                GovernanceRegistry._matches_deny_condition(
+                    condition, user_context, source_documents
+                )
                 for condition in all_conditions
             )
             if all_conditions is not None
@@ -105,7 +142,9 @@ class GovernanceRegistry:
         any_match = (
             len(any_conditions) > 0
             and any(
-                GovernanceRegistry._matches_condition(condition, user_context, source_documents)
+                GovernanceRegistry._matches_deny_condition(
+                    condition, user_context, source_documents
+                )
                 for condition in any_conditions
             )
             if any_conditions is not None
@@ -118,8 +157,90 @@ class GovernanceRegistry:
         return all_match if has_all else any_match
 
     @staticmethod
-    def _matches_condition(
-        condition: Condition,
+    def _matches_policy_logical_condition(
+        logical_condition: PolicyRuleLogicalCondition,
+        user_context: UserContext,
+    ) -> bool:
+        all_conditions = logical_condition.all
+        any_conditions = logical_condition.any
+
+        has_all = all_conditions is not None
+        has_any = any_conditions is not None
+
+        if not has_all and not has_any:
+            return False
+
+        all_match = (
+            len(all_conditions) > 0
+            and all(
+                GovernanceRegistry._matches_policy_condition(condition, user_context)
+                for condition in all_conditions
+            )
+            if all_conditions is not None
+            else False
+        )
+
+        any_match = (
+            len(any_conditions) > 0
+            and any(
+                GovernanceRegistry._matches_policy_condition(condition, user_context)
+                for condition in any_conditions
+            )
+            if any_conditions is not None
+            else False
+        )
+
+        if has_all and has_any:
+            return all_match and any_match
+
+        return all_match if has_all else any_match
+
+    @staticmethod
+    def _matches_policy_condition(
+        condition: PolicyRuleCondition,
+        user_context: UserContext,
+    ) -> bool:
+        has_field, actual_value = GovernanceRegistry._resolve_user_value(
+            user_context, condition.field
+        )
+        expected_value = condition.value
+        operator = condition.operator
+
+        if operator == OPERATOR_EXISTS:
+            return has_field
+
+        if operator == OPERATOR_EQUALS:
+            return bool(actual_value == expected_value)
+
+        if expected_value is None:
+            return False
+
+        if operator in POLICY_RULE_NUMERIC_OPERATORS:
+            if not isinstance(actual_value, (int, float)) or not isinstance(
+                expected_value, (int, float)
+            ):
+                return False
+            if operator == OPERATOR_LT:
+                return actual_value < expected_value
+            if operator == OPERATOR_LTE:
+                return actual_value <= expected_value
+            if operator == OPERATOR_GT:
+                return actual_value > expected_value
+            if operator == OPERATOR_GTE:
+                return actual_value >= expected_value
+
+        if operator == OPERATOR_INTERSECTS:
+            if isinstance(actual_value, (list, set, tuple)):
+                return expected_value in actual_value
+            if isinstance(actual_value, str) and isinstance(expected_value, str):
+                return expected_value in actual_value
+            return False
+
+        return False
+
+    @staticmethod
+    def _matches_deny_condition(
+        condition: DenyRuleCondition,
         user_context: UserContext,
         source_documents: list[VectorStoreRecord] | None = None,
     ) -> bool:
@@ -134,31 +255,30 @@ class GovernanceRegistry:
         expected_value = condition.value
         operator = condition.operator
 
-        if operator == RULE_OPERATOR_EXISTS:
+        if operator == OPERATOR_EXISTS:
             return has_field
 
-        if operator == RULE_OPERATOR_EQUALS:
+        if operator == OPERATOR_EQUALS:
             return bool(actual_value == expected_value)
 
         if expected_value is None:
             return False
 
-        if operator in RULE_NUMERIC_OPERATORS:
+        if operator in DENY_RULE_NUMERIC_OPERATORS:
             if not isinstance(actual_value, (int, float)) or not isinstance(
                 expected_value, (int, float)
             ):
                 return False
-            if operator == RULE_OPERATOR_LT:
+            if operator == OPERATOR_LT:
                 return actual_value < expected_value
-            if operator == RULE_OPERATOR_LTE:
+            if operator == OPERATOR_LTE:
                 return actual_value <= expected_value
-            if operator == RULE_OPERATOR_GT:
+            if operator == OPERATOR_GT:
                 return actual_value > expected_value
-            if operator == RULE_OPERATOR_GTE:
+            if operator == OPERATOR_GTE:
                 return actual_value >= expected_value
-            return actual_value >= expected_value
 
-        if operator == RULE_OPERATOR_INTERSECTS:
+        if operator == OPERATOR_INTERSECTS:
             if isinstance(actual_value, (list, set, tuple)):
                 return expected_value in actual_value
             if isinstance(actual_value, str) and isinstance(expected_value, str):
@@ -187,7 +307,7 @@ class GovernanceRegistry:
 
     @staticmethod
     def _matches_source_document_condition(
-        condition: Condition, source_documents: list[VectorStoreRecord]
+        condition: DenyRuleCondition, source_documents: list[VectorStoreRecord]
     ) -> bool:
         if len(source_documents) == 0:
             return False
@@ -203,7 +323,7 @@ class GovernanceRegistry:
 
     @staticmethod
     def _matches_condition_for_document(
-        condition: Condition, source_document: VectorStoreRecord
+        condition: DenyRuleCondition, source_document: VectorStoreRecord
     ) -> bool:
         source_document_data = source_document.model_dump()
         has_field, actual_value = GovernanceRegistry._resolve_nested_value(
@@ -212,31 +332,30 @@ class GovernanceRegistry:
         expected_value = condition.value
         operator = condition.operator
 
-        if operator == RULE_OPERATOR_EXISTS:
+        if operator == OPERATOR_EXISTS:
             return has_field
 
-        if operator == RULE_OPERATOR_EQUALS:
+        if operator == OPERATOR_EQUALS:
             return bool(actual_value == expected_value)
 
         if expected_value is None:
             return False
 
-        if operator in RULE_NUMERIC_OPERATORS:
+        if operator in DENY_RULE_NUMERIC_OPERATORS:
             if not isinstance(actual_value, (int, float)) or not isinstance(
                 expected_value, (int, float)
             ):
                 return False
-            if operator == RULE_OPERATOR_LT:
+            if operator == OPERATOR_LT:
                 return actual_value < expected_value
-            if operator == RULE_OPERATOR_LTE:
+            if operator == OPERATOR_LTE:
                 return actual_value <= expected_value
-            if operator == RULE_OPERATOR_GT:
+            if operator == OPERATOR_GT:
                 return actual_value > expected_value
-            if operator == RULE_OPERATOR_GTE:
+            if operator == OPERATOR_GTE:
                 return actual_value >= expected_value
-            return actual_value >= expected_value
 
-        if operator == RULE_OPERATOR_INTERSECTS:
+        if operator == OPERATOR_INTERSECTS:
             if isinstance(actual_value, (list, set, tuple)):
                 return expected_value in actual_value
             if isinstance(actual_value, str) and isinstance(expected_value, str):

@@ -15,6 +15,9 @@ policies:
       enforce_strict_fallback: true
       prevent_external_knowledge: true
       max_output_tokens: 512
+    document_policy:
+      top_k: 10
+      filter_name: enterprise_only
 
   - name: soft_research
     description: Relaxed fallback policy for exploratory answers.
@@ -32,6 +35,9 @@ policies:
       enforce_strict_fallback: false
       prevent_external_knowledge: true
       max_output_tokens: 1024
+    document_policy:
+      top_k: 15
+      filter_name: pii_sensitive
 
 filters:
   - name: enterprise_only
@@ -107,60 +113,17 @@ orgs:
   - org_id: acme_corp
     description: Acme Corporation with strict citation requirements.
     default_policy: strict_citations
-    document_policy:
-      top_k: 8
-      filter_name: enterprise_only
     policy_rules:
-      - name: deny_untrusted_document_source
-        description: Deny if any retrieved document comes from an untrusted source.
-        priority: 60
-        effect: deny
-        when:
-          any:
-            - field: metadata.source
-              operator: equals
-              value: public-web
-              source: documents
-              document_match: any
-
-      - name: deny_low_confidence
-        description: Deny responses when retrieval confidence is too low.
-        priority: 10
-        effect: deny
-        when:
-          any:
-            - field: confidence_score
-              operator: lte
-              value: 40
-
       - name: allow_enterprise_strict
         description: Allow enterprise traffic under the strict citations policy.
         priority: 50
-        effect: allow
-        apply_policy: strict_citations
+        effect: deny
         when:
           all:
             - field: org_tier
               operator: equals
               value: enterprise
               source: user
-
-      - name: allow_enterprise_with_policy_docs
-        description: Allow enterprise requests when at least one policy KB doc is retrieved.
-        priority: 40
-        effect: allow
-        apply_policy: strict_citations
-        when:
-          all:
-            - field: org_tier
-              operator: equals
-              value: enterprise
-              source: user
-            - field: metadata.source
-              operator: equals
-              value: policy-kb
-              source: documents
-              document_match: any
 
       - name: allow_finance_department_nested
         description: Allow when user department is provided as a nested user path.
@@ -174,82 +137,94 @@ orgs:
               value: finance
               source: user
 
-  - org_id: beta_labs
-    description: Beta Labs with flexible research policies.
-    default_policy: soft_research
-    document_policy:
-      top_k: 12
-      filter_name: pii_sensitive
-    policy_rules:
-      - name: allow_trusted_docs_only
-        description: Escalate to strict policy when all retrieved docs are from trusted KB.
-        priority: 30
-        effect: allow
-        apply_policy: strict_citations
+    deny_rules:
+      - name: deny_untrusted_document_source
+        description: Deny if any retrieved document comes from an untrusted source.
+        priority: 60
         when:
-          all:
+          any:
             - field: metadata.source
               operator: equals
-              value: policy-kb
+              value: public-web
+              source: documents
+              document_match: any
+
+      - name: deny_low_confidence_docs
+        description: Deny responses when all retrieval documents have low confidence.
+        priority: 10
+        when:
+          all:
+            - field: score
+              operator: lte
+              value: 0.4
               source: documents
               document_match: all
 
-      - name: allow_any_trusted_doc
-        description: Apply strict citations when any retrieved doc comes from the trusted KB.
-        priority: 25
-        effect: allow
-        apply_policy: strict_citations
+      - name: deny_untrusted_and_low_confidence
+        description: Deny if any doc is from untrusted source with low confidence score.
+        priority: 55
         when:
           any:
-            - field: metadata.source
-              operator: equals
-              value: policy-kb
+            - and:
+                - condition:
+                    field: metadata.source
+                    operator: in
+                    value:
+                      - public-web
+                      - external-forum
+                    source: documents
+                - condition:
+                    field: score
+                    operator: lt
+                    value: 0.5
+                    source: documents
+              document_match: any
+
+      - name: deny_restricted_classification
+        description: Deny when docs contain restricted or confidential classification.
+        priority: 50
+        when:
+          any:
+            - field: metadata.classification
+              operator: intersects
+              value:
+                - restricted
+                - confidential
+                - internal-only
               source: documents
               document_match: any
 
-      - name: allow_analyst_with_trusted_docs
-        description: Apply strict citations only when user role and retrieved docs both satisfy policy.
-        priority: 24
-        effect: allow
-        apply_policy: strict_citations
+      - name: deny_outdated_documents
+        description: Deny when documents are older than 365 days.
+        priority: 40
         when:
           all:
-            - field: user_role
+            - field: metadata.days_old
+              operator: gt
+              value: 365
+              source: documents
+              document_match: all
+
+      - name: deny_external_users_restricted_docs
+        description: Deny external users from accessing restricted documents.
+        priority: 48
+        when:
+          all:
+            - field: user_type
               operator: equals
-              value: analyst
+              value: external
               source: user
-            - field: metadata.source
+            - field: metadata.classification
               operator: equals
-              value: policy-kb
+              value: restricted
               source: documents
               document_match: any
 
-      - name: allow_active_doc_region_status
-        description: Apply strict citations when any doc has nested region status metadata.
-        priority: 23
-        effect: allow
-        apply_policy: strict_citations
-        when:
-          any:
-            - field: metadata.region.status
-              operator: equals
-              value: active
-              source: documents
-              document_match: any
-
-      - name: deny_unknown_doc_source
-        description: Deny when any retrieved doc is explicitly marked as unknown source.
-        priority: 22
-        effect: deny
-        when:
-          any:
-            - field: metadata.source
-              operator: equals
-              value: unknown
-              source: documents
-              document_match: any
-
-      - name: allow_research_mode
+  - org_id: beta_labs
+    description: Beta Labs with flexible research policies.
+    default_policy: soft_research
+    policy_rules:
+      - name: allow_analyst_research
         description: Allow analyst research workflows using soft fallback.
         priority: 21
         effect: allow
@@ -260,3 +235,90 @@ orgs:
               operator: equals
               value: analyst
               source: user
+
+    deny_rules:
+      - name: deny_untrusted_docs_any
+        description: Deny when any retrieved doc comes from untrusted source.
+        priority: 30
+        when:
+          any:
+            - field: metadata.source
+              operator: equals
+              value: unknown
+              source: documents
+              document_match: any
+
+      - name: deny_all_docs_restricted
+        description: Deny when all retrieved docs are marked as restricted.
+        priority: 22
+        when:
+          all:
+            - field: metadata.classification
+              operator: equals
+              value: restricted
+              source: documents
+              document_match: all
+
+      - name: deny_pii_classified_documents
+        description: Deny when any document is classified as containing PII or PHI.
+        priority: 45
+        when:
+          any:
+            - field: metadata.data_classification
+              operator: intersects
+              value:
+                - pii
+                - phi
+                - financial_records
+              source: documents
+              document_match: any
+
+      - name: deny_low_quality_sources
+        description: Deny when docs have low confidence or are from unreliable sources.
+        priority: 28
+        when:
+          any:
+            - or:
+                - condition:
+                    field: score
+                    operator: lte
+                    value: 0.3
+                    source: documents
+                - condition:
+                    field: metadata.source
+                    operator: equals
+                    value: user-generated
+                    source: documents
+              document_match: any
+
+      - name: deny_experimental_data
+        description: Deny when documents are from experimental or pre-release datasets.
+        priority: 15
+        when:
+          all:
+            - field: metadata.data_maturity
+              operator: equals
+              value: experimental
+              source: documents
+            - field: metadata.approval_status
+              operator: equals
+              value: pending
+              source: documents
+              document_match: all
+
+      - name: deny_junior_analysts_sensitive_docs
+        description: Deny junior analysts from accessing PII or confidential documents.
+        priority: 35
+        when:
+          all:
+            - field: attributes.clearance_level
+              operator: lt
+              value: 3
+              source: user
+            - field: metadata.data_classification
+              operator: intersects
+              value:
+                - pii
+                - confidential
+              source: documents
+              document_match: any

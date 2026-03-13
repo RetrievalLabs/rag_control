@@ -7,27 +7,26 @@ from typing import List, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-FILTER_OPERATOR_IN = "in"
-FILTER_OPERATOR_EQUALS = "equals"
-FILTER_OPERATOR_LT = "lt"
-FILTER_OPERATOR_LTE = "lte"
-FILTER_OPERATOR_GT = "gt"
-FILTER_OPERATOR_GTE = "gte"
-FILTER_OPERATOR_INTERSECTS = "intersects"
-FILTER_OPERATOR_EXISTS = "exists"
+from .operator import (
+    OPERATOR_GT,
+    OPERATOR_GTE,
+    OPERATOR_LT,
+    OPERATOR_LTE,
+)
+
 FILTER_NUMERIC_OPERATORS = {
-    FILTER_OPERATOR_LT,
-    FILTER_OPERATOR_LTE,
-    FILTER_OPERATOR_GT,
-    FILTER_OPERATOR_GTE,
+    OPERATOR_LT,
+    OPERATOR_LTE,
+    OPERATOR_GT,
+    OPERATOR_GTE,
 }
 
-Operator = Literal["equals", "in", "intersects", "lt", "lte", "gt", "gte", "exists"]
+FilterOperator = Literal["equals", "in", "intersects", "lt", "lte", "gt", "gte", "exists"]
 
 
-class Condition(BaseModel):
+class FilterCondition(BaseModel):
     field: str
-    operator: Operator
+    operator: FilterOperator
     value: str | int | List[str] | List[int] | None = None
     source: Literal["user"] = "user"
 
@@ -40,4 +39,4 @@ class Filter(BaseModel):
     description: str | None = None
     and_: List["Filter"] | None = Field(default=None, alias="and")
     or_: List["Filter"] | None = Field(default=None, alias="or")
-    condition: Condition | None = None
+    condition: FilterCondition | None = None

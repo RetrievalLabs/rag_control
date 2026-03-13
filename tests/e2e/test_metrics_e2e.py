@@ -249,6 +249,7 @@ def test_metrics_e2e_records_stage_duration_for_each_stage(
         "org_lookup",
         "embedding",
         "retrieval",
+        "resolve_deny",
         "policy.resolve",
         "prompt.build",
         "llm.generate",
@@ -990,3 +991,75 @@ def test_metrics_e2e_enforcement_violations_in_stream(
     violation_types = {v["violation_type"] for v in violation_calls}
     assert "missing_citations" in violation_types
     assert "external_knowledge" in violation_types
+
+
+def test_metrics_e2e_resolve_deny_stage_duration_recorded(
+    fake_config: ControlPlaneConfig,
+) -> None:
+    """Test that resolve_deny stage duration is recorded in metrics."""
+    llm = FakeLLM()
+    query_embedding = FakeQueryEmbedding(model="fake-embedding-v1")
+    vector_store = FakeVectorStore(embedding_model="fake-embedding-v1")
+    metrics_recorder = _CapturedMetricsRecorder()
+
+    query_embedding.enqueue_response(
+        embedding=[0.11, 0.22, 0.33],
+        model="fake-embedding-v1",
+        provider="fake-provider",
+        latency_ms=3.0,
+        request_id="embed-resolve-deny-001",
+    )
+    vector_store.enqueue_response(
+        records=[
+            VectorStoreRecord(
+                id="doc-resolve-deny-001",
+                content="Sample content.",
+                score=0.97,
+                metadata={"source": "kb"},
+            ),
+        ],
+        provider="fake-vector-provider",
+        index="test-index",
+        latency_ms=4.0,
+        request_id="search-resolve-deny-001",
+    )
+    llm.enqueue_response(
+        content="Sample answer [DOC 1]",
+        model="fake-gpt",
+        provider="fake-provider",
+        latency_ms=10.0,
+        request_id="req-resolve-deny-001",
+        prompt_tokens=10,
+        completion_tokens=5,
+    )
+
+    engine = RAGControl(
+        llm=llm,
+        query_embedding=query_embedding,
+        vector_store=vector_store,
+        config=fake_config,
+        metrics_recorder=metrics_recorder,
+    )
+    user_context = UserContext(
+        user_id="u-resolve-deny-1",
+        org_id="test_org",
+        attributes={},
+    )
+
+    engine.run("test query", user_context=user_context)
+
+    # Find resolve_deny stage duration metrics
+    stage_duration_calls = [
+        c for c in metrics_recorder.calls if c["name"] == "rag_control.stage.duration_ms"
+    ]
+    resolve_deny_calls = [
+        c for c in stage_duration_calls if c["stage"] == "resolve_deny" and c["status"] == "ok"
+    ]
+
+    # Should have exactly one resolve_deny stage metric with ok status
+    assert len(resolve_deny_calls) == 1
+    assert resolve_deny_calls[0]["kind"] == "histogram"
+    assert resolve_deny_calls[0]["unit"] == "ms"
+    assert resolve_deny_calls[0]["value"] > 0
+    assert resolve_deny_calls[0]["mode"] == "run"
+    assert resolve_deny_calls[0]["org_id"] == "test_org"
