@@ -202,6 +202,82 @@ def test_governance_registry_sorts_policy_rules_by_priority_descending() -> None
     assert priorities == [100, 90, 85, 80, 70, 65, 60]
 
 
+def test_governance_registry_sorts_deny_rules_by_priority_descending() -> None:
+    """Test that deny_rules are sorted by priority in descending order."""
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="test_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_priority_50",
+                            priority=50,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="status",
+                                        operator="equals",
+                                        value="pending",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        DenyRule(
+                            name="deny_priority_100",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="status",
+                                        operator="equals",
+                                        value="banned",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        DenyRule(
+                            name="deny_priority_75",
+                            priority=75,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="status",
+                                        operator="equals",
+                                        value="suspended",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+
+    org = registry.get_org("test_org")
+    assert org is not None
+    priorities = [rule.priority for rule in org.deny_rules]
+    # Should be sorted in descending order
+    assert priorities == [100, 75, 50]
+    rule_names = [rule.name for rule in org.deny_rules]
+    assert rule_names == ["deny_priority_100", "deny_priority_75", "deny_priority_50"]
+
+
 def test_governance_registry_resolve_policy_with_multiple_conditions() -> None:
     registry = GovernanceRegistry(_build_governance_config())
 
