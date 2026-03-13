@@ -121,22 +121,19 @@ Logged when request is denied during governance or policy checks (not during enf
 
 ### Organization Events
 
-#### organization.lookup
+#### org.resolved
 
 Logged after organization is successfully resolved:
 
 ```json
 {
-  "event": "organization.lookup",
+  "event": "org.resolved",
   "request_id": "550e8400-e29b-41d4-a716-446655440000",
   "trace_id": "550e8400-e29b-41d4-a716-446655440001",
   "org_id": "acme_corp",
   "user_id": "user-123",
   "mode": "run",
   "component": "rag_control.engine",
-  "status": "found",
-  "filter_name": "acme_filter",
-  "retrieval_top_k": 5,
   "level": "info"
 }
 ```
@@ -178,6 +175,8 @@ Logged when policy is determined for the request:
   "mode": "run",
   "component": "rag_control.engine",
   "policy_name": "strict_citations",
+  "top_k": 5,
+  "filter_name": "acme_filter",
   "level": "info"
 }
 ```
@@ -235,13 +234,12 @@ logging:
 
 Events logged:
 - request.received
-- organization.lookup
-- retrieval.completed
+- org.resolved
 - policy.resolved
+- retrieval.completed
 - enforcement.passed / enforcement.attached
 - request.completed
 - request.denied (on governance/policy denial)
-- All stage-specific metrics and trace events
 
 ### minimal
 

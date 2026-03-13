@@ -26,9 +26,10 @@ Requests create a nested span hierarchy. The root span is `rag_control.request.<
 ```
 rag_control.request.run (or .stream)
 ├── rag_control.request.run.stage.org_lookup
+├── rag_control.request.run.stage.policy.resolve
 ├── rag_control.request.run.stage.embedding
 ├── rag_control.request.run.stage.retrieval
-├── rag_control.request.run.stage.policy.resolve
+├── rag_control.request.run.stage.resolve_deny
 ├── rag_control.request.run.stage.prompt.build
 ├── rag_control.request.run.stage.llm.generate (or .llm.stream)
 └── rag_control.request.run.stage.enforcement
@@ -53,8 +54,7 @@ rag_control.request.run (or .stream)
 
 ```
 rag_control.request.run.stage.org_lookup
-├── filter_name: "enterprise_filter" (or null)
-├── retrieval_top_k: 5
+├── org_id: "acme_corp"
 └── stage_latency_ms: 2
 ```
 
@@ -81,7 +81,14 @@ rag_control.request.run.stage.retrieval
 ```
 rag_control.request.run.stage.policy.resolve
 ├── policy_name: "strict_citations"
-└── stage_latency_ms: 2
+└── stage_latency_ms: 5
+```
+
+### Deny Rule Resolution Span
+
+```
+rag_control.request.run.stage.resolve_deny
+└── stage_latency_ms: 1
 ```
 
 ### LLM Generation Span
@@ -108,6 +115,14 @@ rag_control.request.stream.stage.llm.stream
 ├── completion_tokens: 95
 ├── total_tokens: 245
 └── stage_latency_ms: 2000
+```
+
+### Prompt Building Span
+
+```
+rag_control.request.run.stage.prompt.build
+├── message_count: 3
+└── stage_latency_ms: 15
 ```
 
 ### Enforcement Span

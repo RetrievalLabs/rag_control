@@ -62,13 +62,7 @@ All metrics are prefixed with `rag_control.` in telemetry output.
 |--------|------|-------------|
 | `rag_control.embedding.dimensions` | Histogram | Embedding vector dimensions |
 
-### Enforcement Metrics
-
-| Metric | Type | Description |
-|--------|------|-------------|
-| `rag_control.enforcement.violation_count` | Counter | Policy enforcement violations by type (max_output_tokens, missing_citations, invalid_citations, external_knowledge, strict_fallback, unknown) |
-
-### Error Metrics
+### Error & Denial Metrics
 
 | Metric | Type | Description |
 |--------|------|-------------|
@@ -113,7 +107,7 @@ Error metrics include:
 |-------|----------|
 | `error_type` | Exception class name (e.g., `GovernanceUserContextOrgIDRequiredError`) |
 | `error_category` | `governance`, `enforcement`, `embedding`, `retrieval`, `llm`, `policy`, `other` |
-| `denial_reason` | `governance`, `enforcement`, `policy` (only for denied requests) |
+| `denial_reason` | `governance`, `enforcement`, `policy` (subset of error_category, only on denied requests) |
 
 ### Policy Labels
 
@@ -122,15 +116,6 @@ Error metrics include:
 | Label | Examples |
 |-------|----------|
 | `policy_name` | Policy identifier from configuration |
-
-### Enforcement Labels
-
-`rag_control.enforcement.violation_count` includes:
-
-| Label | Examples |
-|-------|----------|
-| `policy_name` | Policy identifier from configuration |
-| `violation_type` | `max_output_tokens`, `missing_citations`, `invalid_citations`, `external_knowledge`, `strict_fallback`, `unknown` |
 
 ## Metric Collection
 
