@@ -824,3 +824,1163 @@ def test_governance_registry_logical_condition_requires_all_and_any_when_both_pr
         )
         == "default_policy"
     )
+
+
+def test_governance_registry_resolve_deny_with_deny_rules() -> None:
+    """Test resolve_deny() method with deny rules matching user context."""
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="deny_test_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_suspicious_users",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="risk_level",
+                                        operator="equals",
+                                        value="critical",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        DenyRule(
+                            name="deny_from_blocked_regions",
+                            priority=90,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="region",
+                                        operator="equals",
+                                        value="blocked_zone",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+
+    # User matching deny rule should raise GovernancePolicyDeniedError
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry.resolve_deny(
+            UserContext(
+                user_id="u-critical",
+                org_id="deny_test_org",
+                attributes={"risk_level": "critical"},
+            )
+        )
+    assert exc_info.value.rule_name == "deny_suspicious_users"
+
+    # User not matching any deny rule should pass
+    registry.resolve_deny(
+        UserContext(
+            user_id="u-safe",
+            org_id="deny_test_org",
+            attributes={"risk_level": "low"},
+        )
+    )
+
+
+def test_governance_registry_resolve_deny_with_document_source_conditions() -> None:
+    """Test resolve_deny() with document source conditions."""
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="doc_test_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_if_any_doc_has_pii_tag",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="metadata.tags",
+                                        operator="intersects",
+                                        value="pii",
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                        DenyRule(
+                            name="deny_if_all_docs_sensitive",
+                            priority=90,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="metadata.classification",
+                                        operator="equals",
+                                        value="secret",
+                                        source="documents",
+                                        document_match="all",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+
+    user = UserContext(user_id="u-1", org_id="doc_test_org", attributes={})
+    docs_with_pii = [
+        VectorStoreRecord(
+            id="doc1",
+            content="content",
+            score=0.9,
+            metadata={"tags": ["pii", "sensitive"]},
+        )
+    ]
+
+    # Should deny when any doc has PII tag
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry.resolve_deny(user, source_documents=docs_with_pii)
+    assert exc_info.value.rule_name == "deny_if_any_doc_has_pii_tag"
+
+    # Should allow when no docs have PII tag
+    docs_without_pii = [
+        VectorStoreRecord(
+            id="doc1",
+            content="content",
+            score=0.9,
+            metadata={"tags": ["public", "general"]},
+        )
+    ]
+    registry.resolve_deny(user, source_documents=docs_without_pii)
+
+    # Should deny when all docs are secret
+    all_secret_docs = [
+        VectorStoreRecord(
+            id="doc1",
+            content="content",
+            score=0.9,
+            metadata={"classification": "secret"},
+        ),
+        VectorStoreRecord(
+            id="doc2",
+            content="content",
+            score=0.8,
+            metadata={"classification": "secret"},
+        ),
+    ]
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry.resolve_deny(user, source_documents=all_secret_docs)
+    assert exc_info.value.rule_name == "deny_if_all_docs_sensitive"
+
+    # Should allow when not all docs are secret
+    mixed_docs = [
+        VectorStoreRecord(
+            id="doc1",
+            content="content",
+            score=0.9,
+            metadata={"classification": "secret"},
+        ),
+        VectorStoreRecord(
+            id="doc2",
+            content="content",
+            score=0.8,
+            metadata={"classification": "public"},
+        ),
+    ]
+    registry.resolve_deny(user, source_documents=mixed_docs)
+
+
+def test_governance_registry_with_audit_logging_context() -> None:
+    """Test resolve_deny() and resolve_policy() with audit logging."""
+    logged_events = []
+
+    class MockAuditLogger:
+        def log_event(self, event: str, *, level: str = "info", **fields: Any) -> None:
+            logged_events.append({"event": event, "level": level, **fields})
+
+    class MockAuditContext:
+        def __init__(self) -> None:
+            self.logger = MockAuditLogger()
+
+        def log_event(self, event: str, **kwargs: Any) -> None:
+            self.logger.log_event(event, **kwargs)
+
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="audit_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="deny_rule_audit",
+                            priority=100,
+                            effect="deny",
+                            when=PolicyRuleLogicalCondition(
+                                any=[
+                                    PolicyRuleCondition(
+                                        field="status",
+                                        operator="equals",
+                                        value="blocked",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        )
+                    ],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_high_risk",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="risk",
+                                        operator="equals",
+                                        value="high",
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        )
+                    ],
+                )
+            ],
+        )
+    )
+
+    # Test resolve_deny() with audit logging
+    logged_events.clear()
+    audit_context = MockAuditContext()
+    user_high_risk = UserContext(
+        user_id="u-risk", org_id="audit_org", attributes={"risk": "high"}
+    )
+
+    with pytest.raises(GovernancePolicyDeniedError):
+        registry.resolve_deny(user_high_risk, audit_context=audit_context)
+
+    assert len(logged_events) == 1
+    event = logged_events[0]
+    assert event["event"] == "request.denied"
+    assert event["rule_name"] == "deny_high_risk"
+    assert event["error_type"] == "GovernancePolicyDeniedError"
+    assert "governance policy denied" in event["error_message"]
+
+    # Test resolve_policy() with deny effect and audit logging
+    logged_events.clear()
+    user_blocked = UserContext(
+        user_id="u-blocked", org_id="audit_org", attributes={"status": "blocked"}
+    )
+
+    with pytest.raises(GovernancePolicyDeniedError):
+        registry.resolve_policy(user_blocked, audit_context=audit_context)
+
+    assert len(logged_events) == 1
+    event = logged_events[0]
+    assert event["event"] == "request.denied"
+    assert event["rule_name"] == "deny_rule_audit"
+    assert event["error_type"] == "GovernancePolicyDeniedError"
+
+
+def test_governance_registry_deny_logical_condition_all_and_any() -> None:
+    """Test _matches_deny_logical_condition() with all and any combinations."""
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="logical_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_all_and_any",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                all=[
+                                    DenyRuleCondition(
+                                        field="department",
+                                        operator="equals",
+                                        value="finance",
+                                        source="user",
+                                    )
+                                ],
+                                any=[
+                                    DenyRuleCondition(
+                                        field="risk",
+                                        operator="equals",
+                                        value="high",
+                                        source="user",
+                                    )
+                                ],
+                            ),
+                        )
+                    ],
+                )
+            ],
+        )
+    )
+
+    # all=True, any=True -> deny
+    with pytest.raises(GovernancePolicyDeniedError):
+        registry.resolve_deny(
+            UserContext(
+                user_id="u-deny",
+                org_id="logical_org",
+                attributes={"department": "finance", "risk": "high"},
+            )
+        )
+
+    # all=True, any=False -> allow
+    registry.resolve_deny(
+        UserContext(
+            user_id="u-allow-1",
+            org_id="logical_org",
+            attributes={"department": "finance", "risk": "low"},
+        )
+    )
+
+    # all=False, any=True -> allow
+    registry.resolve_deny(
+        UserContext(
+            user_id="u-allow-2",
+            org_id="logical_org",
+            attributes={"department": "hr", "risk": "high"},
+        )
+    )
+
+    # all=False, any=False -> allow
+    registry.resolve_deny(
+        UserContext(
+            user_id="u-allow-3",
+            org_id="logical_org",
+            attributes={"department": "hr", "risk": "low"},
+        )
+    )
+
+
+def test_governance_registry_empty_deny_rules_list() -> None:
+    """Test organization with empty deny rules list resolves correctly."""
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="test_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[],  # Empty deny rules
+                )
+            ],
+        )
+    )
+
+    # Should allow when deny_rules is empty
+    registry.resolve_deny(
+        UserContext(
+            user_id="u-1",
+            org_id="test_org",
+            attributes={"tier": "standard"},
+        )
+    )
+
+
+def test_governance_registry_deny_condition_numeric_operators_all_branches() -> None:
+    """Test all numeric operators (lt, lte, gt, gte) in deny conditions."""
+    # Each operator tested with separate registry to avoid priority conflicts
+
+    # Test lt operator
+    registry_lt = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="numeric_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_score_lt_20",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="score",
+                                        operator="lt",
+                                        value=20,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry_lt.resolve_deny(
+            UserContext(user_id="u-1", org_id="numeric_org", attributes={"score": 10})
+        )
+    assert exc_info.value.rule_name == "deny_score_lt_20"
+
+    # Test lte operator
+    registry_lte = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="numeric_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_score_lte_30",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="score",
+                                        operator="lte",
+                                        value=30,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry_lte.resolve_deny(
+            UserContext(user_id="u-2", org_id="numeric_org", attributes={"score": 30})
+        )
+    assert exc_info.value.rule_name == "deny_score_lte_30"
+
+    # Test gt operator
+    registry_gt = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="numeric_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_score_gt_80",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="score",
+                                        operator="gt",
+                                        value=80,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry_gt.resolve_deny(
+            UserContext(user_id="u-3", org_id="numeric_org", attributes={"score": 85})
+        )
+    assert exc_info.value.rule_name == "deny_score_gt_80"
+
+    # Test gte operator
+    registry_gte = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="numeric_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_score_gte_90",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="score",
+                                        operator="gte",
+                                        value=90,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry_gte.resolve_deny(
+            UserContext(user_id="u-4", org_id="numeric_org", attributes={"score": 95})
+        )
+    assert exc_info.value.rule_name == "deny_score_gte_90"
+
+
+def test_governance_registry_policy_condition_numeric_operators_all_branches() -> None:
+    """Test all numeric operators (lt, lte, gt, gte) in policy conditions."""
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="premium_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="standard_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="vip_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="numeric_policy_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_score_lt_30",
+                            priority=40,
+                            effect="allow",
+                            apply_policy="standard_policy",
+                            when=PolicyRuleLogicalCondition(
+                                any=[
+                                    PolicyRuleCondition(
+                                        field="score",
+                                        operator="lt",
+                                        value=30,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_score_lte_50",
+                            priority=30,
+                            effect="allow",
+                            apply_policy="premium_policy",
+                            when=PolicyRuleLogicalCondition(
+                                any=[
+                                    PolicyRuleCondition(
+                                        field="score",
+                                        operator="lte",
+                                        value=50,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_score_gt_70",
+                            priority=20,
+                            effect="allow",
+                            apply_policy="vip_policy",
+                            when=PolicyRuleLogicalCondition(
+                                any=[
+                                    PolicyRuleCondition(
+                                        field="score",
+                                        operator="gt",
+                                        value=70,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                        PolicyRule(
+                            name="allow_score_gte_85",
+                            priority=10,
+                            effect="allow",
+                            apply_policy="vip_policy",
+                            when=PolicyRuleLogicalCondition(
+                                any=[
+                                    PolicyRuleCondition(
+                                        field="score",
+                                        operator="gte",
+                                        value=85,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                    deny_rules=[],
+                )
+            ],
+        )
+    )
+
+    # Test lt operator
+    assert (
+        registry.resolve_policy(
+            UserContext(user_id="u-1", org_id="numeric_policy_org", attributes={"score": 20})
+        )
+        == "standard_policy"
+    )
+
+    # Test lte operator
+    assert (
+        registry.resolve_policy(
+            UserContext(user_id="u-2", org_id="numeric_policy_org", attributes={"score": 50})
+        )
+        == "premium_policy"
+    )
+
+    # Test gt operator
+    assert (
+        registry.resolve_policy(
+            UserContext(user_id="u-3", org_id="numeric_policy_org", attributes={"score": 75})
+        )
+        == "vip_policy"
+    )
+
+    # Test gte operator
+    assert (
+        registry.resolve_policy(
+            UserContext(user_id="u-4", org_id="numeric_policy_org", attributes={"score": 90})
+        )
+        == "vip_policy"
+    )
+
+
+def test_governance_registry_document_condition_all_operators() -> None:
+    """Test all operators in document conditions."""
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="doc_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_if_doc_score_lt_threshold",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="score",
+                                        operator="lt",
+                                        value=0.5,
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                        DenyRule(
+                            name="deny_if_doc_score_lte",
+                            priority=90,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="score",
+                                        operator="lte",
+                                        value=0.5,
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                        DenyRule(
+                            name="deny_if_doc_score_gt",
+                            priority=80,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="score",
+                                        operator="gt",
+                                        value=0.9,
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                        DenyRule(
+                            name="deny_if_doc_score_gte",
+                            priority=70,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="score",
+                                        operator="gte",
+                                        value=0.9,
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                        DenyRule(
+                            name="deny_if_doc_classification_equals",
+                            priority=60,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="metadata.classification",
+                                        operator="equals",
+                                        value="confidential",
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                        DenyRule(
+                            name="deny_if_doc_has_tags",
+                            priority=50,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="metadata.tags",
+                                        operator="intersects",
+                                        value="restricted",
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        ),
+                    ],
+                )
+            ],
+        )
+    )
+
+    user = UserContext(user_id="u-1", org_id="doc_org", attributes={})
+
+    # Test lt operator on document score
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry.resolve_deny(
+            user,
+            source_documents=[
+                VectorStoreRecord(id="d1", content="c", score=0.3, metadata={})
+            ],
+        )
+    assert exc_info.value.rule_name == "deny_if_doc_score_lt_threshold"
+
+    # Test lte operator on document score
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry.resolve_deny(
+            user,
+            source_documents=[
+                VectorStoreRecord(id="d1", content="c", score=0.5, metadata={})
+            ],
+        )
+    assert exc_info.value.rule_name == "deny_if_doc_score_lte"
+
+    # Test gt operator on document score
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry.resolve_deny(
+            user,
+            source_documents=[
+                VectorStoreRecord(id="d1", content="c", score=0.95, metadata={})
+            ],
+        )
+    assert exc_info.value.rule_name == "deny_if_doc_score_gt"
+
+    # Test gte operator on document score
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry.resolve_deny(
+            user,
+            source_documents=[
+                VectorStoreRecord(id="d1", content="c", score=0.9, metadata={})
+            ],
+        )
+    assert exc_info.value.rule_name == "deny_if_doc_score_gte"
+
+    # Test equals operator on document metadata
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry.resolve_deny(
+            user,
+            source_documents=[
+                VectorStoreRecord(
+                    id="d1",
+                    content="c",
+                    score=0.7,
+                    metadata={"classification": "confidential"},
+                )
+            ],
+        )
+    assert exc_info.value.rule_name == "deny_if_doc_classification_equals"
+
+    # Test intersects operator on document metadata list
+    with pytest.raises(GovernancePolicyDeniedError) as exc_info:
+        registry.resolve_deny(
+            user,
+            source_documents=[
+                VectorStoreRecord(
+                    id="d1",
+                    content="c",
+                    score=0.7,
+                    metadata={"tags": ["restricted", "internal"]},
+                )
+            ],
+        )
+    assert exc_info.value.rule_name == "deny_if_doc_has_tags"
+
+
+def test_governance_registry_document_condition_exists_operator() -> None:
+    """Test exists operator in document conditions."""
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="doc_exists_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_if_doc_has_classification",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="metadata.classification",
+                                        operator="exists",
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        )
+                    ],
+                )
+            ],
+        )
+    )
+
+    user = UserContext(user_id="u-1", org_id="doc_exists_org", attributes={})
+
+    # Should deny when doc has classification field
+    with pytest.raises(GovernancePolicyDeniedError):
+        registry.resolve_deny(
+            user,
+            source_documents=[
+                VectorStoreRecord(
+                    id="d1",
+                    content="c",
+                    score=0.7,
+                    metadata={"classification": "public"},
+                )
+            ],
+        )
+
+    # Should allow when doc doesn't have classification field
+    registry.resolve_deny(
+        user,
+        source_documents=[VectorStoreRecord(id="d1", content="c", score=0.7, metadata={})],
+    )
+
+
+def test_governance_registry_condition_type_mismatch_edge_cases() -> None:
+    """Test edge cases where condition values don't match expected types."""
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+                Policy(
+                    name="premium_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                ),
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="type_mismatch_org",
+                    default_policy="default_policy",
+                    policy_rules=[
+                        PolicyRule(
+                            name="allow_numeric_comparison",
+                            priority=100,
+                            effect="allow",
+                            apply_policy="premium_policy",
+                            when=PolicyRuleLogicalCondition(
+                                any=[
+                                    PolicyRuleCondition(
+                                        field="score",
+                                        operator="gte",
+                                        value=80,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        )
+                    ],
+                    deny_rules=[],
+                )
+            ],
+        )
+    )
+
+    # String value with numeric operator should fall back to default
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-1",
+                org_id="type_mismatch_org",
+                attributes={"score": "very high"},  # String instead of number
+            )
+        )
+        == "default_policy"
+    )
+
+    # List value with numeric operator should fall back to default
+    assert (
+        registry.resolve_policy(
+            UserContext(
+                user_id="u-2",
+                org_id="type_mismatch_org",
+                attributes={"score": [80, 90]},  # List instead of number
+            )
+        )
+        == "default_policy"
+    )
+
+
+def test_governance_registry_deny_condition_type_mismatch_edge_cases() -> None:
+    """Test edge cases in deny conditions with type mismatches."""
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="deny_type_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_high_score",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="score",
+                                        operator="gte",
+                                        value=80,
+                                        source="user",
+                                    )
+                                ]
+                            ),
+                        )
+                    ],
+                )
+            ],
+        )
+    )
+
+    # String value with numeric operator should not match
+    registry.resolve_deny(
+        UserContext(
+            user_id="u-1",
+            org_id="deny_type_org",
+            attributes={"score": "very high"},  # String instead of number
+        )
+    )
+
+    # List value with numeric operator should not match
+    registry.resolve_deny(
+        UserContext(
+            user_id="u-2",
+            org_id="deny_type_org",
+            attributes={"score": [80, 90]},  # List instead of number
+        )
+    )
+
+
+def test_governance_registry_document_condition_with_empty_source_documents() -> None:
+    """Test document conditions when source_documents list is empty."""
+    registry = GovernanceRegistry(
+        ControlPlaneConfig(
+            policies=[
+                Policy(
+                    name="default_policy",
+                    generation=GenerationPolicy(),
+                    logging=LoggingPolicy(),
+                    enforcement=EnforcementPolicy(),
+                )
+            ],
+            filters=[],
+            orgs=[
+                OrgConfig(
+                    org_id="empty_docs_org",
+                    default_policy="default_policy",
+                    policy_rules=[],
+                    deny_rules=[
+                        DenyRule(
+                            name="deny_with_docs",
+                            priority=100,
+                            when=DenyRuleLogicalCondition(
+                                any=[
+                                    DenyRuleCondition(
+                                        field="metadata.score",
+                                        operator="gt",
+                                        value=0.5,
+                                        source="documents",
+                                        document_match="any",
+                                    )
+                                ]
+                            ),
+                        )
+                    ],
+                )
+            ],
+        )
+    )
+
+    user = UserContext(user_id="u-1", org_id="empty_docs_org", attributes={})
+
+    # Should allow when source_documents is empty (no docs to match condition)
+    registry.resolve_deny(user, source_documents=[])
+
+    # Should also allow when source_documents is None (handled as empty list)
+    registry.resolve_deny(user, source_documents=None)
+
+

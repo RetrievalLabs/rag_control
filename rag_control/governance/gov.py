@@ -143,7 +143,7 @@ class GovernanceRegistry:
         any_match = (
             len(any_conditions) > 0
             and any(
-                GovernanceRegistry._matches_condition(condition, user_context, source_documents)
+                GovernanceRegistry._matches_deny_condition(condition, user_context, source_documents)
                 for condition in any_conditions
             )
             if any_conditions is not None
