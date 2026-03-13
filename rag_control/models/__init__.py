@@ -7,6 +7,7 @@ from rag_control.adapters.llm import ChatMessage, PromptInput
 
 from .config import ControlPlaneConfig
 from .deny_rule import DenyRule, DenyRuleCondition, DenyRuleLogicalCondition
+from .document import DocumentPolicy
 from .filter import Filter, FilterCondition
 from .llm import (
     LLMMetadata,
@@ -15,7 +16,7 @@ from .llm import (
     LLMStreamResponse,
     LLMUsage,
 )
-from .org import DocumentPolicy, OrgConfig
+from .org import OrgConfig
 from .policy import EnforcementPolicy, GenerationPolicy, LoggingPolicy, Policy
 from .policy_rule import PolicyRule
 from .query_embedding import QueryEmbeddingMetadata, QueryEmbeddingResponse

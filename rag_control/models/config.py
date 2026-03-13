@@ -110,13 +110,13 @@ class ControlPlaneConfig(BaseModel):
                         f"'{rule.apply_policy}' does not exist"
                     )
 
-            deny_rule_names = [rule.name for rule in org.deny_rules]
+            deny_rule_names = [deny_rule.name for deny_rule in org.deny_rules]
             if len(deny_rule_names) != len(set(deny_rule_names)):
                 raise ControlPlaneConfigValidationError(
                     f"org '{org.org_id}' deny_rules must have unique names"
                 )
 
-            deny_rule_priorities = [rule.priority for rule in org.deny_rules]
+            deny_rule_priorities = [deny_rule.priority for deny_rule in org.deny_rules]
             if any(priority <= 0 for priority in deny_rule_priorities):
                 raise ControlPlaneConfigValidationError(
                     f"org '{org.org_id}' deny_rules priorities must be greater than 0"
@@ -126,8 +126,10 @@ class ControlPlaneConfig(BaseModel):
                     f"org '{org.org_id}' deny_rules priorities must be unique"
                 )
 
-            for rule in org.deny_rules:
-                self._validate_rule_conditions(org.org_id, rule.name, rule.when, is_deny_rule=True)
+            for deny_rule in org.deny_rules:
+                self._validate_rule_conditions(
+                    org.org_id, deny_rule.name, deny_rule.when, is_deny_rule=True
+                )
 
         return self
 

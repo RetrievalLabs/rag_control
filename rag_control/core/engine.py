@@ -206,6 +206,7 @@ class RAGControl:
                     audit_context=audit_context,
                 )
                 policy = engine.policy_registry.get(policy_name)
+                assert policy is not None, f"Policy '{policy_name}' not found"
                 audit_context.logging_level = policy.logging.level
                 return policy
 

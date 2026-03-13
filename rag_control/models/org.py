@@ -6,6 +6,7 @@ Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
 from pydantic import BaseModel
 
 from .deny_rule import DenyRule
+from .document import DocumentPolicy
 from .policy_rule import PolicyRule
 
 
@@ -14,4 +15,5 @@ class OrgConfig(BaseModel):
     description: str | None = None
     default_policy: str
     policy_rules: list[PolicyRule]
-    deny_rules: list[DenyRule]
+    deny_rules: list[DenyRule] = []
+    document_policy: DocumentPolicy = DocumentPolicy()
