@@ -193,7 +193,6 @@ class RAGControl:
 
             audit_context.log_event(
                 "org.resolved",
-                org_id=org.org_id,
             )
 
             trace_span.event(
@@ -208,7 +207,8 @@ class RAGControl:
                 )
                 policy = engine.policy_registry.get(policy_name)
                 audit_context.logging_level = policy.logging.level
-            
+                return policy
+
             policy = engine._run_stage(
                 trace_span,
                 engine._trace_stage_span_name(mode, "policy.resolve"),
@@ -221,7 +221,7 @@ class RAGControl:
             )
 
             policy_name = policy.name
-            audit_context.log_event("policy.resolved", policy_name=policy_name, org_id=org_id, top_k=policy.document_policy.top_k, filter_name=policy.document_policy.filter_name)
+            audit_context.log_event("policy.resolved", policy_name=policy_name, top_k=policy.document_policy.top_k, filter_name=policy.document_policy.filter_name)
                 
             retrieval_filter = (
                 engine.filter_registry.get(policy.document_policy.filter_name)
@@ -273,7 +273,7 @@ class RAGControl:
                     "returned": search_res.metadata.returned,
                 },
                 metrics_labels={"mode": mode, "stage": "retrieval", "org_id": org_id or ""},
-                top_k=org.document_policy.top_k,
+                top_k=policy.document_policy.top_k,
             )
             docs = retrieve_res.records
             retrieved_doc_ids = [doc.id for doc in docs]
@@ -520,8 +520,8 @@ class RAGControl:
                     org_id=org_id,
                     user_id=user_context.user_id,
                     trace_id=trace_id,
-                    filter_name=org.document_policy.filter_name,
-                    retrieval_top_k=org.document_policy.top_k,
+                    filter_name=policy.document_policy.filter_name,
+                    retrieval_top_k=policy.document_policy.top_k,
                     retrieved_count=len(docs),
                     enforcement_attached=True,
                     response=enforced_response,
@@ -531,8 +531,8 @@ class RAGControl:
                 org_id=org_id,
                 user_id=user_context.user_id,
                 trace_id=trace_id,
-                filter_name=org.document_policy.filter_name,
-                retrieval_top_k=org.document_policy.top_k,
+                filter_name=policy.document_policy.filter_name,
+                retrieval_top_k=policy.document_policy.top_k,
                 retrieved_count=len(docs),
                 enforcement_passed=True,
                 response=enforced_response,

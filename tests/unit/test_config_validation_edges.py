@@ -13,7 +13,7 @@ from pydantic import ValidationError
 
 from rag_control.exceptions import ControlPlaneConfigValidationError
 from rag_control.models.config import ControlPlaneConfig
-from rag_control.models.filter import Condition as FilterCondition
+from rag_control.models.filter import FilterCondition
 from rag_control.models.filter import Filter
 
 
