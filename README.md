@@ -4,6 +4,8 @@ A runtime governance, security, and execution control layer for Retrieval-Augmen
 
 **rag_control** provides enterprise-grade policy enforcement, security governance, and observability for RAG applications. Control what your RAG system retrieves, how it generates responses, and enforce compliance policies at runtime.
 
+> ⭐ **If you find this project helpful, please star it on GitHub!** Your support helps us grow the community and continue improving rag_control.
+
 ## Overview
 
 RAG systems are powerful but can be risky in production:
@@ -328,10 +330,7 @@ See the `examples/` directory for:
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines:
-- **Issues**: Anyone can open issues, bugs, and feature requests
-- **Pull Requests**: RetrievalLabs team members only
-- **Code Standards**: 100% coverage, type checking, formatting compliance required
+See [CONTRIBUTING.md](CONTRIBUTING.md) 
 
 ## Support
 
@@ -341,14 +340,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines:
 
 ## License
 
-This project is licensed under the **RetrievalLabs Business-Restricted License (RBRL)**.
-
-- **Personal/Non-Commercial Use**: Permitted
-- **Business/Commercial Use**: Prohibited without a written contract with RetrievalLabs Co.
-- **Modifications/Derivative Works**: Prohibited without a written contract with RetrievalLabs Co.
+This project is licensed under the **Apache License 2.0**.
 
 See [LICENSE](LICENSE) for full terms.
 
----
-
-**Built by [RetrievalLabs](https://retrievallabs.ai)** — Enterprise RAG Governance and Security

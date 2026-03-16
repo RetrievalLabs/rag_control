@@ -1,6 +1,6 @@
 """
-Copyright (c) 2026 RetrievalLabs Co. All rights reserved.
-Licensed under the RetrievalLabs Business-Restricted License (RBRL) v1.0.
+Copyright (c) 2026. All rights reserved.
+Licensed under the Apache License 2.0.
 """
 
 from rag_control.filter.filter import FilterRegistry

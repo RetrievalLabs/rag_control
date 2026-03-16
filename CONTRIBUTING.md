@@ -13,12 +13,20 @@ Thank you for your interest in contributing to rag_control! We welcome community
 
 ## Pull Requests
 
-**Pull requests can only be submitted by members of RetrievalLabs.** This ensures quality control and alignment with our roadmap and architecture decisions.
+**Anyone can submit a pull request!** We welcome contributions from the community. To ensure quality and maintainability:
 
-If you're not a RetrievalLabs team member but want to contribute code:
-- Open an issue describing your proposed changes
-- Discuss the approach with the team
-- We'll provide guidance and may work with you on implementation
+1. **Before You Start**: Open an issue first to discuss your proposed changes
+2. **Follow Quality Standards**:
+   - All tests must pass: `make test`
+   - 100% code coverage required: `make coverage`
+   - Type checking: `make typecheck`
+   - Linting: `make lint`
+   - Formatting: `make format`
+3. **PR Guidelines**:
+   - Use descriptive branch names (e.g., `feat/add-feature`, `fix/issue-123`)
+   - Keep commits atomic and well-described
+   - Reference related issues in PR description
+   - Write clear PR descriptions explaining your changes
 
 ## Getting Involved
 
@@ -32,30 +40,9 @@ If you're interested in joining the RetrievalLabs team or becoming a regular con
 - Focus on the issue or idea, not personal criticism
 - Help others learn and grow
 
-## For Team Members
+## Development Setup
 
-If you're a RetrievalLabs team member making a PR:
+For detailed setup instructions and development guidelines, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
-1. **Read the Development Guide**: See [DEVELOPMENT.md](DEVELOPMENT.md) for setup and quality standards
-2. **Quality Standards**:
-   - All tests must pass: `make test`
-   - 100% code coverage required: `make coverage`
-   - Type checking: `make typecheck`
-   - Linting: `make lint`
-   - Formatting: `make format`
-3. **PR Guidelines**:
-   - Use descriptive branch names (e.g., `feat/add-feature`, `fix/issue-123`)
-   - Keep commits atomic and well-described
-   - Reference related issues in PR description
-   - Request review from appropriate team members
-4. **License**: Ensure compliance with the RetrievalLabs Business-Restricted License (RBRL)
 
-## License
 
-By contributing to this project, you agree to the terms of the [RetrievalLabs Business-Restricted License (RBRL)](LICENSE). All contributions are subject to the license terms specified in the LICENSE file.
-
-## Questions?
-
-If you have questions about contributing, please open an issue or reach out to the RetrievalLabs team.
-
-Thank you for supporting rag_control!

@@ -5,13 +5,14 @@ description: rag_control licensing information
 
 # License
 
-rag_control is licensed under the **RetrievalLabs Business-Restricted License (RBRL)**.
+rag_control is licensed under the **Apache License 2.0**.
 
 ## Quick Summary
 
 - **Personal/Non-Commercial Use**: ✅ Permitted
-- **Business/Commercial Use**: ❌ Prohibited without a contract
-- **Modifications/Derivative Works**: ❌ Prohibited without a contract
+- **Business/Commercial Use**: ✅ Permitted
+- **Modifications/Derivative Works**: ✅ Permitted
+- **Distribution**: ✅ Permitted (with license included)
 
 ## Full License
 
@@ -19,15 +20,23 @@ See the complete license terms at:
 
 📄 [`LICENSE`](https://github.com/RetrievalLabs/rag_control/blob/main/LICENSE)
 
-## Commercial Licensing
+## Key Points
 
-For commercial use, modifications, or derivative works, you need a written contract with RetrievalLabs Co.
+Under the Apache License 2.0, you may:
+- Use the software for any purpose (commercial, personal, or otherwise)
+- Modify and distribute the software
+- Include the software in proprietary applications
 
-Please contact: [licenses@retrievallabs.ai](mailto:licenses@retrievallabs.ai)
+You must:
+- Include a copy of the Apache License 2.0
+- Include a notice of changes made to the software
+- Include attribution to the original authors
+
+For full details, see the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) text.
 
 ## Open Source Components
 
-rag_control includes open source components licensed under:
+rag_control depends on other open source projects licensed under:
 
 - **Apache License 2.0**: Pydantic, OpenTelemetry
 - **MIT License**: Structlog
@@ -37,13 +46,13 @@ See individual component licenses for full details.
 
 ## Contributing
 
-By contributing to rag_control, you agree that your contributions will be licensed under the same RBRL license.
+By contributing to rag_control, you agree that your contributions will be licensed under the Apache License 2.0.
 
-Contributions are welcome! Please see the [GitHub repository](https://github.com/RetrievalLabs/rag_control) for contribution guidelines.
+We welcome contributions from everyone! Please see [CONTRIBUTING.md](https://github.com/RetrievalLabs/rag_control/blob/main/CONTRIBUTING.md) for guidelines.
 
 ## Questions?
 
-For licensing questions or inquiries:
+For licensing questions:
 
-- 📧 Email: [licenses@retrievallabs.ai](mailto:licenses@retrievallabs.ai)
-- 🌐 Website: [RetrievalLabs.ai](https://retrievallabs.ai)
+- 📄 See [`LICENSE`](https://github.com/RetrievalLabs/rag_control/blob/main/LICENSE) for full terms
+- 🐙 Open an issue on [GitHub](https://github.com/RetrievalLabs/rag_control)
