@@ -4,6 +4,8 @@ A runtime governance, security, and execution control layer for Retrieval-Augmen
 
 **rag_control** provides enterprise-grade policy enforcement, security governance, and observability for RAG applications. Control what your RAG system retrieves, how it generates responses, and enforce compliance policies at runtime.
 
+> ⭐ **If you find this project helpful, please star it on GitHub!** Your support helps us grow the community and continue improving rag_control.
+
 ## Overview
 
 RAG systems are powerful but can be risky in production:
