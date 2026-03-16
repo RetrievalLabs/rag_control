@@ -9,6 +9,32 @@
 - Python 3.10 or higher
 - [uv](https://docs.astral.sh/uv/) for dependency management
 - Node.js and npm (for building and serving documentation)
+- Git for version control
+
+## Quick Start
+
+Get up and running in 5 minutes:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/RetrievalLabs/rag_control.git
+cd rag_control
+
+# 2. Create and activate virtual environment
+make venv
+source .venv/bin/activate
+
+# 3. Install all development dependencies
+make install-dev
+
+# 4. Run tests to verify setup
+make test
+
+# 5. Run quality checks
+make typecheck && make lint && make format
+```
+
+That's it! You're ready to start developing. See the sections below for detailed information.
 
 ## Development Setup
 
@@ -386,7 +412,8 @@ make install-dev
 
 - **Spec Documentation**: See `rag_control/spec/` for detailed contracts
 - **Examples**: See `examples/` directory for usage examples
-- **License**: See `LICENSE` for RetrievalLabs Business-Restricted License terms
+- **Contributing Guide**: See `CONTRIBUTING.md` for contribution guidelines
+- **License**: See `LICENSE` for Apache License 2.0 terms
 
 ## Getting Help
 
