@@ -35,11 +35,7 @@ The output will be in the `build/` directory.
 
 ## Deployment
 
-The documentation is automatically deployed on changes to the main branch. To manually deploy:
-
-```bash
-npm run deploy
-```
+Cloudflare Pages builds and deploys this directory from the `main` branch on every push. The Pages project is `rag-control-docs`; its custom domain is `rag-control.retrievallabs.org`.
 
 ## Documentation Structure
 
@@ -175,8 +171,7 @@ See [Contributing Guide](/docs/development/contributing.md) for guidelines.
 
 ## Deployment URLs
 
-- **Production**: https://rag-control-docs.retrievallabs.ai
-- **Staging**: (configured in deployment pipeline)
+- **Production**: https://rag-control.retrievallabs.org
 
 ## Support
 
