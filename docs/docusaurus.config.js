@@ -12,7 +12,7 @@ const config = {
   tagline: 'Runtime Governance, Security, and Execution Control for RAG Systems',
 
   // Set the production url of your site here
-  url: 'https://rag-control.retrievallabs.ai',
+  url: 'https://rag-control.retrievallabs.org',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
